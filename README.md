@@ -124,6 +124,24 @@ git push origin ten-nhanh-cua-ban
 
 Lệnh chia nhánh và merge dành cho trưởng nhóm sẽ được hướng dẫn riêng để README không làm các thành viên bị rối.
 
+## Thiết lập lần đầu cho thành viên
+
+Mỗi thành viên dùng đúng nhánh cá nhân do trưởng nhóm đã tạo. Thay `feature/ten-thanh-vien` bằng tên nhánh được giao.
+
+```powershell
+git clone https://github.com/xinchaotamhon/furneeHome.git
+cd furneeHome
+git fetch origin
+git branch -r
+git switch --track origin/feature/ten-thanh-vien
+cd client
+npm ci
+cd ..\server
+npm ci
+```
+
+`client` và `server` có `package.json` cùng `package-lock.json` riêng, nên phải chạy `npm ci` ở cả hai thư mục. Không gửi hoặc commit `node_modules`, không commit `.env`. Thành viên chỉ push lên nhánh cá nhân; `main` do trưởng nhóm quản lý và trưởng nhóm sẽ tự merge.
+
 ## Quy tắc package và biến môi trường
 
 - Frontend chỉ cài package trong `client`; backend chỉ cài package trong `server`.
