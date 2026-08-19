@@ -159,3 +159,26 @@ furneehome/
 - `furniture-store.txt`: Bản phác thảo kiến trúc ý tưởng ban đầu của nhóm.
 - `G5_furniture-store_Review_1_2_VI.docx`: Bản tiếng Việt để nhóm kiểm tra & nộp đồ án.
 - `G5_furniture-store_Review_1_2_EN.docx`: Bản tiếng Anh dễ đọc, dễ thuyết trình.
+
+---
+
+## 🚀 9. Triển khai Online (Deployment Architecture)
+
+Hệ thống được thiết kế tối ưu để deploy hoàn toàn miễn phí trên nền tảng đám mây:
+
+1. **Frontend (`client/`) $\rightarrow$ Deploy lên Cloudflare Pages:**
+   - **Framework Preset:** `None` (hoặc `Vite`)
+   - **Build Command:** `cd client && npm install && npm run build`
+   - **Output Directory:** `client/dist`
+   - **Environment Variable:** `VITE_API_URL=https://<your-render-backend>/api`
+   - *Tốc độ mở trang tức thì (~0.2s) nhờ mạng lưới CDN máy chủ tại Việt Nam.*
+
+2. **Backend (`server/`) $\rightarrow$ Deploy lên Render.com (Web Service):**
+   - **Root Directory:** `server`
+   - **Build Command:** `npm install`
+   - **Start Command:** `node src/server.js`
+   - **Environment Variables:** `MONGO_URI`, `JWT_SECRET`, `CLIENT_URL=*`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`.
+
+3. **Database $\rightarrow$ MongoDB Atlas Cloud:**
+   - Cần cấu hình **Network Access** $\rightarrow$ `0.0.0.0/0` để Backend Render kết nối được.
+
