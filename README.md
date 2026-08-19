@@ -1,6 +1,6 @@
 # FurneeHome 🛋️✨
 
-> **Website thử sắp xếp đồ nội thất trong phòng thật bằng AI** (Dành cho học sinh, sinh viên và người ở phòng nhỏ).
+> **Nền tảng AI hỗ trợ xem trước đồ nội thất trong căn phòng thật** (Dành cho học sinh, sinh viên và người ở phòng trọ nhỏ).
 
 ---
 
@@ -8,17 +8,17 @@
 
 Dành cho Windows:
 👉 **Click đúp vào file `start-furneehome.bat` ở thư mục gốc.**
-*(File script sẽ tự mở cả Backend (Port 5000) và Frontend (Port 5173) cùng lúc).*
+*(File script sẽ tự động mở 2 cửa sổ terminal chạy cả Backend Port 5000 và Frontend Port 5173 cùng lúc).*
 
 *(Nếu muốn chạy thủ công bằng terminal)*:
-- **Frontend:** Mở terminal $\rightarrow$ `cd client` $\rightarrow$ `npm run dev` (mở tại `http://localhost:5173`)
+- **Frontend:** Mở terminal $\rightarrow$ `cd client` $\rightarrow$ `npm run dev` (chạy tại `http://localhost:5173`)
 - **Backend:** Mở terminal $\rightarrow$ `cd server` $\rightarrow$ `npm run dev` (chạy tại `http://localhost:5000`)
 
 ---
 
 ## 🔑 2. Tài khoản thử nghiệm (Test Accounts)
 
-Khi mở web, bấm nút **Đăng nhập** ở góc trên bên phải:
+Khi mở web, bấm nút **Đăng nhập** ở góc trên bên phải (hộp thoại Login Modal nhanh):
 - **Khách hàng (Customer):** Bấm nút nhanh `Customer` trên hộp đăng nhập (hoặc nhập email bất kỳ).
 - **Quản trị viên (Admin):** Bấm nút nhanh `Admin` (Email: `admin@furneehome.vn` | Mật khẩu: `admin123`).
 
@@ -28,64 +28,61 @@ Khi mở web, bấm nút **Đăng nhập** ở góc trên bên phải:
 
 | Trang | Đường dẫn (URL) | Chức năng chính |
 |---|---|---|
-| **Trang chủ** | `/` | Giới thiệu dự án, nút dẫn nhanh đến phòng thử |
-| **Danh sách sản phẩm** | `/products` | Xem đồ nội thất, tìm kiếm có/không dấu, link Shopee |
-| **Phòng thử (AI)** | `/room-studio` | Tải ảnh phòng $\rightarrow$ Chấm vị trí $\rightarrow$ AI xem thử vào phòng |
+| **Trang chủ** | `/` | Giới thiệu dự án, nút dẫn nhanh đến phòng thử One-touch |
+| **Danh sách sản phẩm** | `/products` | Xem đồ nội thất, tìm kiếm có/không dấu, link mua Shopee |
+| **Phòng thử (AI Studio)** | `/room-studio` | Tải ảnh phòng $\rightarrow$ Chấm điểm đặt $\rightarrow$ Cloudflare AI ghép phòng |
 | **Bộ sưu tập** | `/collection` | Xem lại đồ đã thích và các mẫu phòng AI đã tạo |
-| **Quản trị** | `/admin` | Thêm, sửa, xóa dữ liệu sản phẩm mẫu (dành cho Admin) |
+| **Quản trị** | `/admin` | Thêm, sửa, xóa sản phẩm trong CSDL (dành cho Admin) |
 
 ---
 
-## 🌿 4. Hướng dẫn làm việc với Git cho thành viên nhóm
+## 🌿 4. Hướng dẫn làm việc với Git cho 4 thành viên nhóm
 
-Mỗi bạn làm việc trên **nhánh riêng** của mình (ví dụ: `feature/phuc`, `feature/trieu`, `feature/dung`...), tuyệt đối không commit trực tiếp vào nhánh `main`.
+Mỗi thành viên làm việc trên **nhánh riêng** của mình (`feature/phuc`, `feature/trieu`, `feature/dung`), tuyệt đối không commit trực tiếp vào nhánh `main`.
 
-### 0️⃣ Thiết lập lần đầu (Clone dự án & Cài đặt thư viện):
+### 0️⃣ Thiết lập lần đầu (Clone & Cài đặt thư viện):
 ```powershell
 git clone https://github.com/xinchaotamhon/furneeHome.git
 cd furneeHome
 git fetch origin
 
-# Chuyển sang nhánh riêng của bạn (ae thay 'phuc' bằng tên của mình nhé):
+# Chuyển sang nhánh riêng của bạn:
 git switch --track origin/feature/phuc
 git switch --track origin/feature/trieu
 git switch --track origin/feature/dung
 
-# Cài đặt thư viện chuẩn theo package-lock.json cho cả 2 bên:
-cd client
-npm ci
-cd ..\server
-npm ci
+# Cài đặt thư viện chuẩn cho cả 2 bên:
+cd client && npm ci
+cd ..\server && npm ci
 ```
 
-### 1️⃣ Trước khi bắt đầu code mỗi ngày (Lấy code mới nhất về máy):
+### 1️⃣ Trước khi bắt đầu code mỗi ngày (Lấy code mới nhất về):
 ```bash
 git switch feature/ten-cua-ban
 git pull origin main
 ```
 
-### 2️⃣ Sau khi code xong (Lưu và đẩy code lên nhánh của mình):
+### 2️⃣ Sau khi code xong (Đẩy code lên nhánh của mình):
 ```bash
 git add .
-git commit -m "Mô tả ngắn gọn phần bạn vừa làm"
+git commit -m "Mô tả ngắn gọn tính năng bạn vừa làm"
 git push origin feature/ten-cua-ban
 ```
-*(Sau khi push xong, báo cho trưởng nhóm để review và merge vào `main`).*
+*(Sau khi push xong, báo cho trưởng nhóm Hiệp để review và merge vào `main`).*
 
 ---
 
-## 🛒 5. Hướng dẫn cào & Thêm sản phẩm từ Shopee vào Database
+## 🛒 5. Hướng dẫn cào & Nạp sản phẩm từ Shopee vào Database
 
 Dành cho các thành viên nhóm muốn thêm đồ nội thất mới vào trang web:
 
 ### 🔹 Bước 1: Dán link Shopee vào tool
-Mở file [tools/importProducts.js](file:///d:/mydata/my-project/furneehome/tools/importProducts.js), thêm các đường link sản phẩm Shopee bạn tìm được vào danh sách `DEFAULT_URLS` (ở dòng 20):
+Mở file [tools/importProducts.js](file:///d:/mydata/my-project/furneehome/tools/importProducts.js), thêm các link sản phẩm Shopee vào danh sách `DEFAULT_URLS` (dòng 20):
 
 ```javascript
 const DEFAULT_URLS = [
   'https://shopee.vn/link-san-pham-1...',
   'https://shopee.vn/link-san-pham-2...',
-  'https://shopee.vn/link-san-pham-3...',
 ];
 ```
 
@@ -96,20 +93,21 @@ Mở terminal tại thư mục gốc và chạy:
 node tools/importProducts.js
 ```
 
-> **Hệ thống sẽ tự động 100%:**
+> **Tool sẽ tự động 100%:**
 > 1. Đọc link và bóc tách: Tên, giá tiền, ảnh thumbnail, mô tả, shop bán.
 > 2. Tự động phân loại danh mục (Bàn học, Ghế, Đèn, Tủ, Kệ sách...).
-> 3. Kết nối MongoDB và lưu (upsert) thẳng vào collection `products`.
-> 4. Tự tạo bản sao lưu offline tại `client/public/data_import/data_import.json`.
+> 3. Kết nối MongoDB và lưu (`upsert: true`) vào collection `products`.
+> 4. Tạo bản sao lưu offline tại `client/public/data_import/data_import.json`.
 
 ---
 
 ## ⚙️ 6. Cấu hình biến môi trường (`.env`)
 
-- Dự án dùng **duy nhất 1 file `.env` đặt tại thư mục gốc** (đã được Git tự động ẩn để không bị lộ token).
-- Cả Backend và Tool import Shopee đều dùng chung file cấu hình này:
+- Dự án dùng **duy nhất 1 file `.env` đặt tại thư mục gốc**:
   - `PORT=5000`
-  - `CLIENT_URL=http://localhost:5173`
+  - `MONGO_URI=mongodb+srv://...`
+  - `JWT_SECRET=furneehome-jwt-secret-key-2026`
+  - `CLIENT_URL=*`
   - `CLOUDFLARE_ACCOUNT_ID=...`
   - `CLOUDFLARE_API_TOKEN=...`
   - `CLOUDFLARE_IMAGE_MODEL=@cf/black-forest-labs/flux-2-klein-4b`
@@ -120,33 +118,33 @@ node tools/importProducts.js
 
 ```text
 furneehome/
-├── .env / .env.example      # Cấu hình biến môi trường (Cloudflare, MongoDB, Port)
+├── .env / .env.example      # Cấu hình biến môi trường duy nhất ở root
 ├── start-furneehome.bat     # Khởi động cả frontend + backend bằng 1 cú click
 ├── tools/
-│   └── importProducts.js    # 1-Click tool cào Shopee & lưu vào MongoDB products
-├── fourgether/              # Web ôn tập Flashcard vấn đáp & phân vai nhóm (Deploy Cloudflare Pages)
+│   └── importProducts.js    # Tool cào Shopee & lưu vào MongoDB products
+├── fourgether/              # Web ôn tập Flashcard 32 câu vấn đáp & chia việc 4 người
 ├── artifacts/               # Ảnh kết quả thử nghiệm AI
-├── client/                  # Frontend React SPA (Vite + CSS thuần)
+├── client/                  # Frontend React SPA (Vite + 100% CSS thuần)
 │   ├── public/images/       # Ảnh tĩnh sản phẩm
 │   └── src/
 │       ├── components/      # Component dùng lại (auth, layout, product, common)
-│       ├── context/         # Auth, sản phẩm mẫu, Bộ sưu tập (Collection)
-│       ├── data/            # 10 sản phẩm mẫu tạm thời
-│       ├── pages/           # Mỗi file tương ứng 1 trang (route)
-│       ├── services/        # Nơi gọi API backend
-│       ├── styles/          # theme.css (CSS variables) và global.css
-│       ├── utils/           # Canvas overlay, format giá, chuẩn hóa text
+│       ├── context/         # AuthContext, CollectionContext
+│       ├── data/            # 10 sản phẩm mẫu tạm thời (sampleProducts.js)
+│       ├── pages/           # Mỗi file tương ứng 1 trang (HomePage, RoomStudioPage...)
+│       ├── services/        # apiClient.js, roomPreviewService.js
+│       ├── styles/          # theme.css (CSS variables) và global.css (Be Vietnam Pro font)
+│       ├── utils/           # Canvas overlay, format giá VND, normalizeText
 │       ├── App.jsx
 │       ├── main.jsx
 │       └── router.jsx
-└── server/                  # Backend Node.js + Express
+└── server/                  # Backend Node.js Express 5 (Direct MVC)
     └── src/
-        ├── config/          # Đọc .env từ root, kết nối DB
-        ├── controllers/     # Điều phối request (roomPreview, product, auth...)
-        ├── middleware/      # Auth và xử lý lỗi
-        ├── models/          # Mongoose models (User, Product, RoomDesign...)
-        ├── routes/          # API endpoints
-        ├── services/        # cloudflareImageService.js (Cloudflare Workers AI)
+        ├── config/          # db.js (MongoDB), env.js (đọc .env root)
+        ├── controllers/     # Điều phối trực diện (roomPreview, product, auth, roomDesign)
+        ├── middleware/      # authMiddleware, errorHandler
+        ├── models/          # Mongoose models (User, Product, RoomDesign)
+        ├── routes/          # API endpoints (/auth, /products, /room-previews...)
+        ├── services/        # cloudflareImageService.js (Cloudflare Workers AI Flux-2)
         ├── utils/           # seedData.js (tạo tài khoản admin mẫu)
         ├── app.js
         └── server.js
@@ -154,15 +152,7 @@ furneehome/
 
 ---
 
-## 📄 8. Tài liệu dự án
-
-- `furniture-store.txt`: Bản phác thảo kiến trúc ý tưởng ban đầu của nhóm.
-- `G5_furniture-store_Review_1_2_VI.docx`: Bản tiếng Việt để nhóm kiểm tra & nộp đồ án.
-- `G5_furniture-store_Review_1_2_EN.docx`: Bản tiếng Anh dễ đọc, dễ thuyết trình.
-
----
-
-## 🚀 9. Triển khai Online (Deployment Architecture)
+## 🚀 8. Triển khai Online (Deployment Architecture)
 
 Hệ thống được thiết kế tối ưu để deploy hoàn toàn miễn phí trên nền tảng đám mây:
 
@@ -182,3 +172,20 @@ Hệ thống được thiết kế tối ưu để deploy hoàn toàn miễn ph�
 3. **Database $\rightarrow$ MongoDB Atlas Cloud:**
    - Cần cấu hình **Network Access** $\rightarrow$ `0.0.0.0/0` để Backend Render kết nối được.
 
+---
+
+## 🎓 9. Ứng dụng Fourgether Ôn tập & Phân vai 4 thành viên
+
+- Thư mục [fourgether/](file:///d:/mydata/my-project/furneehome/fourgether) là ứng dụng độc lập hỗ trợ 4 thành viên (**Hiệp, Phúc, Triệu, Dũng**) ôn tập bảo vệ đồ án:
+  - **32 Thẻ Flashcard chuyên sâu:** Hỏi đáp vị trí source code, luồng xử lý AI và kiến trúc hệ thống.
+  - **Lưu tiến độ cá nhân riêng biệt:** Từng thành viên tích thuộc câu nào thì hệ thống lưu riêng cho người đó trên điện thoại/máy tính.
+  - **Checklist công việc:** Theo dõi nhiệm vụ của từng vai trò (Trưởng nhóm AI, Backend MongoDB, Frontend CSS, Shopee Tools).
+  - **Deploy:** [https://github.com/xinchaotamhon/fourgether](https://github.com/xinchaotamhon/fourgether) (tự động deploy qua Cloudflare Pages).
+
+---
+
+## 📄 10. Tài liệu dự án
+
+- `furniture-store.txt`: Bản phác thảo kiến trúc ý tưởng ban đầu của nhóm.
+- `G5_furniture-store_Review_1_2_VI.docx`: Bản tiếng Việt để nhóm kiểm tra & nộp đồ án.
+- `G5_furniture-store_Review_1_2_EN.docx`: Bản tiếng Anh dễ đọc, dễ thuyết trình.
