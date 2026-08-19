@@ -8,7 +8,8 @@
   --color-muted: #6d756f;
   --color-border: #d9ded9;
   --radius-small: 6px;
-  --radius-medium: 12px;
   --shadow-card: 0 12px 30px rgb(29 48 38 / 10%);
   --content-width: 1200px;
+  --font-main: 'Be Vietnam Pro', Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-heading: 'Be Vietnam Pro', sans-serif;
 }

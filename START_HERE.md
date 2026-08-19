@@ -1,67 +1,70 @@
 # START HERE — furniture-store (FurneeHome)
 
-Đây là file đầu tiên AI và thành viên phải đọc trước khi sửa project.
+> **Dành cho AI Agent & Lập trình viên:** Đây là tài liệu quy chuẩn quan trọng nhất. Bất kỳ AI nào khi bắt đầu phiên làm việc MỚI trên repository này PHẢI đọc và tuân thủ tuyệt đối các quy định dưới đây.
 
-## 1. Mục tiêu đã chốt
+---
 
-FurneeHome giúp người dùng dễ quyết định chọn đồ nội thất cho phòng nhỏ. Người dùng tải ảnh phòng thật, chọn một sản phẩm quen thuộc, chấm vị trí muốn đặt sản phẩm rồi có thể dùng AI tạo bản xem chân thực hơn.
+## 1. Bản chất dự án & Phạm vi chốt (Scope)
 
-Project **không còn là website bán hàng truyền thống**, không có giỏ hàng và không dùng mô hình phòng 3D. Sản phẩm có thể dẫn người dùng sang trang tìm kiếm hoặc sản phẩm cụ thể trên Shopee.
+- **Mục tiêu:** FurneeHome là ứng dụng web hỗ trợ học sinh, sinh viên và người ở phòng nhỏ xem trước đồ nội thất đặt vào ảnh phòng thật bằng AI (Cloudflare Workers AI - Flux 2).
+- **Định hướng sản phẩm:** **KHÔNG PHẢI web bán hàng truyền thống.**
+  - ❌ KHÔNG có giỏ hàng, đặt hàng, thanh toán (Cart/Checkout/Order).
+  - ❌ KHÔNG dùng 3D, Three.js, WebGL hay file mô hình 3D (`.glb`, `.gltf`).
+  - ❌ KHÔNG dùng Tailwind CSS (đã chuẩn hóa 100% về CSS thuần + CSS variables).
+  - ✅ Sản phẩm điều hướng người dùng xem/mua qua link tìm kiếm hoặc affiliate trên Shopee.
+  - ✅ Quản lý đồ yêu thích và mẫu phòng AI qua **Bộ sưu tập (`CollectionPage`)**.
 
-## 2. Các màn hình và hành vi ổn định
+---
 
-- Trang chủ.
-- Danh sách sản phẩm; tìm kiếm phải hỗ trợ tiếng Việt có dấu và không dấu.
-- Bộ sưu tập: lưu sản phẩm yêu thích và lựa chọn vị trí trong phòng.
-- Header có hai nút riêng: `Đăng nhập` và `Bắt đầu miễn phí`.
-- Đăng nhập/đăng ký dùng chung modal trên trang hiện tại, không có page riêng.
-- Phòng thử: tải ảnh, chọn sản phẩm, chấm một vị trí và kéo ghim để đổi vị trí.
-- Ghim lưu tọa độ phần trăm theo ảnh gốc; không dùng lưới, kích thước phòng, phóng thu hoặc xoay sản phẩm.
-- Trang quản trị chỉ dùng được với role `admin`.
-- Trang 404.
+## 2. Luồng kỹ thuật cốt lõi: Phòng thử (Room Studio 2D + AI)
 
-## 3. Trạng thái dữ liệu
+Luồng hoạt động của Room Studio được thiết kế theo cơ chế **"Một chạm" (One-touch)**:
+1. **Frontend:** Người dùng tải ảnh phòng $\rightarrow$ Chọn sản phẩm $\rightarrow$ Chấm một vị trí đáy sản phẩm (`target: { x: 0..1, y: 0..1, anchor: 'bottom-center' }`).
+2. **Crop & Guide:** [roomPreviewCanvas.js](file:///d:/mydata/my-project/furneehome/client/src/utils/roomPreviewCanvas.js) tự động tính toán và tạo một crop nhỏ (`editRegion`) quanh sản phẩm kèm ảnh sản phẩm tách nền PNG.
+3. **Backend API:** [roomPreviewController.js](file:///d:/mydata/my-project/furneehome/server/src/controllers/roomPreviewController.js) nhận request và gọi [cloudflareImageService.js](file:///d:/mydata/my-project/furneehome/server/src/services/cloudflareImageService.js).
+4. **AI Generation:** Gửi `input_image_0` (crop phòng) + `input_image_1` (sản phẩm PNG) tới Cloudflare Workers AI (`@cf/black-forest-labs/flux-2-klein-4b`).
+5. **Composite:** Frontend nhận crop AI trả về $\rightarrow$ ghép (composite) lại vào ảnh phòng gốc $\rightarrow$ tự động lưu bản xem thử vào `CollectionContext`.
 
-- 10 sản phẩm trong `client/src/data/sampleProducts.js` chỉ là **dữ liệu mẫu tạm thời**.
-- Sản phẩm, đăng nhập thử và Bộ sưu tập đang được lưu bằng `localStorage`.
-- Chưa ghi dữ liệu mẫu vào MongoDB.
-- Giá và liên kết Shopee hiện là dữ liệu tham khảo, có thể thay đổi theo người bán.
-- Backend MongoDB hiện được giữ làm nền để kết nối khi nhóm có dữ liệu thật.
-- Krea API chưa được kết nối vì chưa có API key và chưa chốt model chỉnh sửa ảnh.
+> **Quy tắc tọa độ:** Tọa độ vị trí LUÔN được lưu dạng số chuẩn hóa từ `0` đến `1` theo tỷ lệ ảnh gốc, gốc tọa độ `(0, 0)` ở góc trên bên trái ảnh.
 
-## 4. Công nghệ
+---
 
-- Frontend: React + Vite + Tailwind CSS và CSS thông thường.
-- Backend: Node.js + Express.
-- Database dự kiến: MongoDB + Mongoose.
-- Role: `customer`, `admin`.
+## 3. Trạng thái dữ liệu & Cấu hình môi trường
 
-## 5. Quy tắc bắt buộc
+- **Dữ liệu mẫu:** 10 sản phẩm mẫu trong `client/src/data/sampleProducts.js`.
+- **Lưu trữ MVP:** Toàn bộ dữ liệu người dùng, đăng nhập thử và Bộ sưu tập hiện lưu trên `localStorage` trình duyệt.
+- **Backend MongoDB:** Đã dựng sẵn Models/Controllers, giữ làm nền tảng kết nối khi có dữ liệu thật.
+- **Biến môi trường (.env):** 
+  - Chỉ duy nhất **1 file `.env` đặt tại thư mục gốc dự án** chứa `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_IMAGE_MODEL`, `MONGO_URI`.
+  - Backend tự đọc `.env` ở root qua `server/src/config/env.js`.
+  - Frontend `client` không cần `.env` (dùng fallback mặc định `http://localhost:5000/api`).
 
-1. Mỗi page tương ứng một route và một file trong `client/src/pages`.
-2. Component dùng lại đặt trong `client/src/components` theo nhóm chức năng.
-3. Login/register luôn dùng `components/auth/LoginModal.jsx`; không tạo page đăng nhập riêng.
-4. Dữ liệu mẫu frontend đi qua Context; dữ liệu thật sau này gọi backend qua `client/src/services`.
-5. Backend giữ luồng đơn giản: `route -> controller -> service -> model`.
-6. Không đặt secret trong source. Krea API key và MongoDB URI chỉ được đặt trong `.env` của backend.
-7. Không tự thêm chức năng, package hoặc kiến trúc lớn khi chưa được chủ dự án đồng ý.
-8. Giao diện, trải nghiệm người dùng và quyết định thực tế phải do chủ dự án xem và chốt. AI phải hỏi khi có nhiều phương án ảnh hưởng rõ rệt đến kết quả.
-9. Không commit, merge hoặc push nếu chủ dự án chưa yêu cầu.
-10. Tọa độ vị trí phải được lưu chuẩn hóa từ `0` đến `1`, lấy góc trên bên trái ảnh làm gốc; không lưu theo kích thước màn hình.
+---
 
-## 6. Điều kiện hoàn thành khi sửa code
+## 4. Công nghệ chuẩn hóa
 
-- Chức năng mới chạy được trên màn hình máy tính và điện thoại.
-- Không làm hỏng các route hiện có.
-- Chạy `npm run build` trong `client` thành công.
-- Nếu sửa backend, kiểm tra `/api/health` và phần route liên quan.
-- Cập nhật README hoặc START_HERE nếu phạm vi, route hoặc trạng thái dữ liệu thay đổi.
+- **Frontend:** React 19, Vite, React Router v7, CSS thuần ([theme.css](file:///d:/mydata/my-project/furneehome/client/src/styles/theme.css) + [global.css](file:///d:/mydata/my-project/furneehome/client/src/styles/global.css)).
+- **Backend:** Node.js, Express 5, Mongoose, Cloudflare Workers AI SDK.
+- **Khởi động:** Script [start-furneehome.bat](file:///d:/mydata/my-project/furneehome/start-furneehome.bat) chạy cả 2 server cùng lúc.
 
-## 7. Thứ tự đọc
+---
 
-1. `START_HERE.md`
-2. `README.md`
-3. `client/src/router.jsx`
-4. Page, component hoặc backend module liên quan đến nhiệm vụ.
+## 5. Các điều AI TUYỆT ĐỐI KHÔNG LÀM (Anti-patterns)
 
-Nếu tài liệu khác code chạy thật, phải báo lại trước khi tự sửa phạm vi lớn.
+1. 🚫 **Không cài lại Tailwind CSS** hoặc các thư viện CSS utility lớn. Toàn bộ UI phải viết bằng CSS thuần trong `global.css` hoặc `theme.css`.
+2. 🚫 **Không cài thêm Three.js, @react-three/fiber** hay cố gắng dựng lại phòng 3D.
+3. 🚫 **Không tạo trang Đăng nhập/Đăng ký riêng** (Luôn dùng `components/auth/LoginModal.jsx`).
+4. 🚫 **Không tự ý thêm nút xoay, co giãn, phóng to nhỏ sản phẩm** vào Room Studio.
+5. 🚫 **Không lưu secret/token trực tiếp vào code** (Chỉ đọc từ `process.env` đã được cấu hình trong `server/src/config/env.js`).
+6. 🚫 **Không bọc controller qua quá nhiều tầng service thừa:** Giữ code theo phong cách trực diện (nhận request $\rightarrow$ validate $\rightarrow$ thao tác Mongoose trực tiếp $\rightarrow$ trả `res.json()`), mỗi hàm 10-15 dòng.
+7. 🚫 **Không tự ý chạy lệnh `git commit`, `git push`, `git merge`** nếu chủ dự án chưa yêu cầu trực tiếp.
+
+---
+
+## 6. Tiêu chí hoàn thành (Definition of Done) khi AI sửa code
+
+1. Frontend build thành công: Chạy `npm run build` trong `client` không có bất kỳ lỗi nào (`exit code 0`).
+2. Không làm hỏng các route hiện có trong `client/src/router.jsx`.
+3. Nếu sửa backend: Đảm bảo route `/api/health` và các endpoint liên quan hoạt động đúng.
+4. Giao diện chạy mượt mà trên cả Desktop lẫn Mobile.
+5. Cập nhật `README.md` hoặc `START_HERE.md` nếu có thay đổi về luồng hoặc cấu hình.

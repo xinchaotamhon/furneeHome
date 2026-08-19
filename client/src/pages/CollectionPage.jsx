@@ -7,7 +7,13 @@ export default function CollectionPage() {
   const { items, removeItem } = useCollection();
   const navigate = useNavigate();
 
-  const getSavedTarget = (item) => item.target || item.placement || { x: 50, y: 50 };
+  const getSavedTarget = (item) => {
+    const target = item.target || item.placement || { x: 50, y: 50 };
+    return {
+      x: target.x <= 1 ? target.x * 100 : target.x,
+      y: target.y <= 1 ? target.y * 100 : target.y,
+    };
+  };
 
   const tryProduct = (product) => {
     localStorage.setItem('furneehome-room-product', product._id);
@@ -34,8 +40,8 @@ export default function CollectionPage() {
             </article>
           ) : (
             <article className="saved-card room-saved-card" key={item.id}>
-              <div className="room-template-icon">▦</div>
-              <div><span className="category-label">MẪU PHÒNG CỦA BẠN</span><h2>{item.name}</h2><p>{item.productName} · vị trí {Math.round(getSavedTarget(item).x)}%, {Math.round(getSavedTarget(item).y)}%</p><small className="muted">Ảnh phòng không được lưu vào dữ liệu thử để tránh đầy bộ nhớ trình duyệt.</small></div>
+              <div className="room-template-icon">{item.resultImage ? <img src={item.resultImage} alt={`Bản chân thực với ${item.productName}`} /> : '▦'}</div>
+              <div><span className="category-label">MẪU PHÒNG CỦA BẠN</span><h2>{item.name}</h2><p>{item.productName} · vị trí {Math.round(getSavedTarget(item).x)}%, {Math.round(getSavedTarget(item).y)}%</p>{item.model && <small className="muted">Model: {item.model}{Number.isFinite(item.elapsedMs) ? ` · ${item.elapsedMs} ms` : ''}</small>}{!item.resultImage && <small className="muted">Ảnh phòng không được lưu vào dữ liệu thử để tránh đầy bộ nhớ trình duyệt.</small>}</div>
               <div className="saved-actions"><Link className="button" to="/room-studio">Mở Phòng thử</Link><button className="text-button danger" type="button" onClick={() => removeItem(item.id)}>Xóa mẫu</button></div>
             </article>
           ))}
