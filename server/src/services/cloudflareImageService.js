@@ -35,19 +35,38 @@ function parseImageDataUrl(value, fieldName) {
   };
 }
 
-function buildPrompt(productName, placement, editRegion) {
+function isWallMounted(productName = '') {
+  return /treo|tranh|gương|khung lưới|đèn tường|clock|đồng hồ treo/i.test(productName);
+}
+
+function buildPrompt(productName, placement) {
+  const isWall = isWallMounted(productName);
+  const locX = placement.x < 0.4 ? 'on the left side' : (placement.x > 0.6 ? 'on the right side' : 'in the center');
+
+  if (isWall) {
+    return [
+      'Photorealistic architectural interior visualization.',
+      `Use image 0 as the real room scene and image 1 as the exact product reference: "${productName}".`,
+      'PHYSICAL PLACEMENT RULES:',
+      '- This is a wall-mounted decor/item: Mount it flush and flat against the vertical wall surface at normalized height.',
+      '- Do not let it float away from the wall.',
+      '- 100% ROOM PRESERVATION: Keep the stairs, loft, floor tiles, walls, and all existing furniture completely identical and untouched.',
+      'Return one clean, ultra-realistic composite photo.'
+    ].join(' ');
+  }
+
+  // Floor-standing furniture (bàn, ghế, tủ, kệ, giường...)
   return [
-    `Use image 0 as a tightly cropped room edit region and image 1 as the exact product reference. Add exactly one product: "${productName}".`,
-    'Only edit the supplied crop. Keep the room, staircase, walls, floor, lighting, camera viewpoint, perspective, and all existing furniture in that crop unchanged unless needed to place the product.',
-    'Do not add a chair, laptop, plant, lamp, decoration, or any other object that was not requested.',
-    'Keep the supplied product\'s shape, color, material, identity, and proportions. Do not redesign or replace it with another product.',
-    'The supplied product is fully opaque. Do not make it transparent, translucent, ghost-like, or see-through.',
-    'Do not let the room background show through the tabletop, legs, or any other product surface.',
-    'Place the product at the position shown in image 0. The anchor is bottom-center and the bottom of the product must meet the intended surface at that exact location.',
-    'Create natural perspective, contact shadows, cast shadows, and lighting that match the room.',
-    `The normalized placement reference is x=${Number(placement.x).toFixed(3)}, y=${Number(placement.y).toFixed(3)}, with the origin at the top-left.`,
-    `The normalized full-room edit region is x=${Number(editRegion.x).toFixed(3)}, y=${Number(editRegion.y).toFixed(3)}, width=${Number(editRegion.width).toFixed(3)}, height=${Number(editRegion.height).toFixed(3)}.`,
-    'Return one realistic image for this crop only. Do not reconstruct or redesign the rest of the room.',
+    'Photorealistic architectural interior visualization.',
+    `Use image 0 as the real room scene and image 1 as the exact product reference: "${productName}".`,
+    'PHYSICAL PLACEMENT RULES:',
+    '- Floor-standing furniture: all legs and base MUST be firmly and solidly planted on the tiled floor surface.',
+    '- The furniture MUST NOT float, levitate in mid-air, or be attached vertically like a wall poster.',
+    `- Place it standing upright on the ground plane ${locX} of the room near the wall, matching the floor perspective.`,
+    '- Perspective and vanishing points must strictly match the floor tile grid and room geometry.',
+    '- True physical lighting: render dark contact shadows directly under every leg where it touches the floor tiles, plus natural room ambient occlusion.',
+    '- 100% ROOM PRESERVATION: Keep the stairs, loft, white wall tiles, floor tiles, bathroom door, and wardrobe completely identical and untouched.',
+    'Return one clean, ultra-realistic composite photo.'
   ].join(' ');
 }
 
@@ -83,18 +102,15 @@ async function generateRoomPreview({ roomImageDataUrl, guideImageDataUrl, produc
   if (configurationError) throw configurationError;
 
   const roomImage = parseImageDataUrl(roomImageDataUrl, 'roomImageDataUrl');
-  const guideImage = parseImageDataUrl(guideImageDataUrl, 'guideImageDataUrl');
   const productImage = parseImageDataUrl(productImageDataUrl, 'productImageDataUrl');
-  if (roomImage.buffer.length + guideImage.buffer.length + productImage.buffer.length > MAX_IMAGE_BYTES) {
+  if (roomImage.buffer.length + productImage.buffer.length > MAX_IMAGE_BYTES) {
     throw createError('Tổng dung lượng các ảnh vượt quá giới hạn 15 MB.');
   }
 
   const form = new FormData();
-  form.append('prompt', buildPrompt(productName, placement, editRegion));
-  // Cloudflare chỉ nhận crop + ảnh tham chiếu. Ảnh phòng gốc vẫn được gửi tới backend
-  // để kiểm tra kích thước và dành cho bước composite ở frontend, không gửi vào AI.
-  form.append('input_image_0', new Blob([guideImage.buffer], { type: guideImage.mimeType }), 'room-guide');
-  form.append('input_image_1', new Blob([productImage.buffer], { type: productImage.mimeType }), 'product-reference');
+  form.append('prompt', buildPrompt(productName, placement));
+  form.append('input_image_0', new Blob([roomImage.buffer], { type: roomImage.mimeType }), 'room-scene.jpg');
+  form.append('input_image_1', new Blob([productImage.buffer], { type: productImage.mimeType }), 'product-reference.png');
 
   const startedAt = Date.now();
   const requestUrl = `https://api.cloudflare.com/client/v4/accounts/${env.cloudflareAccountId}/ai/run/${env.cloudflareImageModel}`;

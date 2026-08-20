@@ -45,7 +45,7 @@ Luồng hoạt động của Room Studio được thiết kế theo cơ chế **
 - **Backend:** Node.js Express 5 theo mô hình **Direct MVC** (Controller gọi trực tiếp Mongoose Model, code ngắn gọn 10-15 dòng/hàm, không bọc qua nhiều tầng service thừa).
 - **Khởi động 1-Click:** Script [start-furneehome.bat](file:///d:/mydata/my-project/furneehome/start-furneehome.bat) chạy song song Frontend (Port 5173) và Backend (Port 5000).
 - **Triển khai Online:** Frontend trên Cloudflare Pages + Backend trên Render.com + Database trên MongoDB Atlas.
-- **Ứng dụng phụ trợ:** Thư mục [fourgether/](file:///d:/mydata/my-project/furneehome/fourgether) chứa ứng dụng Flashcard 32 câu hỏi vấn đáp và phân chia công việc cho 4 thành viên (Hiệp, Phúc, Triệu, Dũng).
+- **Ứng dụng phụ trợ:** Thư mục [fourgether/](file:///d:/mydata/my-project/furneehome/fourgether) chứa ứng dụng Flashcard 32 câu hỏi vấn đáp và phân chia công việc cho 4 thành viên (Hiệp, Phúc, Triều, Dũng).
 
 ---
 

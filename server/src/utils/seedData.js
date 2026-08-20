@@ -7,15 +7,10 @@ const User = require('../models/User');
 
 async function seed() {
   await connectDatabase();
-  const category = await Category.findOneAndUpdate(
+  await Category.findOneAndUpdate(
     { slug: 'ban-hoc' },
     { name: 'Bàn học', slug: 'ban-hoc', description: 'Bàn học và làm việc cho phòng nhỏ' },
     { upsert: true, returnDocument: 'after' },
-  );
-  await Product.findOneAndUpdate(
-    { slug: 'ban-hoc-mau' },
-    { name: 'Bàn học mẫu', slug: 'ban-hoc-mau', description: 'Sản phẩm mẫu', price: 0, stock: 0, category: category._id, dimensions: { widthCm: 120, depthCm: 60, heightCm: 75 } },
-    { upsert: true },
   );
   if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
     await User.findOneAndUpdate(

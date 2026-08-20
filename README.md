@@ -38,7 +38,7 @@ Khi mở web, bấm nút **Đăng nhập** ở góc trên bên phải (hộp tho
 
 ## 🌿 4. Hướng dẫn làm việc với Git cho 4 thành viên nhóm
 
-Mỗi thành viên làm việc trên **nhánh riêng** của mình (`feature/phuc`, `feature/trieu`, `feature/dung`), tuyệt đối không commit trực tiếp vào nhánh `main`.
+Mỗi thành viên làm việc trên **nhánh riêng** của mình (`feature/phuc`, `feature/trieu`, `feature/dung`), hoặc pull trực tiếp từ nhánh `main`.
 
 ### 0️⃣ Thiết lập lần đầu (Clone & Cài đặt thư viện):
 ```powershell
@@ -46,26 +46,31 @@ git clone https://github.com/xinchaotamhon/furneeHome.git
 cd furneeHome
 git fetch origin
 
-# Chuyển sang nhánh riêng của bạn:
-git switch --track origin/feature/phuc
-git switch --track origin/feature/trieu
-git switch --track origin/feature/dung
+# Chuyển sang nhánh riêng của bạn (hoặc ở lại main):
+git switch feature/phuc   # (hoặc feature/trieu / feature/dung)
 
-# Cài đặt thư viện chuẩn cho cả 2 bên:
-cd client && npm ci
-cd ..\server && npm ci
+# Cài đặt thư viện cho cả Frontend và Backend:
+cd client && npm install
+cd ..\server && npm install
 ```
 
-### 1️⃣ Trước khi bắt đầu code mỗi ngày (Lấy code mới nhất về):
-```bash
+### 1️⃣ Trước khi bắt đầu làm việc mỗi ngày (Kéo code mới nhất về máy):
+```powershell
+# 1. Chuyển về nhánh bạn đang làm việc:
 git switch feature/ten-cua-ban
+
+# 2. Kéo toàn bộ cập nhật mới nhất từ nhánh main về:
 git pull origin main
+
+# 3. (Nếu có thư viện mới) Chạy cập nhật:
+cd client && npm install
+cd ..\server && npm install
 ```
 
-### 2️⃣ Sau khi code xong (Đẩy code lên nhánh của mình):
-```bash
+### 2️⃣ Sau khi làm xong tính năng (Đẩy code lên GitHub):
+```powershell
 git add .
-git commit -m "Mô tả ngắn gọn tính năng bạn vừa làm"
+git commit -m "feat: mô tả ngắn gọn nội dung bạn vừa làm"
 git push origin feature/ten-cua-ban
 ```
 *(Sau khi push xong, báo cho trưởng nhóm Hiệp để review và merge vào `main`).*
@@ -74,30 +79,35 @@ git push origin feature/ten-cua-ban
 
 ## 🛒 5. Hướng dẫn cào & Nạp sản phẩm từ Shopee vào Database
 
-Dành cho các thành viên nhóm muốn thêm đồ nội thất mới vào trang web:
+Để thêm đồ nội thất Shopee mới vào trang web và phòng thử AI:
 
-### 🔹 Bước 1: Dán link Shopee vào tool
-Mở file [tools/importProducts.js](file:///d:/mydata/my-project/furneehome/tools/importProducts.js), thêm các link sản phẩm Shopee vào danh sách `DEFAULT_URLS` (dòng 20):
+### 🔹 Bước 1: Lưu ảnh tách nền (PNG)
+1. Lấy mã số **Item ID** ở cuối link Shopee (Ví dụ: `https://shopee.vn/...-i.1709649747.`**`52663854319`**).
+2. Lưu file ảnh tách nền vào thư mục:
+   👉 **`client/public/images/products/52663854319.png`**
+
+### 🔹 Bước 2: Dán link Shopee vào tool
+Mở file [tools/importProducts.js](file:///d:/mydata/my-project/furneehome/tools/importProducts.js), thêm link sản phẩm vào mảng `DEFAULT_PRODUCTS`:
 
 ```javascript
-const DEFAULT_URLS = [
-  'https://shopee.vn/link-san-pham-1...',
-  'https://shopee.vn/link-san-pham-2...',
+const DEFAULT_PRODUCTS = [
+  'https://shopee.vn/link-san-pham-shopee-1...',
+  'https://shopee.vn/link-san-pham-shopee-2...',
 ];
 ```
 
-### 🔹 Bước 2: Chạy lệnh tự động nạp dữ liệu
-Mở terminal tại thư mục gốc và chạy:
+### 🔹 Bước 3: Chạy lệnh tự động nạp dữ liệu
+Mở terminal tại thư mục gốc `furneehome` và chạy:
 
 ```bash
 node tools/importProducts.js
 ```
 
 > **Tool sẽ tự động 100%:**
-> 1. Đọc link và bóc tách: Tên, giá tiền, ảnh thumbnail, mô tả, shop bán.
-> 2. Tự động phân loại danh mục (Bàn học, Ghế, Đèn, Tủ, Kệ sách...).
+> 1. Trích xuất tên, giá bán thật, link Shopee gốc và mã sản phẩm.
+> 2. Tự động liên kết với file ảnh tách nền `52663854319.png` tương ứng.
 > 3. Kết nối MongoDB và lưu (`upsert: true`) vào collection `products`.
-> 4. Tạo bản sao lưu offline tại `client/public/data_import/data_import.json`.
+> 4. Tạo bản sao lưu dữ liệu sạch tại `client/public/data_import/data_import.json`.
 
 ---
 
@@ -125,13 +135,12 @@ furneehome/
 ├── fourgether/              # Web ôn tập Flashcard 32 câu vấn đáp & chia việc 4 người
 ├── artifacts/               # Ảnh kết quả thử nghiệm AI
 ├── client/                  # Frontend React SPA (Vite + 100% CSS thuần)
-│   ├── public/images/       # Ảnh tĩnh sản phẩm
+│   ├── public/              # Ảnh tĩnh sản phẩm & data_import.json
 │   └── src/
 │       ├── components/      # Component dùng lại (auth, layout, product, common)
-│       ├── context/         # AuthContext, CollectionContext
-│       ├── data/            # 10 sản phẩm mẫu tạm thời (sampleProducts.js)
+│       ├── context/         # AuthContext, CollectionContext, ProductContext
 │       ├── pages/           # Mỗi file tương ứng 1 trang (HomePage, RoomStudioPage...)
-│       ├── services/        # apiClient.js, roomPreviewService.js
+│       ├── services/        # apiClient.js, productService.js, roomPreviewService.js
 │       ├── styles/          # theme.css (CSS variables) và global.css (Be Vietnam Pro font)
 │       ├── utils/           # Canvas overlay, format giá VND, normalizeText
 │       ├── App.jsx
@@ -176,7 +185,7 @@ Hệ thống được thiết kế tối ưu để deploy hoàn toàn miễn ph�
 
 ## 🎓 9. Ứng dụng Fourgether Ôn tập & Phân vai 4 thành viên
 
-- Thư mục [fourgether/](file:///d:/mydata/my-project/furneehome/fourgether) là ứng dụng độc lập hỗ trợ 4 thành viên (**Hiệp, Phúc, Triệu, Dũng**) ôn tập bảo vệ đồ án:
+- Thư mục [fourgether/](file:///d:/mydata/my-project/furneehome/fourgether) là ứng dụng độc lập hỗ trợ 4 thành viên (**Hiệp, Phúc, Triều, Dũng**) ôn tập bảo vệ đồ án:
   - **32 Thẻ Flashcard chuyên sâu:** Hỏi đáp vị trí source code, luồng xử lý AI và kiến trúc hệ thống.
   - **Lưu tiến độ cá nhân riêng biệt:** Từng thành viên tích thuộc câu nào thì hệ thống lưu riêng cho người đó trên điện thoại/máy tính.
   - **Checklist công việc:** Theo dõi nhiệm vụ của từng vai trò (Trưởng nhóm AI, Backend MongoDB, Frontend CSS, Shopee Tools).

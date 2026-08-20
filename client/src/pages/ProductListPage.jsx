@@ -25,7 +25,7 @@ export default function ProductListPage() {
   return (
     <main className="container page">
       <div className="page-heading split-heading">
-        <div><p className="eyebrow">10 SẢN PHẨM MẪU</p><h1>Danh sách sản phẩm</h1><p>Dữ liệu này chỉ nằm ở frontend để nhóm thử giao diện trước khi có dữ liệu thật.</p></div>
+        <div><p className="eyebrow">NỘI THẤT & TIỆN ÍCH PHÒNG TRỌ</p><h1>Danh sách sản phẩm</h1><p>Sản phẩm nội thất tiện ích, tối ưu không gian cho sinh viên và người đi làm.</p></div>
         <div className="result-count"><strong>{filteredProducts.length}</strong><span>sản phẩm phù hợp</span></div>
       </div>
       <section className="catalog-toolbar" aria-label="Bộ lọc sản phẩm">

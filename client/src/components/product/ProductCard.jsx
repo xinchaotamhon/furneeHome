@@ -18,19 +18,20 @@ export default function ProductCard({ product }) {
   return (
     <article className="product-card">
       <div className="product-image-wrap"><ProductArtwork product={product} /></div>
-      {product.offers?.length > 0 && <div className="product-offers">
-        {product.offers.map((offer) => <a href={offer.url} target="_blank" rel="noreferrer" key={offer.id} title={`Mở ${offer.name} trên Shopee`}>
-          <span className="offer-thumb"><ProductArtwork product={offer} /></span>
-          <span><small>{offer.name}</small><strong>{offer.displayPrice}</strong></span>
-          <b aria-hidden="true">↗</b>
-        </a>)}
-      </div>}
       <div className="product-card-content">
-        <span className="category-label">{product.category}</span>
+        {product.isOfficial && (
+          <div className="product-meta-tags">
+            <span className="mall-badge">Mall Chính hãng</span>
+          </div>
+        )}
         <h3>{product.name}</h3>
+        <div className="price-row">
+          <span className="product-price">{new Intl.NumberFormat('vi-VN').format(product.price)} ₫</span>
+          {product.rating && <span className="product-rating">⭐ {product.rating}</span>}
+        </div>
         <div className="card-actions">
           <button className="button" type="button" onClick={tryInRoom}>Thử trong phòng</button>
-          <a className="button button-secondary" href={shopeeSearchUrl} target="_blank" rel="noreferrer">Tìm trên Shopee</a>
+          <a className="button button-secondary" href={product.sourceUrl || shopeeSearchUrl} target="_blank" rel="noreferrer">Xem trên Shopee</a>
           <button className={`icon-button ${saved ? 'is-saved' : ''}`} type="button" aria-label={saved ? 'Bỏ lưu' : 'Lưu sản phẩm'} onClick={() => toggleProduct(product)}>{saved ? '♥' : '♡'}</button>
         </div>
       </div>

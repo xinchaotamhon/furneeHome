@@ -1,30 +1,15 @@
 [
   {
-    "name": "Sản phẩm Shopee",
-    "slug": "san-pham-shopee-1075573860-42382415650",
-    "categoryName": "Nội thất",
-    "price": 99000,
-    "description": "Sản phẩm nội thất Sản phẩm Shopee trên Shopee.",
-    "images": [],
-    "transparentImage": "",
-    "shopeeSearchUrl": "https://shopee.vn/B%C3%A0n-Ch%E1%BB%AF-Nh%E1%BA%ADt-G%E1%BA%A5p-G%E1%BB%8Dn-40x60-cm-G%E1%BB%97-MDF-Ph%E1%BB%A7-Melamine-Ch%E1%BB%91ng-X%C6%B0%E1%BB%9Bc-Ch%E1%BB%91ng-N%C6%B0%E1%BB%9Bc-Thi%E1%BA%BFt-K%E1%BA%BF-Ti%E1%BB%87n-L%E1%BB%A3i-Ti%E1%BA%BFt-Ki%E1%BB%87m-Kh%C3%B4ng-Gian-ND50-i.1075573860.42382415650?extraParams=%7B%22display_model_id%22%3A406180756117%2C%22model_selection_logic%22%3A3%7D",
-    "sourceUrl": "https://shopee.vn/B%C3%A0n-Ch%E1%BB%AF-Nh%E1%BA%ADt-G%E1%BA%A5p-G%E1%BB%8Dn-40x60-cm-G%E1%BB%97-MDF-Ph%E1%BB%A7-Melamine-Ch%E1%BB%91ng-X%C6%B0%E1%BB%9Bc-Ch%E1%BB%91ng-N%C6%B0%E1%BB%9Bc-Thi%E1%BA%BFt-K%E1%BA%BF-Ti%E1%BB%87n-L%E1%BB%A3i-Ti%E1%BA%BFt-Ki%E1%BB%87m-Kh%C3%B4ng-Gian-ND50-i.1075573860.42382415650?extraParams=%7B%22display_model_id%22%3A406180756117%2C%22model_selection_logic%22%3A3%7D",
-    "offers": [
-      {
-        "id": "1075573860-42382415650",
-        "name": "Sản phẩm Shopee",
-        "displayPrice": "Liên hệ",
-        "url": "https://shopee.vn/B%C3%A0n-Ch%E1%BB%AF-Nh%E1%BA%ADt-G%E1%BA%A5p-G%E1%BB%8Dn-40x60-cm-G%E1%BB%97-MDF-Ph%E1%BB%A7-Melamine-Ch%E1%BB%91ng-X%C6%B0%E1%BB%9Bc-Ch%E1%BB%91ng-N%C6%B0%E1%BB%9Bc-Thi%E1%BA%BFt-K%E1%BA%BF-Ti%E1%BB%87n-L%E1%BB%A3i-Ti%E1%BA%BFt-Ki%E1%BB%87m-Kh%C3%B4ng-Gian-ND50-i.1075573860.42382415650?extraParams=%7B%22display_model_id%22%3A406180756117%2C%22model_selection_logic%22%3A3%7D",
-        "image": "",
-        "sellerName": "Shopee Seller",
-        "affiliateUrl": ""
-      }
-    ],
-    "searchKeywords": [
-      "sản phẩm shopee",
-      "san pham shopee",
-      "nội thất"
-    ],
-    "isActive": true
+    "name": "Bàn Học Gấp Gọn AIODIY Bàn Làm Việc Mini Để Giường Có Khay Đựng Cốc Khe Cắm iPad Đa Năng Cho Học Sinh",
+    "slug": "ban-hoc-gap-gon-aiodiy-ban-lam-viec-mini-de-giuong-co-khay-dung-coc-khe-cam-ipad-da-nang-cho-hoc-sin",
+    "category": "Bàn học",
+    "price": 0,
+    "image": "/images/products/52663854319.png",
+    "transparentImage": "/images/products/52663854319.png",
+    "sourceUrl": "https://shopee.vn/B%C3%A0n-H%E1%BB%8Dc-G%E1%BA%A5p-G%E1%BB%8Dn-AIODIY-B%C3%A0n-L%C3%A0m-Vi%E1%BB%87c-Mini-%C4%90%E1%BB%83-Gi%C6%B0%E1%BB%9Dng-C%C3%B3-Khay-%C4%90%E1%BB%B1ng-C%E1%BB%91c-Khe-C%E1%BA%AFm-iPad-%C4%90a-N%C4%83ng-Cho-H%E1%BB%8Dc-Sinh-i.1709649747.52663854319?extraParams=%7B%22display_model_id%22%3A411197840842%2C%22model_selection_logic%22%3A3%7D",
+    "sellerName": "Shopee Seller",
+    "isOfficial": false,
+    "rating": 5,
+    "description": "Bàn Học Gấp Gọn AIODIY Bàn Làm Việc Mini Để Giường Có Khay Đựng Cốc Khe Cắm iPad Đa Năng Cho Học Sinh"
   }
 ]

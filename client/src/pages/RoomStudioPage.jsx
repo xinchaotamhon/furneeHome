@@ -26,6 +26,7 @@ export default function RoomStudioPage() {
   const [resultImage, setResultImage] = useState('');
   const [elapsedMs, setElapsedMs] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
   const stageRef = useRef(null);
   const selectedProduct = products.find((product) => product._id === selectedId) || products[0];
   const productImageSource = getProductImageSource(selectedProduct);
@@ -111,30 +112,34 @@ export default function RoomStudioPage() {
         productSource: productImageSource,
         target,
         product: selectedProduct,
+        isFlipped,
       });
       const result = await createRoomPreview({
         ...guideImages,
-        productName: selectedProduct.name,
+        productName: `${selectedProduct.name}${isFlipped ? ' (mirrored horizontally)' : ''}`,
         placement: normalizedPlacement,
       });
 
-      const compositeImage = await compositeRoomPreview({
-        roomSource: roomImage,
-        resultSource: result.imageDataUrl,
-        editRegion: guideImages.editRegion,
-      });
-      if (!compositeImage.startsWith('data:image/')) {
+      const finalImage = result.imageDataUrl && result.imageDataUrl.startsWith('data:image/')
+        ? result.imageDataUrl
+        : await compositeRoomPreview({
+            roomSource: roomImage,
+            resultSource: result.imageDataUrl,
+            editRegion: guideImages.editRegion,
+          });
+
+      if (!finalImage.startsWith('data:image/')) {
         throw new Error('Ảnh AI không hợp lệ.');
       }
-      setResultImage(compositeImage);
+      setResultImage(finalImage);
       setElapsedMs(result.elapsedMs);
       saveRoomTemplate({
-        name: `Bản chân thực với ${selectedProduct.name}`,
+        name: `Bản chân thực với ${selectedProduct.name}${isFlipped ? ' (Lật gương)' : ''}`,
         productId: selectedProduct._id,
         productName: selectedProduct.name,
         target: normalizedPlacement,
         imageSize,
-        resultImage: compositeImage,
+        resultImage: finalImage,
         model: result.model,
         elapsedMs: result.elapsedMs,
       });
@@ -190,7 +195,7 @@ export default function RoomStudioPage() {
           >
             {!roomImage && <div className="room-placeholder"><span>＋</span><h2>Tải ảnh căn phòng</h2><p>Sau khi tải ảnh, bạn chỉ cần bấm vào nơi muốn đặt sản phẩm.</p><label className="button">Chọn ảnh phòng<input type="file" accept="image/png,image/jpeg" capture="environment" onChange={uploadRoom} /></label></div>}
             {roomImage && <img className="room-photo" src={roomImage} alt="Căn phòng do người dùng tải lên" draggable="false" onLoad={(event) => setImageSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} />}
-            {roomImage && hasTarget && productImageSource && <img className="room-product-preview" src={productImageSource} alt="Sản phẩm đang được đặt thử" style={getProductPreviewStyle(selectedProduct, target)} draggable="false" />}
+            {roomImage && hasTarget && productImageSource && <img className="room-product-preview" src={productImageSource} alt="Sản phẩm đang được đặt thử" style={getProductPreviewStyle(selectedProduct, target, isFlipped)} draggable="false" />}
             {roomImage && hasTarget && <button
               className={`target-marker ${dragging ? 'is-dragging' : ''}`}
               type="button"
@@ -218,6 +223,9 @@ export default function RoomStudioPage() {
 
           <div className="studio-actions">
             <button className="button" type="button" onClick={previewRoom} disabled={isGenerating}>{isGenerating ? 'Đang xem thử…' : 'Xem thử trong phòng'}</button>
+            <button className="button button-secondary" type="button" onClick={() => { setIsFlipped(!isFlipped); clearGeneratedResult(); }} title="Lật gương sản phẩm để đổi góc quay trái/phải phù hợp góc phòng">
+              ↔ Lật gương {isFlipped ? '(Đang lật)' : ''}
+            </button>
           </div>
 
           {resultImage && <div className="ai-result-card">

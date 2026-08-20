@@ -26,12 +26,12 @@ export function getProductScale(product) {
   return Number.isFinite(value) && value > 0 ? Math.min(value, 0.8) : DEFAULT_PRODUCT_SCALE;
 }
 
-export function getProductPreviewStyle(product, target) {
+export function getProductPreviewStyle(product, target, isFlipped = false) {
   return {
     left: `${target.x}%`,
     top: `${target.y}%`,
     width: `${getProductScale(product) * 100}%`,
-    transform: 'translate(-50%, -100%)',
+    transform: `translate(-50%, -100%) ${isFlipped ? 'scaleX(-1)' : ''}`,
   };
 }
 
@@ -60,22 +60,33 @@ function makeCanvas(width, height) {
   return canvas;
 }
 
-function drawAiProductGuide(fullCanvas, productImage, rectangle) {
+function drawAiProductGuide(fullCanvas, productImage, rectangle, isFlipped = false) {
   const context = fullCanvas.getContext('2d');
   context.save();
   context.globalAlpha = 1;
-  context.drawImage(productImage, rectangle.productX, rectangle.productY, rectangle.productWidth, rectangle.productHeight);
+  if (isFlipped) {
+    context.translate(rectangle.productX + rectangle.productWidth, rectangle.productY);
+    context.scale(-1, 1);
+    context.drawImage(productImage, 0, 0, rectangle.productWidth, rectangle.productHeight);
+  } else {
+    context.drawImage(productImage, rectangle.productX, rectangle.productY, rectangle.productWidth, rectangle.productHeight);
+  }
   context.restore();
 }
 
-function createReferenceCanvas(productImage) {
+function createReferenceCanvas(productImage, isFlipped = false) {
   const referenceSize = fitSize(productImage.naturalWidth, productImage.naturalHeight, MAX_REFERENCE_EDGE);
   const referenceCanvas = makeCanvas(referenceSize.width, referenceSize.height);
-  referenceCanvas.getContext('2d').drawImage(productImage, 0, 0, referenceSize.width, referenceSize.height);
+  const ctx = referenceCanvas.getContext('2d');
+  if (isFlipped) {
+    ctx.translate(referenceSize.width, 0);
+    ctx.scale(-1, 1);
+  }
+  ctx.drawImage(productImage, 0, 0, referenceSize.width, referenceSize.height);
   return referenceCanvas;
 }
 
-export async function createRoomPreviewImages({ roomSource, productSource, target, product }) {
+export async function createRoomPreviewImages({ roomSource, productSource, target, product, isFlipped = false }) {
   if (!roomSource || !productSource) throw new Error('Cần có ảnh phòng và ảnh sản phẩm tách nền.');
 
   const [roomImage, productImage] = await Promise.all([loadImage(roomSource), loadImage(productSource)]);
@@ -86,12 +97,12 @@ export async function createRoomPreviewImages({ roomSource, productSource, targe
   const rectangle = getProductRectangle(roomSize, productImage, target, product);
   const guideCanvas = makeCanvas(roomSize.width, roomSize.height);
   guideCanvas.getContext('2d').drawImage(roomCanvas, 0, 0);
-  drawAiProductGuide(guideCanvas, productImage, rectangle);
+  drawAiProductGuide(guideCanvas, productImage, rectangle, isFlipped);
 
   const cropCanvas = makeCanvas(rectangle.width, rectangle.height);
   cropCanvas.getContext('2d').drawImage(guideCanvas, rectangle.x, rectangle.y, rectangle.width, rectangle.height, 0, 0, rectangle.width, rectangle.height);
 
-  const referenceCanvas = createReferenceCanvas(productImage);
+  const referenceCanvas = createReferenceCanvas(productImage, isFlipped);
   return {
     roomImageDataUrl: roomCanvas.toDataURL('image/jpeg', 0.9),
     guideImageDataUrl: cropCanvas.toDataURL('image/jpeg', 0.9),
