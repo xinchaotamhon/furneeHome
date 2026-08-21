@@ -46,7 +46,9 @@ export function ProductProvider({ children }) {
 
     if (loadedProducts.length > 0) {
       setProducts(loadedProducts);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(loadedProducts));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(loadedProducts));
+      } catch {}
     }
     setLoading(false);
   };
@@ -57,7 +59,9 @@ export function ProductProvider({ children }) {
 
   const save = (nextProducts) => {
     setProducts(nextProducts);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextProducts));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextProducts));
+    } catch {}
   };
 
   const value = useMemo(() => ({

@@ -1,3 +1,4 @@
+require('../models/Category');
 const Product = require('../models/Product');
 
 // Lấy danh sách sản phẩm (có tìm kiếm & lọc danh mục)

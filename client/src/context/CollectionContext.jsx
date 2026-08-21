@@ -12,11 +12,37 @@ function readCollection() {
   }
 }
 
+function safeSaveCollection(items) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  } catch (err) {
+    console.warn('LocalStorage quota exceeded, attempting storage optimization:', err);
+    try {
+      // Nếu bộ nhớ đầy do ảnh AI quá lớn, chỉ giữ 2 mục gần nhất
+      const trimmed = items.slice(-2);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+    } catch {
+      try {
+        // Nếu vẫn đầy, lưu danh sách không kèm chuỗi ảnh lớn
+        const lightweight = items.slice(-3).map((item) => {
+          if (item.type === 'room-template' && item.photo && item.photo.length > 5000) {
+            return { ...item, photo: '' };
+          }
+          return item;
+        });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(lightweight));
+      } catch {
+        // Bỏ qua nếu hoàn toàn không còn dung lượng, không làm sập ứng dụng
+      }
+    }
+  }
+}
+
 export function CollectionProvider({ children }) {
   const [items, setItems] = useState(readCollection);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    safeSaveCollection(items);
   }, [items]);
 
   const value = useMemo(() => ({
