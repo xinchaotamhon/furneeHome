@@ -4,8 +4,20 @@ import { useCollection } from '../context/CollectionContext';
 import { useProducts } from '../context/ProductContext';
 import { createRoomPreview } from '../services/roomPreviewService';
 import { compositeRoomPreview, createRoomPreviewImages, getProductImageSource, getProductPreviewStyle } from '../utils/roomPreviewCanvas';
+import { solveCameraFromUserLines } from '../utils/cameraSolver';
 
 const initialTarget = { x: 50, y: 72 };
+
+const DEFAULT_CALIBRATION_LINES = {
+  axisX: [
+    [{ x: 12, y: 82 }, { x: 38, y: 66 }], // Đường 1 dọc tường trái
+    [{ x: 6, y: 36 }, { x: 40, y: 30 }],  // Đường 2 dọc dầm/trần trái
+  ],
+  axisY: [
+    [{ x: 38, y: 66 }, { x: 74, y: 68 }], // Đường 1 dọc tường sau
+    [{ x: 40, y: 30 }, { x: 76, y: 34 }], // Đường 2 dọc xà ngang sau
+  ],
+};
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -21,6 +33,10 @@ export default function RoomStudioPage() {
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [target, setTarget] = useState(initialTarget);
   const [hasTarget, setHasTarget] = useState(false);
+  const [calibrationMode, setCalibrationMode] = useState(false);
+  const [calibrationLines, setCalibrationLines] = useState(DEFAULT_CALIBRATION_LINES);
+  const [cameraParams, setCameraParams] = useState(null);
+  const [draggingHandle, setDraggingHandle] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [message, setMessage] = useState('');
   const [resultImage, setResultImage] = useState('');
@@ -40,6 +56,15 @@ export default function RoomStudioPage() {
     setElapsedMs(null);
   };
 
+  // Tính toán lại thông số Camera từ các đường gióng thực tế của người dùng
+  const solveCalibration = (lines, width = 1000, height = 1000) => {
+    const solved = solveCameraFromUserLines(lines.axisX, lines.axisY, width, height);
+    if (solved) {
+      setCameraParams(solved);
+      setMessage(`✓ Đã khóa phối cảnh: Tiêu cự f = ${Math.round(solved.focalLength)}px, Nghiêng sàn = ${solved.pitchDeg}°, Góc nhìn = ${solved.yawDeg}°.`);
+    }
+  };
+
   const uploadRoom = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -50,23 +75,53 @@ export default function RoomStudioPage() {
     setTarget(initialTarget);
     setHasTarget(false);
     clearGeneratedResult();
-    setMessage('Ảnh đã được thêm. Hãy chấm vào nơi bạn muốn đặt sản phẩm.');
+    setMessage('Ảnh phòng đã nạp. Chấm một điểm trên sàn để đặt đồ hoặc bật "Căn phối cảnh fSpy" để khớp góc phòng.');
   };
 
-  const updateTargetFromPointer = (event) => {
+  const handlePointerDownHandle = (axis, lineIdx, pointIdx, event) => {
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDraggingHandle({ axis, lineIdx, pointIdx });
+  };
+
+  const handlePointerMoveStage = (event) => {
     if (!stageRef.current || isGenerating) return;
+    const rect = stageRef.current.getBoundingClientRect();
+    const currentX = clamp(((event.clientX - rect.left) / rect.width) * 100, 1, 99);
+    const currentY = clamp(((event.clientY - rect.top) / rect.height) * 100, 1, 99);
+
+    if (draggingHandle) {
+      const { axis, lineIdx, pointIdx } = draggingHandle;
+      const newLines = JSON.parse(JSON.stringify(calibrationLines));
+      newLines[axis][lineIdx][pointIdx] = { x: Number(currentX.toFixed(1)), y: Number(currentY.toFixed(1)) };
+      setCalibrationLines(newLines);
+      solveCalibration(newLines, rect.width, rect.height);
+      return;
+    }
+
+    if (dragging) {
+      setTarget({ x: currentX, y: currentY });
+      clearGeneratedResult();
+    }
+  };
+
+  const handlePointerUpStage = () => {
+    if (draggingHandle) {
+      setDraggingHandle(null);
+    }
+    setDragging(false);
+  };
+
+  const placeTarget = (event) => {
+    if (!roomImage || isGenerating || calibrationMode) return;
+    if (!stageRef.current) return;
     const rect = stageRef.current.getBoundingClientRect();
     setTarget({
       x: clamp(((event.clientX - rect.left) / rect.width) * 100, 1, 99),
       y: clamp(((event.clientY - rect.top) / rect.height) * 100, 1, 99),
     });
-    clearGeneratedResult();
-  };
-
-  const placeTarget = (event) => {
-    if (!roomImage || isGenerating) return;
-    updateTargetFromPointer(event);
     setHasTarget(true);
+    clearGeneratedResult();
     setMessage('Đã chọn vị trí. Bạn có thể kéo ghim sang bất kỳ chỗ nào khác.');
   };
 
@@ -113,6 +168,7 @@ export default function RoomStudioPage() {
         target,
         product: selectedProduct,
         isFlipped,
+        cameraParams,
       });
       const result = await createRoomPreview({
         ...guideImages,
@@ -138,10 +194,7 @@ export default function RoomStudioPage() {
         productId: selectedProduct._id,
         productName: selectedProduct.name,
         target: normalizedPlacement,
-        imageSize,
-        resultImage: finalImage,
-        model: result.model,
-        elapsedMs: result.elapsedMs,
+        photo: finalImage,
       });
       setMessage('Đã xem thử và tự động lưu vào Bộ sưu tập.');
     } catch (error) {
@@ -161,7 +214,7 @@ export default function RoomStudioPage() {
 
       <ol className="studio-steps">
         <li><span>1</span><div><strong>Tải ảnh phòng</strong><small>Chọn ảnh rõ khu vực bạn muốn đặt đồ.</small></div></li>
-        <li><span>2</span><div><strong>Chấm một vị trí</strong><small>Ghim là nơi đáy sản phẩm sẽ tiếp xúc.</small></div></li>
+        <li><span>2</span><div><strong>Chấm vị trí hoặc Căn góc fSpy</strong><small>Khóa ma trận 3D phối cảnh phòng thật.</small></div></li>
         <li><span>3</span><div><strong>Xem thử trong phòng</strong><small>AI chỉ chỉnh vùng nhỏ quanh vị trí đã chọn.</small></div></li>
       </ol>
 
@@ -175,12 +228,67 @@ export default function RoomStudioPage() {
               <input type="file" accept="image/png,image/jpeg" capture="environment" onChange={uploadRoom} />
             </label>
           </section>
+          
           <section className="target-help">
-            <span className="step-label">BƯỚC 2</span>
-            <h2>Vị trí đặt đồ</h2>
-            <p>Chạm vào ảnh để đặt ghim. Ghim là vị trí đáy sản phẩm tiếp xúc với sàn hoặc bề mặt.</p>
-            {hasTarget ? <div className="target-summary"><span className="mini-pin" /><div><strong>Đã chọn vị trí</strong><small>Ngang {target.x.toFixed(1)}% · Dọc {target.y.toFixed(1)}%</small></div></div> : <div className="target-empty">Chưa chọn vị trí trên ảnh</div>}
-            {hasTarget && <button className="text-button" type="button" onClick={() => { setHasTarget(false); clearGeneratedResult(); setMessage('Hãy chấm một vị trí mới trên ảnh.'); }}>Chọn lại từ đầu</button>}
+            <div className="section-title">
+              <div>
+                <span className="step-label">BƯỚC 2</span>
+                <h2>Vị trí đặt đồ</h2>
+              </div>
+              {roomImage && (
+                <button
+                  className={`button button-small ${calibrationMode ? 'button-active' : 'button-secondary'}`}
+                  type="button"
+                  onClick={() => {
+                    const next = !calibrationMode;
+                    setCalibrationMode(next);
+                    if (next) solveCalibration(calibrationLines);
+                  }}
+                  title="Bật thước gióng fSpy để căn góc phòng 3D động"
+                >
+                  📐 {calibrationMode ? 'Khóa góc fSpy' : 'Căn góc fSpy'}
+                </button>
+              )}
+            </div>
+
+            <p>
+              {calibrationMode
+                ? 'Kéo các điểm tròn đỏ (Trục tường trái) và xanh (Trục tường sau) theo các đường thẳng thật trong phòng để khóa ma trận 3D.'
+                : 'Chạm vào ảnh để đặt ghim. Ghim là nơi đáy sản phẩm tiếp xúc với sàn.'}
+            </p>
+
+            {cameraParams?.calibrated && (
+              <div className="calibration-badge">
+                <span>📐 Đã khóa phối cảnh fSpy:</span>
+                <small>Nghiêng sàn: {cameraParams.pitchDeg}° · Góc quay: {cameraParams.yawDeg}°</small>
+              </div>
+            )}
+
+            {hasTarget ? (
+              <div className="target-summary">
+                <span className="mini-pin" />
+                <div>
+                  <strong>Đã chọn vị trí</strong>
+                  <small>Ngang {target.x.toFixed(1)}% · Dọc {target.y.toFixed(1)}%</small>
+                </div>
+              </div>
+            ) : (
+              <div className="target-empty">Chưa chọn vị trí trên ảnh</div>
+            )}
+            
+            {hasTarget && (
+              <button
+                className="text-button"
+                type="button"
+                onClick={() => {
+                  setHasTarget(false);
+                  clearGeneratedResult();
+                  setMessage('Hãy chấm một vị trí mới trên ảnh.');
+                }}
+              >
+                Chọn lại từ đầu
+              </button>
+            )}
           </section>
         </aside>
 
@@ -189,23 +297,97 @@ export default function RoomStudioPage() {
             className={`room-stage ${roomImage ? 'has-image' : ''}`}
             ref={stageRef}
             onPointerDown={placeTarget}
-            onPointerMove={moveTarget}
-            onPointerUp={() => setDragging(false)}
-            onPointerCancel={() => setDragging(false)}
+            onPointerMove={handlePointerMoveStage}
+            onPointerUp={handlePointerUpStage}
+            onPointerCancel={handlePointerUpStage}
           >
             {!roomImage && <div className="room-placeholder"><span>＋</span><h2>Tải ảnh căn phòng</h2><p>Sau khi tải ảnh, bạn chỉ cần bấm vào nơi muốn đặt sản phẩm.</p><label className="button">Chọn ảnh phòng<input type="file" accept="image/png,image/jpeg" capture="environment" onChange={uploadRoom} /></label></div>}
             {roomImage && <img className="room-photo" src={roomImage} alt="Căn phòng do người dùng tải lên" draggable="false" onLoad={(event) => setImageSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} />}
-            {roomImage && hasTarget && productImageSource && <img className="room-product-preview" src={productImageSource} alt="Sản phẩm đang được đặt thử" style={getProductPreviewStyle(selectedProduct, target, isFlipped)} draggable="false" />}
-            {roomImage && hasTarget && <button
-              className={`target-marker ${dragging ? 'is-dragging' : ''}`}
-              type="button"
-              aria-label="Vị trí đặt sản phẩm, kéo để thay đổi"
-              style={{ left: `${target.x}%`, top: `${target.y}%` }}
-              onPointerDown={(event) => { event.stopPropagation(); event.currentTarget.setPointerCapture(event.pointerId); setDragging(true); }}
-              onPointerMove={moveTarget}
-              onPointerUp={(event) => { event.stopPropagation(); setDragging(false); }}
-              disabled={isGenerating}
-            ><span /><b>Đặt {selectedProduct?.name || 'sản phẩm'} tại đây</b></button>}
+            
+            {/* Lớp thước gióng phối cảnh fSpy động */}
+            {roomImage && calibrationMode && (
+              <svg className="calibration-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                {calibrationLines.axisX.map((line, idx) => (
+                  <line
+                    key={`axisX-line-${idx}`}
+                    x1={line[0].x}
+                    y1={line[0].y}
+                    x2={line[1].x}
+                    y2={line[1].y}
+                    stroke="#ef4444"
+                    strokeWidth="0.8"
+                    strokeDasharray="1.5, 1"
+                  />
+                ))}
+                {calibrationLines.axisY.map((line, idx) => (
+                  <line
+                    key={`axisY-line-${idx}`}
+                    x1={line[0].x}
+                    y1={line[0].y}
+                    x2={line[1].x}
+                    y2={line[1].y}
+                    stroke="#3b82f6"
+                    strokeWidth="0.8"
+                    strokeDasharray="1.5, 1"
+                  />
+                ))}
+              </svg>
+            )}
+
+            {roomImage && calibrationMode && (
+              <>
+                {calibrationLines.axisX.map((line, lineIdx) =>
+                  line.map((pt, ptIdx) => (
+                    <button
+                      key={`handle-X-${lineIdx}-${ptIdx}`}
+                      type="button"
+                      className="calibration-handle axis-x"
+                      style={{ left: `${pt.x}%`, top: `${pt.y}%` }}
+                      onPointerDown={(e) => handlePointerDownHandle('axisX', lineIdx, ptIdx, e)}
+                      aria-label="Kéo điểm gióng trục X (Đỏ)"
+                    />
+                  ))
+                )}
+                {calibrationLines.axisY.map((line, lineIdx) =>
+                  line.map((pt, ptIdx) => (
+                    <button
+                      key={`handle-Y-${lineIdx}-${ptIdx}`}
+                      type="button"
+                      className="calibration-handle axis-y"
+                      style={{ left: `${pt.x}%`, top: `${pt.y}%` }}
+                      onPointerDown={(e) => handlePointerDownHandle('axisY', lineIdx, ptIdx, e)}
+                      aria-label="Kéo điểm gióng trục Y (Xanh)"
+                    />
+                  ))
+                )}
+              </>
+            )}
+
+            {roomImage && hasTarget && productImageSource && (
+              <img
+                className="room-product-preview"
+                src={productImageSource}
+                alt="Sản phẩm đang được đặt thử"
+                style={getProductPreviewStyle(selectedProduct, target, isFlipped, cameraParams)}
+                draggable="false"
+              />
+            )}
+            
+            {roomImage && hasTarget && !calibrationMode && (
+              <button
+                className={`target-marker ${dragging ? 'is-dragging' : ''}`}
+                type="button"
+                aria-label="Vị trí đặt sản phẩm, kéo để thay đổi"
+                style={{ left: `${target.x}%`, top: `${target.y}%` }}
+                onPointerDown={(event) => { event.stopPropagation(); event.currentTarget.setPointerCapture(event.pointerId); setDragging(true); }}
+                onPointerMove={handlePointerMoveStage}
+                onPointerUp={(event) => { event.stopPropagation(); setDragging(false); }}
+                disabled={isGenerating}
+              >
+                <span />
+                <b>Đặt {selectedProduct?.name || 'sản phẩm'} tại đây</b>
+              </button>
+            )}
           </div>
 
           <div className="studio-message" aria-live="polite">{message || 'Tải ảnh lên, chọn sản phẩm rồi chấm đúng nơi bạn muốn đặt đồ.'}</div>

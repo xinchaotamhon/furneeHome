@@ -1,3 +1,5 @@
+import { computeProductPerspectiveTransform } from './cameraSolver';
+
 const DEFAULT_PRODUCT_SCALE = 0.22;
 const MAX_GUIDE_EDGE = 1024;
 const MAX_REFERENCE_EDGE = 512;
@@ -52,29 +54,16 @@ function isWallMounted(productName = '') {
   return /treo|tranh|gương|khung lưới|đèn tường|clock|đồng hồ treo/i.test(productName);
 }
 
-export function getProductPreviewStyle(product, target, isFlipped = false) {
+export function getProductPreviewStyle(product, target, isFlipped = false, cameraParams = null) {
   const scale = getProductScale(product, target);
   const isWall = isWallMounted(product?.name);
-  const targetX = Number.isFinite(target?.x) ? target.x : 50;
-
-  let transform = 'translate(-50%, -100%)';
-  if (isFlipped) {
-    transform += ' scaleX(-1)';
-  } else if (!isWall) {
-    if (targetX < 42) {
-      // Tự động xoay góc 3/4 ôm sát vách tường trái
-      transform += ' perspective(650px) rotateY(16deg) skewY(-1.5deg)';
-    } else if (targetX > 58) {
-      // Tự động xoay góc 3/4 ôm sát vách tường phải
-      transform += ' perspective(650px) rotateY(-16deg) skewY(1.5deg)';
-    }
-  }
+  const { cssTransform } = computeProductPerspectiveTransform(target, isWall, isFlipped, cameraParams);
 
   return {
     left: `${target.x}%`,
     top: `${target.y}%`,
     width: `${scale * 100}%`,
-    transform,
+    transform: cssTransform,
     transformOrigin: 'bottom center',
   };
 }
@@ -157,15 +146,15 @@ function drawPhysicsFloorShadow(context, rect, productName = '', target = { x: 5
   context.restore();
 }
 
-function drawAiProductGuide(fullCanvas, productImage, rectangle, isFlipped = false, productName = '', target = { x: 50 }) {
+function drawAiProductGuide(fullCanvas, productImage, rectangle, isFlipped = false, productName = '', target = { x: 50 }, cameraParams = null) {
   const context = fullCanvas.getContext('2d');
-  const targetX = Number.isFinite(target?.x) ? target.x : 50;
   const isWall = isWallMounted(productName);
+  const { canvasTransform } = computeProductPerspectiveTransform(target, isWall, isFlipped, cameraParams);
 
   // 1. Vẽ bóng đổ tiếp xúc vật lý chạm sàn
   drawPhysicsFloorShadow(context, rectangle, productName, target);
 
-  // 2. Vẽ sản phẩm với phối cảnh tự động
+  // 2. Vẽ sản phẩm với phối cảnh tự động tính từ cameraSolver
   context.save();
   context.globalAlpha = 1;
 
@@ -173,18 +162,12 @@ function drawAiProductGuide(fullCanvas, productImage, rectangle, isFlipped = fal
     context.translate(rectangle.productX + rectangle.productWidth, rectangle.productY);
     context.scale(-1, 1);
     context.drawImage(productImage, 0, 0, rectangle.productWidth, rectangle.productHeight);
-  } else if (!isWall && targetX < 42) {
-    // Tường trái: Tự động nghiêng 3/4 góc phối cảnh ôm vào tường trái
-    context.translate(rectangle.productX, rectangle.productY);
-    context.transform(1, -0.035, 0, 0.97, 0, 0);
-    context.drawImage(productImage, 0, 0, rectangle.productWidth, rectangle.productHeight);
-  } else if (!isWall && targetX > 58) {
-    // Tường phải: Tự động nghiêng 3/4 góc phối cảnh ôm vào tường phải
-    context.translate(rectangle.productX, rectangle.productY);
-    context.transform(1, 0.035, 0, 0.97, 0, 0);
-    context.drawImage(productImage, 0, 0, rectangle.productWidth, rectangle.productHeight);
   } else {
-    context.drawImage(productImage, rectangle.productX, rectangle.productY, rectangle.productWidth, rectangle.productHeight);
+    context.translate(rectangle.productX, rectangle.productY);
+    if (Array.isArray(canvasTransform)) {
+      context.transform(...canvasTransform);
+    }
+    context.drawImage(productImage, 0, 0, rectangle.productWidth, rectangle.productHeight);
   }
   context.restore();
 }
@@ -201,7 +184,7 @@ function createReferenceCanvas(productImage, isFlipped = false) {
   return referenceCanvas;
 }
 
-export async function createRoomPreviewImages({ roomSource, productSource, target, product, isFlipped = false }) {
+export async function createRoomPreviewImages({ roomSource, productSource, target, product, isFlipped = false, cameraParams = null }) {
   if (!roomSource || !productSource) throw new Error('Cần có ảnh phòng và ảnh sản phẩm tách nền.');
 
   const [roomImage, productImage] = await Promise.all([loadImage(roomSource), loadImage(productSource)]);
@@ -212,7 +195,7 @@ export async function createRoomPreviewImages({ roomSource, productSource, targe
   const rectangle = getProductRectangle(roomSize, productImage, target, product);
   const guideCanvas = makeCanvas(roomSize.width, roomSize.height);
   guideCanvas.getContext('2d').drawImage(roomCanvas, 0, 0);
-  drawAiProductGuide(guideCanvas, productImage, rectangle, isFlipped, product?.name, target);
+  drawAiProductGuide(guideCanvas, productImage, rectangle, isFlipped, product?.name, target, cameraParams);
 
   const cropCanvas = makeCanvas(rectangle.width, rectangle.height);
   cropCanvas.getContext('2d').drawImage(guideCanvas, rectangle.x, rectangle.y, rectangle.width, rectangle.height, 0, 0, rectangle.width, rectangle.height);
