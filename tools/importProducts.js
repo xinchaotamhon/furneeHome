@@ -32,7 +32,7 @@ const DATA_JSON_FILE = path.join(ROOT_DIR, 'client/public/data_import/data_impor
 
 // Danh sách sản phẩm Shopee thực tế
 const DEFAULT_PRODUCTS = [
-  'https://shopee.vn/B%C3%A0n-H%E1%BB%8Dc-G%E1%BA%A5p-G%E1%BB%8Dn-AIODIY-B%C3%A0n-L%C3%A0m-Vi%E1%BB%87c-Mini-%C4%90%E1%BB%83-Gi%C6%B0%E1%BB%9Dng-C%C3%B3-Khay-%C4%90%E1%BB%B1ng-C%E1%BB%91c-Khe-C%E1%BA%AFm-iPad-%C4%90a-N%C4%83ng-Cho-H%E1%BB%8Dc-Sinh-i.1709649747.52663854319?extraParams=%7B%22display_model_id%22%3A411197840842%2C%22model_selection_logic%22%3A3%7D'
+  'https://shopee.vn/T%E1%BB%A7-nh%E1%BB%B1a-%C4%91a-n%C4%83ng-nhi%E1%BB%81u-t%E1%BA%A7ng-c%C3%B3-b%C3%A1nh-xe-di-chuy%E1%BB%83n-d%E1%BB%85-d%C3%A0ng-i.1602771045.48101948699?extraParams=%7B%22display_model_id%22%3A390188823066%2C%22model_selection_logic%22%3A3%7D&rModelId=390188823066&vItemId=44811352050&vModelId=297654957618&vShopId=1506174776'
 ];
 
 function removeVietnameseAccents(value = '') {
