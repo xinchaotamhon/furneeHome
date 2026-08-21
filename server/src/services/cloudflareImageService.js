@@ -41,32 +41,39 @@ function isWallMounted(productName = '') {
 
 function buildPrompt(productName, placement) {
   const isWall = isWallMounted(productName);
-  const locX = placement.x < 0.4 ? 'on the left side' : (placement.x > 0.6 ? 'on the right side' : 'in the center');
+  const isLeft = placement.x < 0.42;
+  const isRight = placement.x > 0.58;
+  const locX = isLeft ? 'on the left side' : (isRight ? 'on the right side' : 'in the center');
 
   if (isWall) {
     return [
-      'Photorealistic architectural interior visualization.',
-      `Use image 0 as the real room scene and image 1 as the exact product reference: "${productName}".`,
-      'PHYSICAL PLACEMENT RULES:',
-      '- This is a wall-mounted decor/item: Mount it flush and flat against the vertical wall surface at normalized height.',
-      '- Do not let it float away from the wall.',
-      '- 100% ROOM PRESERVATION: Keep the stairs, loft, floor tiles, walls, and all existing furniture completely identical and untouched.',
-      'Return one clean, ultra-realistic composite photo.'
+      'Masterpiece photorealistic interior photography, architectural visualization.',
+      `Insert the exact reference product "${productName}" from image 1 into the real room scene in image 0.`,
+      'INTEGRATION RULES:',
+      `- Mount neatly flat on the vertical wall surface ${locX}.`,
+      '- Cast soft ambient drop shadow onto the wall tiles behind it matching ceiling light.',
+      '- 100% ROOM PRESERVATION: Keep the stairs, loft, floor tiles, walls, and all existing room elements 100% identical.',
+      'One clean, high-resolution photorealistic composite photo.'
     ].join(' ');
   }
 
   // Floor-standing furniture (bàn, ghế, tủ, kệ, giường...)
+  const wallPlacementRule = isLeft
+    ? 'The furniture MUST be realistically positioned placed FLUSH against the LEFT wall surface, with its back touching the left wall tiles and its front facing inward into the room corridor (natural 3/4 perspective). It must NOT block the walkway or face flat forward.'
+    : isRight
+      ? 'The furniture MUST be realistically positioned placed FLUSH against the RIGHT wall surface, with its back touching the right wall and its front facing inward to the left (natural 3/4 perspective).'
+      : 'The furniture MUST be placed standing upright on the ground plane, positioned naturally against the back wall facing forward.';
+
   return [
-    'Photorealistic architectural interior visualization.',
-    `Use image 0 as the real room scene and image 1 as the exact product reference: "${productName}".`,
-    'PHYSICAL PLACEMENT RULES:',
-    '- Floor-standing furniture: all legs and base MUST be firmly and solidly planted on the tiled floor surface.',
-    '- The furniture MUST NOT float, levitate in mid-air, or be attached vertically like a wall poster.',
-    `- Place it standing upright on the ground plane ${locX} of the room near the wall, matching the floor perspective.`,
-    '- Perspective and vanishing points must strictly match the floor tile grid and room geometry.',
-    '- True physical lighting: render dark contact shadows directly under every leg where it touches the floor tiles, plus natural room ambient occlusion.',
-    '- 100% ROOM PRESERVATION: Keep the stairs, loft, white wall tiles, floor tiles, bathroom door, and wardrobe completely identical and untouched.',
-    'Return one clean, ultra-realistic composite photo.'
+    'Masterpiece architectural interior photography, shot on 35mm lens, natural interior ambient lighting.',
+    `Seamlessly integrate the exact reference furniture "${productName}" from image 1 standing naturally inside the real room scene in image 0.`,
+    'SPATIAL & PHYSICAL PLACEMENT RULES:',
+    `- ${wallPlacementRule}`,
+    '- Ground plane: all wheels/feet/base MUST be solidly planted on the tiled floor with dark contact shadows directly underneath touching the tiles.',
+    '- Perspective and vanishing lines must strictly follow the floor tile grid and room geometry.',
+    '- Match the room lighting tone, warmth, and diffuse ceiling light reflections.',
+    '- 100% ROOM PRESERVATION: Keep the stairs, loft, white wall tiles, floor tiles, bathroom door, and existing furniture 100% identical and untouched.',
+    'One crisp, ultra-realistic interior photo.'
   ].join(' ');
 }
 

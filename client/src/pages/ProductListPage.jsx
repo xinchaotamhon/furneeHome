@@ -8,14 +8,24 @@ export default function ProductListPage() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Tất cả');
   const [sort, setSort] = useState('default');
-  const categories = ['Tất cả', ...new Set(products.map((product) => product.category))];
+
+  const getCategoryName = (p) => {
+    if (typeof p.category === 'object' && p.category?.name) return p.category.name;
+    return p.category || p.categoryName || 'Nội thất';
+  };
+
+  const categories = useMemo(() => {
+    const list = products.map(getCategoryName).filter(Boolean);
+    return ['Tất cả', ...Array.from(new Set(list))];
+  }, [products]);
 
   const filteredProducts = useMemo(() => {
     const keyword = normalizeText(search.trim());
     const result = products.filter((product) => {
-      const searchableText = normalizeText(`${product.name} ${product.category} ${product.description}`);
+      const catName = getCategoryName(product);
+      const searchableText = normalizeText(`${product.name} ${catName} ${product.description || ''}`);
       const matchesText = !keyword || searchableText.includes(keyword);
-      return matchesText && (category === 'Tất cả' || product.category === category);
+      return matchesText && (category === 'Tất cả' || catName === category);
     });
     if (sort === 'low') return [...result].sort((a, b) => a.price - b.price);
     if (sort === 'high') return [...result].sort((a, b) => b.price - a.price);

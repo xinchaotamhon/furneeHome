@@ -103,11 +103,9 @@ Mở terminal tại thư mục gốc `furneehome` và chạy:
 node tools/importProducts.js
 ```
 
-> **Tool sẽ tự động 100%:**
-> 1. Trích xuất tên, giá bán thật, link Shopee gốc và mã sản phẩm.
-> 2. Tự động liên kết với file ảnh tách nền `52663854319.png` tương ứng.
-> 3. Kết nối MongoDB và lưu (`upsert: true`) vào collection `products`.
-> 4. Tạo bản sao lưu dữ liệu sạch tại `client/public/data_import/data_import.json`.
+> **Cơ chế tự động của Tool:**
+> 1. **Kiểm tra MongoDB:** Nếu link hoặc mã sản phẩm **ĐÃ CÓ TRÊN MONGODB**, tool sẽ **TỪ CHỐI nạp ngay lập tức** và in cảnh báo chi tiết để tránh trùng lặp.
+> 2. **Chưa có trong DB:** Tool tự động liên kết với file ảnh tách nền tương ứng trong `client/public/images/products/`, thêm sản phẩm mới vào MongoDB và sao lưu ra `client/public/data_import/data_import.json`.
 
 ---
 

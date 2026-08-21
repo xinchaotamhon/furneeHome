@@ -2,7 +2,11 @@
  * Tool Nạp Dữ Liệu Sản Phẩm Shopee vào MongoDB cho FurneeHome
  * - Cấu trúc JSON & Document tinh gọn, minh bạch, chính xác 100%.
  * - Tự động liên kết mã Shopee Item ID với file ảnh tách nền PNG.
- * - Không lưu thông tin khuyến mãi tạm thời (như -46%) để tránh sai lệch dữ liệu theo thời gian.
+ * - CƠ CHẾ BẢO VỆ 2 TẦNG (PRE-FLIGHT VALIDATION):
+ *   + Tầng 1: Kiểm tra trùng lặp ngay trong danh sách DEFAULT_PRODUCTS.
+ *   + Tầng 2: Kiểm tra đối chiếu với MongoDB.
+ *   => NẾU CÓ BẤT KỲ 1 LINK NÀO ĐÃ TỒN TẠI: TẠM DỪNG TOÀN BỘ TIẾN TRÌNH VÀ BÁO CỤ THỂ LINK TRÙNG.
+ *   => CHỈ NẠP KHI 100% CÁC LINK ĐỀU LÀ SẢN PHẨM MỚI HỢP LỆ.
  */
 
 const fs = require('fs/promises');
@@ -30,7 +34,7 @@ try {
 const mongoose = require(path.join(ROOT_DIR, 'server/node_modules/mongoose'));
 const DATA_JSON_FILE = path.join(ROOT_DIR, 'client/public/data_import/data_import.json');
 
-// Danh sách sản phẩm Shopee thực tế
+// Danh sách sản phẩm Shopee cần nạp
 const DEFAULT_PRODUCTS = [
   'https://shopee.vn/B%C3%A0n-H%E1%BB%8Dc-G%E1%BA%A5p-G%E1%BB%8Dn-AIODIY-B%C3%A0n-L%C3%A0m-Vi%E1%BB%87c-Mini-%C4%90%E1%BB%83-Gi%C6%B0%E1%BB%9Dng-C%C3%B3-Khay-%C4%90%E1%BB%B1ng-C%E1%BB%91c-Khe-C%E1%BA%AFm-iPad-%C4%90a-N%C4%83ng-Cho-H%E1%BB%8Dc-Sinh-i.1709649747.52663854319?extraParams=%7B%22display_model_id%22%3A411197840842%2C%22model_selection_logic%22%3A3%7D'
 ];
@@ -60,14 +64,29 @@ function inferCategory(name) {
   return 'Nội thất';
 }
 
-function getShopeeCode(sourceUrl) {
-  const match = sourceUrl.match(/(?:i\.|-i\.)(\d+)\.(\d+)/i);
-  return match ? `${match[1]}-${match[2]}` : `sp-${Date.now()}`;
+/**
+ * Trích xuất các định danh của sản phẩm Shopee (Shop ID, Item ID, Product Code, Clean URL)
+ */
+function extractShopeeIdentifiers(url = '') {
+  if (typeof url !== 'string') return { rawShopId: '', rawItemId: '', productCode: '', cleanUrl: '' };
+
+  const match = url.match(/(?:i\.|-i\.|\/product\/)(\d+)(?:\.|\/)(\d+)/i);
+  const rawShopId = match ? match[1] : '';
+  const rawItemId = match ? match[2] : '';
+  const productCode = match ? `${match[1]}-${match[2]}` : `sp-${Date.now()}`;
+
+  let cleanUrl = url;
+  try {
+    const parsed = new URL(url);
+    cleanUrl = `${parsed.origin}${parsed.pathname}`;
+  } catch { }
+
+  return { rawShopId, rawItemId, productCode, cleanUrl };
 }
 
 function processProductItem(item) {
   const url = typeof item === 'string' ? item : item.url;
-  const productCode = getShopeeCode(url);
+  const { rawItemId, productCode } = extractShopeeIdentifiers(url);
 
   let rawName = item.name;
   if (!rawName) {
@@ -81,12 +100,11 @@ function processProductItem(item) {
   const categoryName = item.category || inferCategory(name);
   const price = Number(item.price) || 0;
 
-  // Tự động kiểm tra file ảnh cắt theo mã Item ID (ví dụ: 45263771450.png)
-  const rawItemId = productCode.includes('-') ? productCode.split('-')[1] : productCode;
+  // Tự động kiểm tra file ảnh cắt theo mã Item ID (ví dụ: 52663854319.png)
   const localCutoutPath = path.join(ROOT_DIR, 'client/public/images/products', `${rawItemId}.png`);
 
   let transparentImage = item.transparentImage;
-  if (!transparentImage && require('fs').existsSync(localCutoutPath)) {
+  if (!transparentImage && rawItemId && require('fs').existsSync(localCutoutPath)) {
     transparentImage = `/images/products/${rawItemId}.png`;
   }
 
@@ -113,23 +131,190 @@ function processProductItem(item) {
   };
 }
 
-async function saveToMongo(products) {
-  const mongoUri = process.env.MONGO_URI;
-  if (!mongoUri) {
-    console.log('\n⚠️  Chưa cấu hình MONGO_URI trong file .env ở thư mục gốc.');
-    return;
+/**
+ * Kiểm tra xem một link Shopee / sản phẩm đã có trên MongoDB hay chưa
+ */
+async function checkProductExistsInMongo(itemOrUrl, productsCol) {
+  const url = typeof itemOrUrl === 'string' ? itemOrUrl : (itemOrUrl.sourceUrl || itemOrUrl.url || '');
+  const { rawShopId, rawItemId, productCode, cleanUrl } = extractShopeeIdentifiers(url);
+
+  const queryConditions = [];
+
+  if (url) {
+    queryConditions.push({ sourceUrl: url });
+    queryConditions.push({ shopeeSearchUrl: url });
   }
 
-  console.log('\n🔌 Đang kết nối tới MongoDB...');
+  if (cleanUrl && cleanUrl !== url) {
+    queryConditions.push({ sourceUrl: cleanUrl });
+    queryConditions.push({ shopeeSearchUrl: cleanUrl });
+  }
+
+  if (rawItemId) {
+    queryConditions.push({ sourceUrl: { $regex: rawItemId } });
+    queryConditions.push({ shopeeSearchUrl: { $regex: rawItemId } });
+    queryConditions.push({ image: { $regex: rawItemId } });
+    queryConditions.push({ transparentImage: { $regex: rawItemId } });
+    queryConditions.push({ slug: { $regex: rawItemId } });
+  }
+
+  if (productCode && !productCode.startsWith('sp-')) {
+    queryConditions.push({ slug: { $regex: productCode } });
+  }
+
+  if (typeof itemOrUrl === 'object' && itemOrUrl.slug) {
+    queryConditions.push({ slug: itemOrUrl.slug });
+  }
+
+  if (queryConditions.length === 0) {
+    return { exists: false, product: null, matchBy: null, rawItemId, rawShopId, productCode };
+  }
+
+  const existingProduct = await productsCol.findOne({ $or: queryConditions });
+
+  if (existingProduct) {
+    let matchBy = 'URL';
+    if (rawItemId && (existingProduct.slug?.includes(rawItemId) || existingProduct.sourceUrl?.includes(rawItemId) || existingProduct.transparentImage?.includes(rawItemId) || existingProduct.image?.includes(rawItemId))) {
+      matchBy = `Mã Shopee Item ID (${rawItemId})`;
+    } else if (existingProduct.slug === itemOrUrl.slug) {
+      matchBy = 'Slug';
+    }
+    return {
+      exists: true,
+      product: existingProduct,
+      matchBy,
+      rawItemId,
+      rawShopId,
+      productCode
+    };
+  }
+
+  return { exists: false, product: null, matchBy: null, rawItemId, rawShopId, productCode };
+}
+
+/**
+ * Kiểm tra trùng lặp bên trong mảng DEFAULT_PRODUCTS
+ */
+function checkLocalDuplicates(products) {
+  const seenIds = new Map();
+  const duplicates = [];
+
+  for (let i = 0; i < products.length; i++) {
+    const item = products[i];
+    const { rawItemId, cleanUrl } = extractShopeeIdentifiers(item.sourceUrl);
+    const key = rawItemId || cleanUrl;
+
+    if (seenIds.has(key)) {
+      duplicates.push({
+        firstIndex: seenIds.get(key) + 1,
+        duplicateIndex: i + 1,
+        url: item.sourceUrl,
+        key,
+      });
+    } else {
+      seenIds.set(key, i);
+    }
+  }
+
+  return duplicates;
+}
+
+async function validateAndImport(products) {
+  console.log('\n=================================================================');
+  console.log(`🛡️  BẮT ĐẦU KIỂM TRA TOÀN DIỆN CHO ${products.length} SẢN PHẨM...`);
+  console.log('=================================================================\n');
+
+  // -------------------------------------------------------------
+  // TẦNG 1: KIỂM TRA TRÙNG LẶP NỘI BỘ TRONG DEFAULT_PRODUCTS
+  // -------------------------------------------------------------
+  const localDuplicates = checkLocalDuplicates(products);
+  if (localDuplicates.length > 0) {
+    console.error('🚫 [LỖI TRÙNG LẶP TRONG DANH SÁCH DEFAULT_PRODUCTS]:');
+    localDuplicates.forEach((dup) => {
+      console.error(`   ❌ Link thứ [${dup.duplicateIndex}] bị trùng với link thứ [${dup.firstIndex}]:`);
+      console.error(`      🔗 ${dup.url}`);
+      console.error(`      🔑 Mã định danh trùng: ${dup.key}\n`);
+    });
+    console.error('🛑 TẠM DỪNG TOÀN BỘ TIẾN TRÌNH: Vui lòng xóa link trùng trong DEFAULT_PRODUCTS trước khi chạy lại!\n');
+    return false;
+  }
+
+  // -------------------------------------------------------------
+  // TẦNG 2: KIỂM TRA ĐỐI CHIẾU VỚI MONGODB
+  // -------------------------------------------------------------
+  const mongoUri = process.env.MONGO_URI;
+  if (!mongoUri) {
+    console.log('⚠️  Chưa cấu hình MONGO_URI trong file .env ở thư mục gốc.\n');
+    return false;
+  }
+
+  console.log('🔌 Đang kết nối tới MongoDB Atlas...');
   await mongoose.connect(mongoUri, { dbName: 'furneeHome' });
-  console.log('✅ Đã kết nối MongoDB (Database: furneeHome)');
+  console.log('✅ Đã kết nối MongoDB thành công (Database: furneeHome)\n');
 
   const db = mongoose.connection.db;
   const categoriesCol = db.collection('categories');
   const productsCol = db.collection('products');
 
-  let importedCount = 0;
-  for (const item of products) {
+  console.log('🔍 Đang kiểm tra từng link xem đã tồn tại trên MongoDB chưa...\n');
+
+  const existingList = [];
+
+  for (let i = 0; i < products.length; i++) {
+    const item = products[i];
+    const checkResult = await checkProductExistsInMongo(item, productsCol);
+
+    if (checkResult.exists) {
+      existingList.push({
+        index: i + 1,
+        item,
+        existing: checkResult.product,
+        matchBy: checkResult.matchBy,
+      });
+      console.log(`❌ [${i + 1}/${products.length}] ĐÃ TỒN TẠI: "${item.name.slice(0, 50)}..."`);
+    } else {
+      console.log(`✅ [${i + 1}/${products.length}] HỢP LỆ (MỚI): "${item.name.slice(0, 50)}..."`);
+    }
+  }
+
+  // NẾU CÓ BẤT KỲ LINK NÀO ĐÃ CÓ TRÊN MONGODB -> TẠM DỪNG TOÀN BỘ
+  if (existingList.length > 0) {
+    console.log('\n' + '='.repeat(65));
+    console.error(`🛑 PHÁT HIỆN ${existingList.length}/${products.length} SẢN PHẨM ĐÃ TỒN TẠI TRÊN MONGODB!`);
+    console.error('👉 TIẾN TRÌNH NẠP ĐÃ ĐƯỢC TẠM DỪNG ĐỂ TRÁNH TRÙNG LẶP SẢN PHẨM.\n');
+
+    existingList.forEach((dup) => {
+      const p = dup.existing;
+      console.error(`📌 Link thứ [${dup.index}] ĐÃ CÓ trong Database:`);
+      console.error(`   🔗 Link:         ${dup.item.sourceUrl}`);
+      console.error(`   🏷️  Tên trong DB: "${p.name}"`);
+      console.error(`   🆔 ID MongoDB:   ${p._id}`);
+      console.error(`   🎯 Khớp theo:    ${dup.matchBy}`);
+      console.error(`   🖼️  Ảnh tách nền: ${p.transparentImage || p.image}\n`);
+    });
+
+    console.error('⚠️  HÀNH ĐỘNG CẦN THỰC HIỆN:');
+    console.error('   1. Mở file tools/importProducts.js');
+    console.error('   2. Xóa các link đã được liệt kê ở trên khỏi mảng DEFAULT_PRODUCTS.');
+    console.error('   3. Chạy lại lệnh: node tools/importProducts.js');
+    console.log('='.repeat(65) + '\n');
+
+    await mongoose.disconnect();
+    return false;
+  }
+
+  // -------------------------------------------------------------
+  // TẤT CẢ ĐỀU HỢP LỆ (100% SẢN PHẨM MỚI) -> TIẾN HÀNH NẠP VÀO CSDL
+  // -------------------------------------------------------------
+  console.log('\n' + '='.repeat(65));
+  console.log(`🎉 100% SẢN PHẨM ĐỀU MỚI VÀ HỢP LỆ! BẮT ĐẦU NẠP VÀO MONGODB...`);
+  console.log('='.repeat(65) + '\n');
+
+  const newlyImported = [];
+
+  for (let i = 0; i < products.length; i++) {
+    const item = products[i];
+
     // 1. Tạo Category nếu chưa có
     const categorySlug = toSlug(item.categoryName);
     const categoryDoc = await categoriesCol.findOneAndUpdate(
@@ -139,7 +324,7 @@ async function saveToMongo(products) {
     );
     const categoryId = categoryDoc?._id || categoryDoc?.value?._id;
 
-    // 2. Upsert Product vào collection 'products'
+    // 2. Insert Product vào collection 'products'
     const productData = {
       name: item.name,
       slug: item.slug,
@@ -156,20 +341,25 @@ async function saveToMongo(products) {
       isOfficial: item.isOfficial,
       rating: item.rating,
       isActive: true,
+      createdAt: new Date(),
       updatedAt: new Date(),
     };
 
-    await productsCol.updateOne(
-      { slug: item.slug },
-      { $set: productData, $setOnInsert: { createdAt: new Date() } },
-      { upsert: true }
-    );
-    importedCount += 1;
-    console.log(`  👉 Đã nạp MongoDB: "${item.name}" | Giá: ${item.price.toLocaleString('vi-VN')} ₫ | Ảnh cắt: ${item.transparentImage}`);
+    await productsCol.insertOne(productData);
+    newlyImported.push(item);
+    console.log(`  ✨ [${i + 1}/${products.length}] Nạp thành công: "${item.name}" | Giá: ${item.price.toLocaleString('vi-VN')} ₫`);
   }
 
   await mongoose.disconnect();
-  console.log(`\n🎉 Thành công! Đã cập nhật ${importedCount} sản phẩm chuẩn vào MongoDB collection 'products'.\n`);
+
+  // Sao lưu vào file data_import.json
+  await saveToJsonBackup(newlyImported);
+
+  console.log('\n' + '='.repeat(65));
+  console.log(`🎉 HOÀN THÀNH TOÀN BỘ: Đã nạp ${newlyImported.length} sản phẩm mới vào MongoDB!`);
+  console.log('='.repeat(65) + '\n');
+
+  return true;
 }
 
 async function saveToJsonBackup(products) {
@@ -190,21 +380,32 @@ async function saveToJsonBackup(products) {
 
     await fs.mkdir(path.dirname(DATA_JSON_FILE), { recursive: true });
     await fs.writeFile(DATA_JSON_FILE, JSON.stringify(cleanOutput, null, 2), 'utf8');
-    console.log(`💾 Đã sao lưu dữ liệu sạch vào: client/public/data_import/data_import.json`);
+    console.log(`\n💾 Đã sao lưu dữ liệu mới vào: client/public/data_import/data_import.json`);
   } catch (error) {
     console.warn(`Không lưu được file backup: ${error.message}`);
   }
 }
 
 async function main() {
-  console.log('\n🚀 Bắt đầu nạp dữ liệu sản phẩm Shopee...\n');
+  console.log('\n🚀 Bắt đầu chương trình nạp sản phẩm Shopee (FurneeHome)...\n');
   const processedProducts = DEFAULT_PRODUCTS.map(processProductItem);
-
-  await saveToJsonBackup(processedProducts);
-  await saveToMongo(processedProducts);
+  await validateAndImport(processedProducts);
 }
 
-main().catch((err) => {
-  console.error('\n❌ Lỗi thực thi importProducts:', err.message);
-  process.exit(1);
-});
+module.exports = {
+  extractShopeeIdentifiers,
+  checkProductExistsInMongo,
+  checkLocalDuplicates,
+  processProductItem,
+  validateAndImport,
+};
+
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('\n❌ Lỗi thực thi importProducts:', err.message);
+    process.exit(1);
+  });
+}
+
+
+

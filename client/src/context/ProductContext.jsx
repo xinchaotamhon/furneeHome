@@ -17,30 +17,38 @@ export function ProductProvider({ children }) {
 
   const fetchProducts = async () => {
     setLoading(true);
+    let loadedProducts = [];
+
+    // 1. Thử lấy từ Backend API MongoDB (Port 5000)
     try {
-      // 1. Thử lấy từ Backend API MongoDB
       const apiData = await productService.getAll();
-      if (Array.isArray(apiData) && apiData.length) {
-        setProducts(apiData);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(apiData));
-        setLoading(false);
-        return;
+      if (Array.isArray(apiData) && apiData.length > 0) {
+        loadedProducts = apiData;
       }
     } catch {
-      // 2. Nếu API lỗi/chưa bật server, đọc từ file JSON đã cào (data_import.json)
+      // Backend chưa bật hoặc có lỗi kết nối
+    }
+
+    // 2. Nếu chưa lấy được từ API, tự động nạp từ file JSON backup (data_import.json)
+    if (!loadedProducts.length) {
       try {
-        const response = await fetch('/data_import/data_import.json');
+        const response = await fetch('/data_import/data_import.json?t=' + Date.now());
         if (response.ok) {
           const jsonData = await response.json();
-          if (Array.isArray(jsonData) && jsonData.length) {
-            setProducts(jsonData);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(jsonData));
+          if (Array.isArray(jsonData) && jsonData.length > 0) {
+            loadedProducts = jsonData;
           }
         }
-      } catch {}
-    } finally {
-      setLoading(false);
+      } catch (err) {
+        console.warn('Lỗi đọc data_import.json:', err);
+      }
     }
+
+    if (loadedProducts.length > 0) {
+      setProducts(loadedProducts);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(loadedProducts));
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
