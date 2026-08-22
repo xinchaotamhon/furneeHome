@@ -350,10 +350,10 @@ async function validateAndImport(products) {
     console.log(`  ✨ [${i + 1}/${products.length}] Nạp thành công: "${item.name}" | Giá: ${item.price.toLocaleString('vi-VN')} ₫`);
   }
 
-  await mongoose.disconnect();
+  // Tự động đồng bộ TOÀN BỘ sản phẩm trong MongoDB ra file data_import.json
+  await syncAllProductsToJsonBackup(db);
 
-  // Sao lưu vào file data_import.json
-  await saveToJsonBackup(newlyImported);
+  await mongoose.disconnect();
 
   console.log('\n' + '='.repeat(65));
   console.log(`🎉 HOÀN THÀNH TOÀN BỘ: Đã nạp ${newlyImported.length} sản phẩm mới vào MongoDB!`);
@@ -362,25 +362,44 @@ async function validateAndImport(products) {
   return true;
 }
 
-async function saveToJsonBackup(products) {
+async function syncAllProductsToJsonBackup(db) {
   try {
-    const cleanOutput = products.map((p) => ({
-      name: p.name,
-      slug: p.slug,
-      category: p.categoryName,
-      price: p.price,
-      image: p.image,
-      transparentImage: p.transparentImage,
-      sourceUrl: p.sourceUrl,
-      sellerName: p.sellerName,
-      isOfficial: p.isOfficial,
-      rating: p.rating,
-      description: p.description,
-    }));
+    const productsCol = db.collection('products');
+    const categoriesCol = db.collection('categories');
+
+    const categories = await categoriesCol.find({}).toArray();
+    const categoryMap = new Map(categories.map((c) => [String(c._id), c.name]));
+
+    const allProducts = await productsCol.find({}).sort({ createdAt: -1 }).toArray();
+
+    const cleanOutput = allProducts.map((p) => {
+      let categoryName = 'Nội thất';
+      if (p.category) {
+        categoryName = categoryMap.get(String(p.category)) || p.categoryName || 'Nội thất';
+      }
+      return {
+        _id: String(p._id),
+        name: p.name || 'Sản phẩm nội thất Shopee',
+        slug: p.slug,
+        category: categoryName,
+        categoryName,
+        price: p.price || 0,
+        image: p.image || p.transparentImage || '/images/products/desk-4060.png',
+        transparentImage: p.transparentImage || p.image || '/images/products/desk-4060.png',
+        sourceUrl: p.sourceUrl || p.shopeeSearchUrl || '',
+        shopeeSearchUrl: p.shopeeSearchUrl || p.sourceUrl || '',
+        sellerName: p.sellerName || 'Shopee Seller',
+        isOfficial: Boolean(p.isOfficial),
+        rating: p.rating || 5.0,
+        description: p.description || p.name || '',
+        stock: p.stock || 100,
+        isActive: p.isActive !== false,
+      };
+    });
 
     await fs.mkdir(path.dirname(DATA_JSON_FILE), { recursive: true });
     await fs.writeFile(DATA_JSON_FILE, JSON.stringify(cleanOutput, null, 2), 'utf8');
-    console.log(`\n💾 Đã sao lưu dữ liệu mới vào: client/public/data_import/data_import.json`);
+    console.log(`\n💾 Đã tự động đồng bộ TOÀN BỘ ${cleanOutput.length} sản phẩm từ MongoDB về: client/public/data_import/data_import.json`);
   } catch (error) {
     console.warn(`Không lưu được file backup: ${error.message}`);
   }
