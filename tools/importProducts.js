@@ -53,14 +53,39 @@ function toSlug(value = '') {
     .replace(/^-+|-+$/g, '') || 'san-pham-shopee';
 }
 
-function inferCategory(name) {
-  const lower = removeVietnameseAccents(name).toLowerCase();
-  if (/den|lamp|đèn/.test(lower)) return 'Đèn';
-  if (/ghe|chair|ghế/.test(lower)) return 'Ghế';
-  if (/tu|cabinet|tủ/.test(lower)) return 'Tủ';
-  if (/ban|desk|table|bàn/.test(lower)) return 'Bàn học';
-  if (/ke|shelf|kệ/.test(lower)) return 'Kệ sách';
-  if (/tham|carpet|thảm|tranh|decor|cây/.test(lower)) return 'Đồ decor';
+function inferCategory(name = '') {
+  const clean = name.trim();
+
+  // 1. Tủ (Tủ quần áo, tủ nhựa, tủ vải, tủ đầu giường...)
+  if (/(?<!\p{L})(tủ|wardrobe|cabinet|tu vai|tu nhua|tu go)(?!\p{L})/iu.test(clean)) {
+    return 'Tủ';
+  }
+
+  // 2. Bàn học / Bàn làm việc / Bàn gấp (ngoại trừ "kệ để bàn" / "giá để bàn")
+  if (!/(?<!\p{L})(kệ|ke|giá|gia)(?!\p{L})/iu.test(clean) && /(?<!\p{L})(bàn|ban|desk|table|laptop)(?!\p{L})/iu.test(clean)) {
+    return 'Bàn học';
+  }
+
+  // 3. Ghế
+  if (/(?<!\p{L})(ghế|ghe|chair|stool)(?!\p{L})/iu.test(clean)) {
+    return 'Ghế';
+  }
+
+  // 4. Kệ sách / Giá treo / Kệ đa năng
+  if (/(?<!\p{L})(kệ|ke|giá|gia|sào|shelf|rack)(?!\p{L})/iu.test(clean)) {
+    return 'Kệ sách';
+  }
+
+  // 5. Đèn (tránh nhầm chữ 'màu đen' hoặc 'đen')
+  if (/(?<!\p{L})(đèn|lamp|lighting|den ban|den hoc|den ngu|den cay|den led)(?!\p{L})/iu.test(clean) && !/(?<!\p{L})(màu đen|mau den)(?!\p{L})/iu.test(clean)) {
+    return 'Đèn';
+  }
+
+  // 6. Đồ decor / Thảm
+  if (/(?<!\p{L})(thảm|tham|tranh|decor|cây|gối|carpet)(?!\p{L})/iu.test(clean)) {
+    return 'Đồ decor';
+  }
+
   return 'Nội thất';
 }
 
