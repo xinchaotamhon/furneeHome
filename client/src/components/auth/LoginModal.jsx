@@ -31,7 +31,7 @@ export default function LoginModal() {
         <h2>{isRegister ? 'Tạo tài khoản FurneeHome' : 'Đăng nhập FurneeHome'}</h2>
         <p className="muted">{isRegister ? 'Lưu sản phẩm và những ý tưởng phòng của riêng bạn.' : 'Tiếp tục với Bộ sưu tập và những mẫu phòng đã lưu.'}</p>
         {isRegister && <label>Họ và tên
-          <input type="text" placeholder="Nguyễn Văn A" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+          <input type="text" placeholder="Nguyễn Văn A" required maxLength={20} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} onBlur={(event) => setForm({ ...form, name: event.target.value.trim() })}/>
         </label>}
         <label>Email
           <input type="email" placeholder="ban@example.com" required value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />

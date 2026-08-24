@@ -155,14 +155,14 @@ export default function RoomStudioPage() {
   return (
     <main className="container page room-studio-page">
       <div className="page-heading split-heading">
-        <div><p className="eyebrow">ẢNH PHÒNG THẬT + VỊ TRÍ SẢN PHẨM</p><h1>Phòng thử</h1><p>Chọn sản phẩm, chạm vào nơi muốn đặt và xem thử trong phòng.</p></div>
+        <div><p className="eyebrow">ẢNH PHÒNG THẬT + VỊ TRÍ SẢN PHẨM</p><h1>Phòng thử</h1><p>Chọn sản phẩm, chấm vào nơi muốn đặt và xem thử trong phòng.</p></div>
         <div className="privacy-note"><strong>Ảnh chỉ dùng trong phiên thử</strong><span>Token Cloudflare chỉ được giữ ở backend.</span></div>
       </div>
 
       <ol className="studio-steps">
         <li><span>1</span><div><strong>Tải ảnh phòng</strong><small>Chọn ảnh rõ khu vực bạn muốn đặt đồ.</small></div></li>
         <li><span>2</span><div><strong>Chấm một vị trí</strong><small>Ghim là nơi đáy sản phẩm sẽ tiếp xúc.</small></div></li>
-        <li><span>3</span><div><strong>Xem thử trong phòng</strong><small>AI chỉ chỉnh vùng nhỏ quanh vị trí đã chọn.</small></div></li>
+        <li><span>3</span><div><strong>Xem thử trong phòng</strong><small>Furnee sẽ chỉnh vùng nhỏ quanh vị trí đã chọn.</small></div></li>
       </ol>
 
       <div className="studio-layout studio-layout-simple">
