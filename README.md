@@ -32,11 +32,11 @@ Dành cho Windows:
 
 | Trang | Đường dẫn (URL) | Chức năng chính |
 |---|---|---|
-| **Trang chủ** | `/` | Giới thiệu dự án, nút dẫn nhanh đến phòng thử One-touch |
-| **Danh sách sản phẩm** | `/products` | Xem đồ nội thất, tìm kiếm có/không dấu, link mua Shopee |
-| **Phòng thử (AI Studio)** | `/room-studio` | Chọn các điểm phòng để tính phối cảnh $\rightarrow$ đặt sản phẩm $\rightarrow$ gửi ảnh và prompt đến Cloudflare AI |
-| **Bộ sưu tập** | `/collection` | Xem lại đồ đã thích và các mẫu phòng AI đã tạo |
-| **Quản trị** | `/admin` | Thêm, sửa, xóa sản phẩm trong CSDL (dành cho Admin) |
+| **Trang chủ** | `/` | Giới thiệu dự án, danh mục nổi bật, dẫn nhanh đến phòng thử |
+| **Danh sách sản phẩm** | `/products` | 50 sản phẩm chuẩn hóa (Bàn học, Ghế, Tủ, Kệ sách, Đèn, Decor), link Shopee |
+| **Phòng thử (Room Studio)** | `/room-studio` | **3 bước trực quan:** 1. Chấm góc phòng $\rightarrow$ 2. Chọn đồ & bấm góc muốn kê $\rightarrow$ 3. Xem thử AI |
+| **Bộ sưu tập** | `/collection` | Xem lại đồ yêu thích và các ảnh phòng AI đã tạo (có cơ chế chống tràn Storage) |
+| **Quản trị** | `/admin` | Thêm, sửa, xóa sản phẩm trong CSDL MongoDB Atlas (dành cho Admin) |
 
 ---
 
@@ -58,17 +58,11 @@ cd client && npm install
 cd ..\server && npm install
 ```
 
-### 1️⃣ Trước khi bắt đầu làm việc mỗi ngày (Kéo code mới nhất về máy):
+### 1️⃣ Khi muốn lấy code mới nhất từ `main` về nhánh của bạn (Chỉ 1 lệnh duy nhất):
+> Đang ở nhánh của bạn (ví dụ `feature/phuc`), chỉ cần chạy lệnh này để gộp code mới nhất từ `main` vào nhánh của mình:
+
 ```powershell
-# 1. Chuyển về nhánh bạn đang làm việc:
-git switch feature/ten-cua-ban
-
-# 2. Kéo toàn bộ cập nhật mới nhất từ nhánh main về:
 git pull origin main
-
-# 3. (Nếu có thư viện mới) Chạy cập nhật:
-cd client && npm install
-cd ..\server && npm install
 ```
 
 ### 2️⃣ Sau khi làm xong tính năng (Đẩy code lên GitHub):
