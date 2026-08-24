@@ -248,7 +248,7 @@ export default function RoomStudioPage() {
           <span>3</span>
           <div>
             <strong>Xem thử trong phòng</strong>
-            <small>AI đưa sản phẩm thật vào góc phòng</small>
+            <small>Furnee đưa sản phẩm thật vào phòng của bạn</small>
           </div>
         </li>
       </ol>
