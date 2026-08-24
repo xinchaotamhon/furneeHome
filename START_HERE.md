@@ -41,7 +41,7 @@ Room Studio phải được hiểu theo ba bước người dùng:
 
 ## 5. Nguyên tắc code đơn giản
 
-Tham khảo cách tổ chức dễ đọc của `D:\code\fptaptech\term1\5.SDN\pretest2`, nhưng **không copy code** và không copy các quyết định bảo mật yếu của bài mẫu.
+Viết code đơn giản, tuần tự và dễ hiểu như cách tổ chức trong thư mục local `pretest2/` nếu thư mục này có trong workspace, nhưng **không copy code** và không copy các quyết định bảo mật yếu của bài mẫu.
 
 Giữ các nguyên tắc:
 

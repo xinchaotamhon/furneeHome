@@ -42,36 +42,53 @@ Dành cho Windows:
 
 ## 🌿 4. Hướng dẫn làm việc với Git cho 4 thành viên nhóm
 
-Mỗi thành viên làm việc trên **nhánh riêng** của mình (`feature/phuc`, `feature/trieu`, `feature/dung`), hoặc pull trực tiếp từ nhánh `main`.
+Mỗi thành viên làm trên nhánh riêng (`feature/phuc`, `feature/trieu`, `feature/dung`). Trưởng nhóm review rồi mới merge vào `main`.
 
-### 0️⃣ Thiết lập lần đầu (Clone & Cài đặt thư viện):
+### 0️⃣ Thiết lập lần đầu
 ```powershell
 git clone https://github.com/xinchaotamhon/furneeHome.git
 cd furneeHome
 git fetch origin
+git switch --track origin/feature/phuc   # đổi thành nhánh của bạn
 
-# Chuyển sang nhánh riêng của bạn (hoặc ở lại main):
-git switch feature/phuc   # (hoặc feature/trieu / feature/dung)
-
-# Cài đặt thư viện cho cả Frontend và Backend:
 cd client && npm install
 cd ..\server && npm install
 ```
 
-### 1️⃣ Khi muốn lấy code mới nhất từ `main` về nhánh của bạn (Chỉ 1 lệnh duy nhất):
-> Đang ở nhánh của bạn (ví dụ `feature/phuc`), chỉ cần chạy lệnh này để gộp code mới nhất từ `main` vào nhánh của mình:
+### 1️⃣ Sửa riêng lỗi nhánh của Phúc
+
+`origin/feature/phuc` đang lệch lịch sử; phần sản phẩm và giới hạn 20 ký tự của Phúc đã có phiên bản mới hơn trên `main`. Phúc commit phần đang làm dở, giữ nguyên nhánh cũ và tạo nhánh mới từ `main`:
 
 ```powershell
-git pull origin main
+git fetch origin
+git switch -c feature/phuc-next origin/main
+git push -u origin feature/phuc-next
 ```
 
-### 2️⃣ Sau khi làm xong tính năng (Đẩy code lên GitHub):
+Từ lần sau Phúc làm việc và push trên `feature/phuc-next`; không cần force-push hoặc xóa nhánh cũ.
+
+### 2️⃣ Lấy code mới từ `main` về nhánh cá nhân
+
+Commit phần đang làm dở trước, rồi chạy:
+
+```powershell
+git switch main
+git pull --ff-only origin main
+git switch feature/phuc-next   # đổi thành nhánh của bạn
+git merge main
+```
+
+Nếu Git báo conflict và bạn chưa biết xử lý, chạy `git merge --abort` rồi báo cho Hiệp. Không chạy `git pull origin main` ngay trên nhánh cá nhân và không dùng `git push --force`.
+
+### 3️⃣ Đẩy phần đã làm lên GitHub
 ```powershell
 git add .
+git status
 git commit -m "feat: mô tả ngắn gọn nội dung bạn vừa làm"
-git push origin feature/ten-cua-ban
+git push
 ```
-*(Sau khi push xong, báo cho trưởng nhóm Hiệp để review và merge vào `main`).*
+
+*(Sau khi push xong, báo cho trưởng nhóm Hiệp để review và merge vào `main`.)*
 
 ---
 
