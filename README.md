@@ -51,8 +51,10 @@ cd furneeHome
 git fetch origin
 git switch --track origin/feature/phuc   # đổi thành nhánh của bạn
 
-cd client && npm install
-cd ..\server && npm install
+cd client
+npm install
+cd ..\server
+npm install
 ```
 
 ### 1️⃣ Sửa riêng lỗi nhánh của Phúc
