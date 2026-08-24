@@ -129,13 +129,13 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
 .empty-icon { display: block; color: var(--color-accent); font-size: 4rem; line-height: 1; }
 
 .collection-grid { display: grid; gap: 14px; }
-.saved-card { display: grid; grid-template-columns: 135px 1fr auto; gap: 24px; align-items: center; padding: 18px; border: 1px solid var(--color-border); border-radius: var(--radius-medium); background: white; }
-.saved-visual { display: grid; place-items: center; height: 115px; padding: 12px; border-radius: 8px; background: #f2f1eb; }
-.saved-visual .product-artwork { width: 100%; height: 100%; object-fit: contain; }
-.saved-card h2 { margin: 6px 0; font-family: var(--font-heading); font-size: 1.25rem; }
+.saved-card { display: grid; grid-template-columns: 135px minmax(0, 1fr) auto; gap: 24px; align-items: center; padding: 18px; border: 1px solid var(--color-border); border-radius: var(--radius-medium); background: white; overflow: hidden; }
+.saved-visual { position: relative; display: flex; align-items: center; justify-content: center; width: 135px; height: 115px; max-width: 100%; padding: 8px; border-radius: 8px; background: #f2f1eb; overflow: hidden; box-sizing: border-box; flex-shrink: 0; }
+.saved-visual .product-artwork { width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.saved-card h2 { margin: 6px 0; font-family: var(--font-heading); font-size: 1.25rem; word-break: break-word; }
 .saved-card p { margin-bottom: 6px; color: var(--color-muted); }
 .saved-actions { display: grid; gap: 11px; justify-items: center; }
-.room-template-icon { display: grid; place-items: center; height: 115px; border-radius: 8px; color: var(--color-primary); background: repeating-linear-gradient(0deg, transparent 0 22px, #d4ddd7 23px), repeating-linear-gradient(90deg, transparent 0 22px, #d4ddd7 23px), #edf1ed; font-size: 2.2rem; }
+.room-template-icon { display: grid; place-items: center; height: 115px; border-radius: 8px; color: var(--color-primary); background: repeating-linear-gradient(0deg, transparent 0 22px, #d4ddd7 23px), repeating-linear-gradient(90deg, transparent 0 22px, #d4ddd7 23px), #edf1ed; font-size: 2.2rem; overflow: hidden; }
 .room-template-icon img { width: 100%; height: 100%; border-radius: 8px; object-fit: cover; }
 
 .modal-backdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 18px; background: rgb(14 25 20 / 62%); backdrop-filter: blur(5px); }
@@ -154,14 +154,15 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
 .studio-steps li > span { display: grid; flex: 0 0 30px; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: white; background: var(--color-primary); font-weight: 800; }
 .studio-steps strong, .studio-steps small { display: block; }
 .studio-steps small { color: var(--color-muted); }
-.studio-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 22px; align-items: start; }
-.studio-layout-simple { grid-template-columns: 270px minmax(0, 1fr); }
+.studio-layout { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 22px; align-items: start; }
+.studio-layout-simple { grid-template-columns: 320px minmax(0, 1fr); }
 .studio-panel { overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-medium); background: white; }
-.studio-panel section { display: grid; gap: 12px; padding: 20px; border-bottom: 1px solid var(--color-border); }
+.studio-panel section { display: grid; gap: 12px; padding: 20px; border-bottom: 1px solid var(--color-border); min-width: 0; }
 .studio-panel section:last-child { border-bottom: 0; }
-.studio-panel h2 { margin: -5px 0 0; font-family: var(--font-heading); font-size: 1.25rem; }
-.upload-box { display: grid; place-items: center; min-height: 130px; padding: 16px; border: 1px dashed var(--color-primary); border-radius: 8px; color: var(--color-primary); background: #f6faf7; text-align: center; cursor: pointer; }
+.studio-panel h2 { margin: -5px 0 0; font-family: var(--font-heading); font-size: 1.25rem; word-break: break-word; }
+.upload-box { display: grid; place-items: center; min-height: 130px; padding: 16px; border: 1px dashed var(--color-primary); border-radius: 8px; color: var(--color-primary); background: #f6faf7; text-align: center; cursor: pointer; max-width: 100%; box-sizing: border-box; overflow: hidden; }
 .upload-box > span { font-size: 1.7rem; }
+.upload-box strong { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; }
 .upload-box small { color: var(--color-muted); font-weight: 400; }
 .upload-box input, .room-placeholder input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .target-help p { margin: 0; color: var(--color-muted); font-size: .82rem; }
@@ -193,8 +194,8 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
 .studio-steps li.active-step { border-color: var(--color-primary); background: #f0f7f3; }
 .studio-steps li.active-step span { background: var(--color-primary); color: white; }
 
-.corners-panel { margin-top: 14px; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px; background: #faf9f5; }
-.corners-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; font-size: .82rem; }
+.corners-panel { margin-top: 14px; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px; background: #faf9f5; min-width: 0; overflow: hidden; box-sizing: border-box; }
+.corners-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; font-size: .82rem; }
 .corner-chips-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .corner-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--color-border); border-radius: 20px; background: white; font-size: .76rem; font-weight: 600; cursor: pointer; transition: all .15s ease; }
 .corner-chip:hover, .corner-chip.active { border-color: var(--color-primary); background: #f0f7f3; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
