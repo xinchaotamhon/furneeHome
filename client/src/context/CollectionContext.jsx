@@ -6,7 +6,13 @@ const CollectionContext = createContext(null);
 function readCollection() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return Array.isArray(saved) ? saved : [];
+    if (!Array.isArray(saved)) return [];
+
+    return saved.map((item) => {
+      if (item.type !== 'room-template' || item.resultImage || !item.photo) return item;
+      const { photo, ...rest } = item;
+      return { ...rest, resultImage: photo };
+    });
   } catch {
     return [];
   }
@@ -25,8 +31,8 @@ function safeSaveCollection(items) {
       try {
         // Nếu vẫn đầy, lưu danh sách không kèm chuỗi ảnh lớn
         const lightweight = items.slice(-3).map((item) => {
-          if (item.type === 'room-template' && item.photo && item.photo.length > 5000) {
-            return { ...item, photo: '' };
+          if (item.type === 'room-template' && item.resultImage && item.resultImage.length > 5000) {
+            return { ...item, resultImage: '' };
           }
           return item;
         });
@@ -56,13 +62,13 @@ export function CollectionProvider({ children }) {
         const exists = current.some((item) => item.type === 'product' && item.product._id === product._id);
         return exists
           ? current.filter((item) => !(item.type === 'product' && item.product._id === product._id))
-          : [...current, { id: `product-${product._id}`, type: 'product', product, savedAt: new Date().toISOString() }];
+          : [...current, { id: 'product-' + product._id, type: 'product', product, savedAt: new Date().toISOString() }];
       });
     },
     saveRoomTemplate(template) {
       setItems((current) => [...current, {
         ...template,
-        id: `room-${Date.now()}`,
+        id: 'room-' + Date.now(),
         type: 'room-template',
         savedAt: new Date().toISOString(),
       }]);

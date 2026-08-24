@@ -1,21 +1,67 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useState } from 'react';
+import authService from '../services/authService';
 
 const AuthContext = createContext(null);
-const STORAGE_KEY = 'furneehome-demo-user';
+const USER_KEY = 'furneehome-user';
+const TOKEN_KEY = 'accessToken';
 
 function readUser() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return JSON.parse(localStorage.getItem(USER_KEY));
   } catch {
     return null;
   }
+}
+
+function getErrorMessage(error) {
+  return error.response?.data?.message || error.message || 'Không thể kết nối đến máy chủ.';
+}
+
+function saveSession(session) {
+  localStorage.setItem(TOKEN_KEY, session.token);
+  localStorage.setItem(USER_KEY, JSON.stringify(session.user));
 }
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(readUser);
   const [isLoginOpen, setLoginOpen] = useState(false);
   const [authMode, setAuthMode] = useState('login');
-  const value = useMemo(() => ({
+
+  const login = async (credentials) => {
+    try {
+      const session = await authService.login(credentials);
+      saveSession(session);
+      setUser(session.user);
+      setLoginOpen(false);
+      return session.user;
+    } catch (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  };
+
+  const register = async (profile) => {
+    try {
+      const session = await authService.register({
+        name: profile.name,
+        email: profile.email,
+        password: profile.password,
+      });
+      saveSession(session);
+      setUser(session.user);
+      setLoginOpen(false);
+      return session.user;
+    } catch (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    setUser(null);
+  };
+
+  const value = {
     user,
     isLoginOpen,
     authMode,
@@ -27,47 +73,13 @@ export function AuthProvider({ children }) {
       setAuthMode('register');
       setLoginOpen(true);
     },
-    switchAuthMode(mode) {
-      setAuthMode(mode);
-    },
+    switchAuthMode: setAuthMode,
     closeLogin: () => setLoginOpen(false),
-    login(credentials) {
-      const isAdmin = credentials.email.trim().toLowerCase() === 'admin@furneehome.vn'
-        && credentials.password === 'admin123';
-      const nextUser = {
-        name: isAdmin ? 'Quản trị viên' : credentials.email.split('@')[0] || 'Khách hàng',
-        email: credentials.email,
-        role: isAdmin ? 'admin' : 'customer',
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
-      setUser(nextUser);
-      setLoginOpen(false);
-      return nextUser;
-    },
-    register(profile) {
-      const nextUser = {
-        name: profile.name.trim() || profile.email.split('@')[0],
-        email: profile.email,
-        role: 'customer',
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
-      setUser(nextUser);
-      setLoginOpen(false);
-      return nextUser;
-    },
-    loginDemo(role) {
-      const nextUser = role === 'admin'
-        ? { name: 'Quản trị viên', email: 'admin@furneehome.vn', role: 'admin' }
-        : { name: 'Khách hàng dùng thử', email: 'customer@furneehome.vn', role: 'customer' };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
-      setUser(nextUser);
-      setLoginOpen(false);
-    },
-    logout() {
-      localStorage.removeItem(STORAGE_KEY);
-      setUser(null);
-    },
-  }), [user, isLoginOpen, authMode]);
+    login,
+    register,
+    logout,
+  };
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

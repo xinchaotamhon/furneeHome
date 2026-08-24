@@ -204,7 +204,7 @@ export default function RoomStudioPage() {
         productId: selectedProduct._id,
         productName: selectedProduct.name,
         target: normalizedPlacement,
-        photo: finalImage,
+        resultImage: finalImage,
       });
       setMessage('Đã xem thử và tự động lưu vào Bộ sưu tập.');
     } catch (error) {

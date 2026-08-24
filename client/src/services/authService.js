@@ -5,6 +5,10 @@ const authService = {
     const response = await apiClient.post('/auth/login', credentials);
     return response.data.data;
   },
+  async register(profile) {
+    const response = await apiClient.post('/auth/register', profile);
+    return response.data.data;
+  },
 };
 
 export default authService;

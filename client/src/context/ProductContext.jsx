@@ -4,43 +4,39 @@ import productService from '../services/productService';
 const STORAGE_KEY = 'furneehome-products';
 const ProductContext = createContext(null);
 
+function readCachedProducts() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return Array.isArray(saved) && saved.length ? saved : [];
+  } catch {
+    return [];
+  }
+}
+
 export function ProductProvider({ children }) {
-  const [products, setProducts] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return Array.isArray(saved) && saved.length ? saved : [];
-    } catch {
-      return [];
-    }
-  });
+  const [products, setProducts] = useState(readCachedProducts);
   const [loading, setLoading] = useState(true);
 
   const fetchProducts = async () => {
     setLoading(true);
     let loadedProducts = [];
 
-    // 1. Thử lấy từ Backend API MongoDB (Port 5000)
     try {
       const apiData = await productService.getAll();
-      if (Array.isArray(apiData) && apiData.length > 0) {
-        loadedProducts = apiData;
-      }
+      if (Array.isArray(apiData) && apiData.length > 0) loadedProducts = apiData;
     } catch {
-      // Backend chưa bật hoặc có lỗi kết nối
+      // Vẫn dùng được trang sản phẩm nếu backend tạm thời chưa bật.
     }
 
-    // 2. Nếu chưa lấy được từ API, tự động nạp từ file JSON backup (data_import.json)
     if (!loadedProducts.length) {
       try {
         const response = await fetch('/data_import/data_import.json?t=' + Date.now());
         if (response.ok) {
           const jsonData = await response.json();
-          if (Array.isArray(jsonData) && jsonData.length > 0) {
-            loadedProducts = jsonData;
-          }
+          if (Array.isArray(jsonData)) loadedProducts = jsonData;
         }
-      } catch (err) {
-        console.warn('Lỗi đọc data_import.json:', err);
+      } catch {
+        // Giữ lại dữ liệu cache hiện tại nếu file dự phòng không đọc được.
       }
     }
 
@@ -48,38 +44,37 @@ export function ProductProvider({ children }) {
       setProducts(loadedProducts);
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(loadedProducts));
-      } catch {}
+      } catch {
+        // Không chặn giao diện nếu localStorage đầy.
+      }
     }
     setLoading(false);
+    return loadedProducts;
   };
 
   useEffect(() => {
     fetchProducts();
   }, []);
 
-  const save = (nextProducts) => {
-    setProducts(nextProducts);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextProducts));
-    } catch {}
-  };
-
   const value = useMemo(() => ({
     products,
     loading,
     refreshProducts: fetchProducts,
-    addProduct(product) {
-      save([...products, { ...product, _id: `local-${Date.now()}` }]);
+    async addProduct(product) {
+      const createdProduct = await productService.create(product);
+      await fetchProducts();
+      return createdProduct;
     },
-    updateProduct(product) {
-      save(products.map((item) => item._id === product._id ? product : item));
+    async updateProduct(product) {
+      const updatedProduct = await productService.update(product._id, product);
+      await fetchProducts();
+      return updatedProduct;
     },
-    removeProduct(id) {
-      save(products.filter((item) => item._id !== id));
+    async removeProduct(id) {
+      await productService.remove(id);
+      await fetchProducts();
     },
-    resetProducts() {
-      fetchProducts();
-    },
+    resetProducts: fetchProducts,
   }), [products, loading]);
 
   return <ProductContext.Provider value={value}>{children}</ProductContext.Provider>;

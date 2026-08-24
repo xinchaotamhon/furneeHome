@@ -18,6 +18,9 @@ async function seed() {
       { name: 'Administrator', email: process.env.ADMIN_EMAIL.toLowerCase(), password: await bcrypt.hash(process.env.ADMIN_PASSWORD, 12), role: 'admin' },
       { upsert: true },
     );
+    console.log(`Admin account ready: ${process.env.ADMIN_EMAIL}`);
+  } else {
+    console.log('Admin account skipped: set ADMIN_EMAIL and ADMIN_PASSWORD in .env first.');
   }
   await mongoose.disconnect();
   console.log('Seed completed');
