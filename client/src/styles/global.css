@@ -312,3 +312,484 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
   .login-card { padding: 28px 22px; }
 }
 
+/* ==========================================================================
+   STACKED CARDS (THẺ XẾP CHỒNG) STYLES (ROOM STUDIO)
+   ========================================================================== */
+.stack-deck-bar {
+  margin-bottom: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: white;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.stack-deck-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-border);
+  background: #fafaf8;
+}
+
+.stack-deck-title {
+  display: grid;
+  gap: 2px;
+}
+
+.stack-deck-title strong {
+  font-size: 1.05rem;
+  color: var(--color-primary-dark);
+}
+
+.stack-deck-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.deck-page-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: #eef6f1;
+  border: 1px solid #c2ded0;
+  color: var(--color-primary);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.stack-deck-pills {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  background: #ffffff;
+}
+
+.deck-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 99px;
+  background: #fafaf8;
+  color: #4b5563;
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.deck-pill:hover {
+  border-color: var(--color-primary);
+  background: #f0f7f3;
+  color: var(--color-primary);
+}
+
+.deck-pill.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(32, 92, 70, 0.28);
+}
+
+/* SIDEBAR SẢN PHẨM & THAO TÁC */
+.product-picker-section {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.product-picker-compact-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  max-height: 230px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.product-compact-chip {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: #faf9f5;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.product-compact-chip:hover,
+.product-compact-chip.active {
+  border-color: var(--color-primary);
+  background: #f0f7f3;
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+.product-compact-chip .product-artwork {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.product-compact-chip span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-sidebar-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* KHU VỰC STACKED DECK (XẤP THẺ) */
+.stack-deck-stage-area {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.deck-stack-wrapper {
+  position: relative;
+  width: 100%;
+  padding: 10px 14px 24px;
+}
+
+.stacked-card {
+  border-radius: var(--radius-medium);
+  background: white;
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform-origin: center bottom;
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+              box-shadow 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+              opacity 0.3s ease;
+}
+
+/* THẺ TRÊN CÙNG: Chiều cao tự nhiên theo ảnh, hiển thị 100% trọn vẹn không bị cắt */
+.stacked-card.is-top-card {
+  position: relative;
+  width: 100%;
+  height: auto;
+  z-index: 25;
+}
+
+/* THẺ NẰM SAU: Định vị tuyệt đối ôm theo khung của thẻ trên cùng và xoay nghiêng */
+.stacked-card.is-stacked-behind {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  right: 14px;
+  bottom: 24px;
+  cursor: pointer;
+  user-select: none;
+  filter: brightness(0.96);
+}
+
+.stacked-card.is-stacked-behind:hover {
+  filter: brightness(1.02);
+}
+
+.stacked-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  background: #fafaf8;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.card-badge-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.card-tag-num {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #eef6f1;
+  color: var(--color-primary);
+  font-size: 0.74rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.card-product-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.88rem;
+  color: var(--color-primary-dark);
+  font-weight: 750;
+}
+
+.card-badge-state {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.peek-tag {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #e2e8f0;
+  color: #475569;
+  font-weight: 700;
+}
+
+/* ĐẢM BẢO KHÔNG BỊ CẮT ẢNH TRONG PHÒNG THỬ VÀ KẾT QUẢ */
+.stacked-card .room-stage {
+  position: relative;
+  width: 100%;
+  height: auto;
+  min-height: 420px;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: #edf2ee;
+  display: grid;
+  place-items: center;
+}
+
+.stacked-card .room-stage.has-image {
+  display: block;
+  min-height: auto;
+  background: #f7f9f7;
+}
+
+.stacked-card .room-photo {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 80vh;
+  object-fit: contain;
+}
+
+.stacked-card-visual {
+  position: relative;
+  width: 100%;
+  background: #edf2ee;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.stacked-card-img {
+  width: 100%;
+  height: auto;
+  max-height: 80vh;
+  object-fit: contain;
+  display: block;
+}
+
+/* OVERLAY TAG TRÊN ẢNH KẾT QUẢ (KHÔNG ĐÈ CHỮ, KHÔNG TRÀN MÀN) */
+.stacked-photo-overlay-tag {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  max-width: calc(100% - 28px);
+  padding: 7px 14px;
+  background: rgba(18, 48, 36, 0.92);
+  backdrop-filter: blur(8px);
+  border-radius: 8px;
+  color: white;
+  font-size: 0.82rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.stacked-photo-overlay-tag .overlay-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.overlay-pin-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e07a5f;
+  border: 2.5px solid white;
+  box-shadow: 0 0 0 2px #e07a5f;
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+
+.stacked-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #fafaf8;
+  border-top: 1px solid var(--color-border);
+}
+
+/* NÚT XÓA THẺ HÀI HÒA, THANH LỊCH */
+.button-delete-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: var(--radius-small);
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.button-delete-card:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.stacked-card-time {
+  margin-left: auto;
+  font-size: 0.76rem;
+  color: var(--color-muted);
+}
+
+.stacked-card-footer {
+  padding: 8px 14px;
+  background: #fafaf8;
+  border-top: 1px solid var(--color-border);
+}
+
+.stacked-card-footer .studio-message {
+  margin: 0;
+}
+
+/* THÔNG BÁO VÀ BANNER LƯU PHIÊN */
+.guest-save-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-medium);
+  color: #92400e;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.1);
+}
+
+.guest-save-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.guest-save-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.guest-save-content strong {
+  display: block;
+  font-size: 0.92rem;
+  color: #78350f;
+  margin-bottom: 2px;
+}
+
+.guest-save-content span {
+  font-size: 0.82rem;
+  color: #92400e;
+}
+
+.guest-save-btn {
+  background: #b45309;
+  border-color: #b45309;
+  color: white;
+  white-space: nowrap;
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 8px 16px;
+  flex-shrink: 0;
+}
+
+.guest-save-btn:hover {
+  background: #92400e;
+  border-color: #92400e;
+  transform: translateY(-1px);
+}
+
+.user-saved-notice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  margin-bottom: 20px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: var(--radius-medium);
+  color: #065f46;
+  font-size: 0.86rem;
+}
+
+.user-saved-notice strong {
+  color: #047857;
+}
+
+@media (max-width: 860px) {
+  .guest-save-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .deck-stack-wrapper {
+    padding-inline: 6px;
+  }
+  .stacked-card-actions {
+    gap: 8px;
+  }
+}
+
+
+
+
+
