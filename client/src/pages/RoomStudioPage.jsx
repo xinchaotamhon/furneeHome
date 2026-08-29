@@ -446,13 +446,13 @@ export default function RoomStudioPage() {
     <main className="container page room-studio-page">
       <div className="page-heading split-heading">
         <div>
-          <p className="eyebrow">XẤP THẺ PHỐI CẢNH 3D (STACKED CARDS)</p>
+          <p className="eyebrow">ẢNH PHỐI CẢNH 3D</p>
           <h1>Phòng thử</h1>
-          <p>Mỗi lần tạo ảnh sẽ xếp thêm 1 thẻ mới vào xấp. Click vào các thẻ phía sau hoặc nút điều hướng để lật xem.</p>
+          <p>Mỗi lần tạo ảnh sẽ xếp thêm 1 tấm mới vào xấp. Click vào các ảnh phía sau hoặc nút điều hướng để lật xem.</p>
         </div>
         <div className="privacy-note">
-          <strong>Xấp thẻ lưu tối đa {MAX_FLASHCARDS} ảnh</strong>
-          <span>Thẻ thứ 11 sẽ tự động thay thế thẻ cũ nhất.</span>
+          <strong>Có thể lưu tối đa {MAX_FLASHCARDS} ảnh</strong>
+          <span>Tấm ảnh thứ 11 sẽ thay thế ảnh cũ nhất.</span>
         </div>
       </div>
 
@@ -462,8 +462,8 @@ export default function RoomStudioPage() {
           <div className="guest-save-content">
             <span className="guest-save-icon">⚠️</span>
             <div>
-              <strong>Bạn chưa đăng nhập ({flashcards.length} thẻ trong phiên)</strong>
-              <span>Nếu tải lại trang (F5) hoặc đóng trình duyệt, xấp thẻ sẽ bị mất. Hãy đăng nhập để lưu vĩnh viễn!</span>
+              <strong>Bạn chưa đăng nhập ({flashcards.length} ảnh trong phiên)</strong>
+              <span>Nếu tải lại trang (F5) hoặc đóng trình duyệt, xấp ảnh sẽ bị mất. Hãy đăng nhập để lưu vĩnh viễn!</span>
             </div>
           </div>
           <button
@@ -478,12 +478,12 @@ export default function RoomStudioPage() {
 
       {user && flashcards.length > 0 && (
         <div className="user-saved-notice">
-          <span>☁️ Đã lưu vĩnh viễn <strong>{flashcards.length} thẻ</strong> vào tài khoản <strong>{user.name || user.email}</strong>.</span>
+          <span>☁️ Đã lưu<strong>{flashcards.length} tấm ảnh</strong> vào tài khoản <strong>{user.name || user.email}</strong>.</span>
           <button
             type="button"
             className="text-button"
             onClick={handleResetSession}
-            title="Xóa xấp thẻ hiện tại và làm mới phòng thử"
+            title="Xóa xấp ảnh hiện tại và làm mới phòng thử"
           >
             🔄 Làm mới phòng thử
           </button>
@@ -494,17 +494,17 @@ export default function RoomStudioPage() {
       <div className="stack-deck-bar">
         <div className="stack-deck-header">
           <div className="stack-deck-title">
-            <span className="step-label">XẤP THẺ PHÒNG THỬ</span>
+            <span className="step-label">XẤP ẢNH PHÒNG THỬ</span>
             <strong>
               {activeCardIndex === 0
-                ? '🏠 Đang ở đỉnh xấp: Thẻ Phòng thử & Chấm góc'
-                : `🖼️ Đang ở đỉnh xấp: Thẻ kết quả #${activeCardIndex} (${flashcards[activeCardIndex - 1]?.productName})`}
+                ? 'Đang ở đỉnh xấp: Ảnh Phòng thử & Chấm góc'
+                : `🖼️ Đang ở đỉnh xấp: Ảnh kết quả #${activeCardIndex} (${flashcards[activeCardIndex - 1]?.productName})`}
             </strong>
           </div>
           
           <div className="stack-deck-controls">
             <span className="badge-count">
-              {flashcards.length}/{MAX_FLASHCARDS} Thẻ đã tạo
+              {flashcards.length}/{MAX_FLASHCARDS} Tấm đã tạo
             </span>
             <button
               type="button"
@@ -512,7 +512,7 @@ export default function RoomStudioPage() {
               onClick={() => setActiveCardIndex(0)}
               title="Đưa thẻ phòng thử lên trên cùng để đổi góc / chọn đồ"
             >
-              🏠 Đưa phòng thử lên đầu
+              Đưa phòng thử lên đầu
             </button>
             <button
               type="button"
