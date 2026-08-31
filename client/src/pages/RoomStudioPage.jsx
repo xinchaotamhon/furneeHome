@@ -834,7 +834,7 @@ export default function RoomStudioPage() {
                     disabled={isGenerating}
                   >
                     <span />
-                    <b>Đặt {selectedProduct?.name || 'sản phẩm'} tại đây</b>
+                    
                   </button>
                 )}
               </div>
