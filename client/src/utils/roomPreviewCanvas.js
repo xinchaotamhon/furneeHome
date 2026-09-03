@@ -1,7 +1,8 @@
 import { computeProductPerspectiveTransform } from './cameraSolver';
 
 const DEFAULT_PRODUCT_SCALE = 0.22;
-const MAX_GUIDE_EDGE = 1024;
+// FLUX multi-reference inputs are limited to 512 px per edge on Workers AI.
+const MAX_GUIDE_EDGE = 512;
 const MAX_REFERENCE_EDGE = 512;
 const CROP_PADDING_PX = 16;
 
@@ -68,8 +69,8 @@ export function getProductPreviewStyle(product, target, isFlipped = false, camer
   };
 }
 
-function getProductRectangle(roomSize, productImage, target, product) {
-  const scale = getProductScale(product, target);
+function getProductRectangle(roomSize, productImage, target, product, placementScale = 1) {
+  const scale = getProductScale(product, target) * Math.max(0.4, Math.min(1.8, Number(placementScale) || 1));
   const productWidth = roomSize.width * scale;
   const productHeight = productWidth * (productImage.naturalHeight / productImage.naturalWidth);
   const anchorX = roomSize.width * (target.x / 100);
@@ -109,16 +110,16 @@ function drawPhysicsFloorShadow(context, rect, productName = '', target = { x: 5
   context.save();
 
   // 1. Bóng tiếp xúc siêu sát chân sàn (Contact Ambient Occlusion)
-  const contactHeight = Math.max(3, Math.min(10, productHeight * 0.03));
-  const contactWidth = productWidth * 0.88;
+  const contactHeight = Math.max(2, Math.min(7, productHeight * 0.02));
+  const contactWidth = productWidth * 0.72;
 
   const contactGrad = context.createRadialGradient(
     centerX, footY - 1, 0,
     centerX, footY - 1, contactWidth / 2
   );
-  contactGrad.addColorStop(0, 'rgba(10, 15, 12, 0.85)');
-  contactGrad.addColorStop(0.35, 'rgba(15, 20, 18, 0.60)');
-  contactGrad.addColorStop(0.75, 'rgba(25, 32, 28, 0.15)');
+  contactGrad.addColorStop(0, 'rgba(10, 15, 12, 0.48)');
+  contactGrad.addColorStop(0.35, 'rgba(15, 20, 18, 0.28)');
+  contactGrad.addColorStop(0.75, 'rgba(25, 32, 28, 0.08)');
   contactGrad.addColorStop(1, 'rgba(30, 38, 32, 0)');
 
   context.beginPath();
@@ -127,15 +128,15 @@ function drawPhysicsFloorShadow(context, rect, productName = '', target = { x: 5
   context.fill();
 
   // 2. Bóng lan tỏa mềm theo ánh sáng trần (Soft Diffuse Cast Shadow)
-  const diffuseWidth = productWidth * 1.10;
-  const diffuseHeight = Math.max(7, Math.min(22, productHeight * 0.07));
+  const diffuseWidth = productWidth * 0.82;
+  const diffuseHeight = Math.max(5, Math.min(14, productHeight * 0.045));
 
   const diffuseGrad = context.createRadialGradient(
     centerX, footY + (diffuseHeight * 0.25), 0,
     centerX, footY + (diffuseHeight * 0.25), diffuseWidth / 2
   );
-  diffuseGrad.addColorStop(0, 'rgba(18, 24, 20, 0.40)');
-  diffuseGrad.addColorStop(0.5, 'rgba(25, 34, 28, 0.18)');
+  diffuseGrad.addColorStop(0, 'rgba(18, 24, 20, 0.18)');
+  diffuseGrad.addColorStop(0.5, 'rgba(25, 34, 28, 0.08)');
   diffuseGrad.addColorStop(1, 'rgba(35, 45, 38, 0)');
 
   context.beginPath();
@@ -146,7 +147,7 @@ function drawPhysicsFloorShadow(context, rect, productName = '', target = { x: 5
   context.restore();
 }
 
-function drawAiProductGuide(fullCanvas, productImage, rectangle, isFlipped = false, productName = '', target = { x: 50 }, cameraParams = null) {
+function drawAiProductGuide(fullCanvas, productImage, rectangle, isFlipped = false, productName = '', target = { x: 50 }, cameraParams = null, rotation = 0) {
   const context = fullCanvas.getContext('2d');
   const isWall = isWallMounted(productName);
   const { canvasTransform } = computeProductPerspectiveTransform(target, isWall, isFlipped, cameraParams);
@@ -158,59 +159,92 @@ function drawAiProductGuide(fullCanvas, productImage, rectangle, isFlipped = fal
   context.save();
   context.globalAlpha = 1;
 
-  if (isFlipped) {
-    context.translate(rectangle.productX + rectangle.productWidth, rectangle.productY);
-    context.scale(-1, 1);
-    context.drawImage(productImage, 0, 0, rectangle.productWidth, rectangle.productHeight);
-  } else {
-    context.translate(rectangle.productX, rectangle.productY);
-    if (Array.isArray(canvasTransform)) {
-      context.transform(...canvasTransform);
-    }
-    context.drawImage(productImage, 0, 0, rectangle.productWidth, rectangle.productHeight);
+  context.translate(rectangle.productX + (rectangle.productWidth / 2), rectangle.productY + (rectangle.productHeight / 2));
+  context.rotate((Number(rotation) || 0) * Math.PI / 180);
+  if (Array.isArray(canvasTransform)) {
+    context.transform(...canvasTransform);
   }
+  if (isFlipped) {
+    context.scale(-1, 1);
+  }
+  context.drawImage(productImage, -rectangle.productWidth / 2, -rectangle.productHeight / 2, rectangle.productWidth, rectangle.productHeight);
   context.restore();
 }
 
-function createReferenceCanvas(productImage, isFlipped = false) {
-  const referenceSize = fitSize(productImage.naturalWidth, productImage.naturalHeight, MAX_REFERENCE_EDGE);
-  const referenceCanvas = makeCanvas(referenceSize.width, referenceSize.height);
-  const ctx = referenceCanvas.getContext('2d');
-  if (isFlipped) {
-    ctx.translate(referenceSize.width, 0);
-    ctx.scale(-1, 1);
-  }
-  ctx.drawImage(productImage, 0, 0, referenceSize.width, referenceSize.height);
-  return referenceCanvas;
+function createReferenceComposite(scene) {
+  const columns = 3;
+  const rows = Math.ceil(scene.length / columns);
+  const canvas = makeCanvas(MAX_REFERENCE_EDGE, Math.min(MAX_REFERENCE_EDGE, Math.max(1, rows) * 128));
+  const context = canvas.getContext('2d');
+  const cellWidth = canvas.width / columns;
+  const cellHeight = canvas.height / rows;
+
+  scene.forEach(({ placement, image }, index) => {
+    const ratio = Math.min((cellWidth * 0.78) / image.naturalWidth, (cellHeight * 0.78) / image.naturalHeight);
+    const width = image.naturalWidth * ratio;
+    const height = image.naturalHeight * ratio;
+    context.save();
+    context.translate(((index % columns) * cellWidth) + (cellWidth / 2), (Math.floor(index / columns) * cellHeight) + (cellHeight / 2));
+    if (placement.isFlipped) context.scale(-1, 1);
+    context.drawImage(image, -width / 2, -height / 2, width, height);
+    context.restore();
+  });
+  return canvas;
 }
 
-export async function createRoomPreviewImages({ roomSource, productSource, target, product, isFlipped = false, cameraParams = null }) {
-  if (!roomSource || !productSource) throw new Error('Cần có ảnh phòng và ảnh sản phẩm tách nền.');
+function getScenePlacements({ placements, productSource, target, product, isFlipped }) {
+  if (Array.isArray(placements) && placements.length) return placements.slice(0, 12);
+  return productSource && product ? [{ product, target, isFlipped, scale: 1, rotation: 0, zIndex: 1, productSource }] : [];
+}
 
-  const [roomImage, productImage] = await Promise.all([loadImage(roomSource), loadImage(productSource)]);
+export async function createRoomPreviewImages({ roomSource, placements, productSource, target, product, isFlipped = false, cameraParams = null }) {
+  const scenePlacements = getScenePlacements({ placements, productSource, target, product, isFlipped });
+  if (!roomSource || !scenePlacements.length) throw new Error('Cần có ảnh phòng và ít nhất một sản phẩm tách nền.');
+
+  const sources = scenePlacements.map((placement) => placement.productSource || getProductImageSource(placement.product));
+  if (sources.some((source) => !source)) throw new Error('Một sản phẩm trong phòng chưa có ảnh tách nền.');
+
+  const [roomImage, ...productImages] = await Promise.all([loadImage(roomSource), ...sources.map(loadImage)]);
   const roomSize = fitSize(roomImage.naturalWidth, roomImage.naturalHeight, MAX_GUIDE_EDGE);
   const roomCanvas = makeCanvas(roomSize.width, roomSize.height);
   roomCanvas.getContext('2d').drawImage(roomImage, 0, 0, roomSize.width, roomSize.height);
-
-  const rectangle = getProductRectangle(roomSize, productImage, target, product);
   const guideCanvas = makeCanvas(roomSize.width, roomSize.height);
   guideCanvas.getContext('2d').drawImage(roomCanvas, 0, 0);
-  drawAiProductGuide(guideCanvas, productImage, rectangle, isFlipped, product?.name, target, cameraParams);
 
-  const cropCanvas = makeCanvas(rectangle.width, rectangle.height);
-  cropCanvas.getContext('2d').drawImage(guideCanvas, rectangle.x, rectangle.y, rectangle.width, rectangle.height, 0, 0, rectangle.width, rectangle.height);
+  const maskCanvas = makeCanvas(roomSize.width, roomSize.height);
+  const maskContext = maskCanvas.getContext('2d');
+  maskContext.fillStyle = '#000';
+  maskContext.fillRect(0, 0, roomSize.width, roomSize.height);
+  maskContext.fillStyle = '#fff';
+  const scene = scenePlacements
+    .map((placement, index) => ({ placement, image: productImages[index] }))
+    .sort((left, right) => (left.placement.zIndex || 0) - (right.placement.zIndex || 0));
 
-  const referenceCanvas = createReferenceCanvas(productImage, isFlipped);
+  scene.forEach(({ placement, image }) => {
+    const placementTarget = placement.target || target;
+    const sceneProduct = placement.product || product;
+    const rectangle = getProductRectangle(roomSize, image, placementTarget, sceneProduct, placement.scale);
+    drawAiProductGuide(guideCanvas, image, rectangle, placement.isFlipped, placement.productName || sceneProduct?.name, placementTarget, cameraParams, placement.rotation);
+    const angle = (Number(placement.rotation) || 0) * Math.PI / 180;
+    const rotatedWidth = Math.abs(rectangle.productWidth * Math.cos(angle)) + Math.abs(rectangle.productHeight * Math.sin(angle));
+    const rotatedHeight = Math.abs(rectangle.productWidth * Math.sin(angle)) + Math.abs(rectangle.productHeight * Math.cos(angle));
+    const padding = Math.ceil(Math.max(rotatedWidth, rotatedHeight) * 0.12);
+    const centerX = rectangle.productX + (rectangle.productWidth / 2);
+    const centerY = rectangle.productY + (rectangle.productHeight / 2);
+    const maskX = Math.max(0, Math.floor(centerX - (rotatedWidth / 2) - padding));
+    const maskY = Math.max(0, Math.floor(centerY - (rotatedHeight / 2) - padding));
+    const maskRight = Math.min(roomSize.width, Math.ceil(centerX + (rotatedWidth / 2) + padding));
+    const maskBottom = Math.min(roomSize.height, Math.ceil(centerY + (rotatedHeight / 2) + padding));
+    maskContext.fillRect(maskX, maskY, maskRight - maskX, maskBottom - maskY);
+  });
+
+  const referenceCanvas = createReferenceComposite(scene);
   return {
     roomImageDataUrl: roomCanvas.toDataURL('image/jpeg', 0.9),
-    guideImageDataUrl: cropCanvas.toDataURL('image/jpeg', 0.9),
+    guideImageDataUrl: guideCanvas.toDataURL('image/jpeg', 0.9),
+    maskImageDataUrl: maskCanvas.toDataURL('image/png'),
     productImageDataUrl: referenceCanvas.toDataURL('image/png'),
-    editRegion: {
-      x: Number((rectangle.x / roomSize.width).toFixed(6)),
-      y: Number((rectangle.y / roomSize.height).toFixed(6)),
-      width: Number((rectangle.width / roomSize.width).toFixed(6)),
-      height: Number((rectangle.height / roomSize.height).toFixed(6)),
-    },
+    editRegion: { x: 0, y: 0, width: 1, height: 1 },
   };
 }
 

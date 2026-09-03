@@ -4,7 +4,7 @@
 
 ## 1. Bản chất và ranh giới dự án
 
-FurneeHome là website giúp học sinh, sinh viên và người ở phòng nhỏ xem trước đồ nội thất trên ảnh phòng thật bằng AI Cloudflare Workers AI.
+FurneeHome là website giúp học sinh, sinh viên và người ở phòng nhỏ xem trước đồ nội thất trên ảnh phòng thật bằng AI. Backend ưu tiên provider/model mạnh đã cấu hình và tự chuyển sang provider tiếp theo khi dịch vụ trước hết quota hoặc tạm lỗi.
 
 - Đây **không phải** sàn thương mại điện tử: không giỏ hàng, checkout, thanh toán hay quản lý đơn hàng.
 - Không dùng Three.js/WebGL hay mô hình 3D runtime. Phần camera là phép tính phối cảnh vanilla JavaScript để hỗ trợ ảnh 2D.
@@ -16,12 +16,12 @@ FurneeHome là website giúp học sinh, sinh viên và người ở phòng nh�
 Room Studio phải được hiểu theo ba bước người dùng:
 
 1. **Chọn các điểm trên ảnh phòng:** người dùng tải ảnh và bấm các điểm góc chân tường/mép sàn. Các điểm này là dữ liệu hình học để [cameraSolver.js](client/src/utils/cameraSolver.js) tính điểm tụ, tiêu cự, hướng camera và phối cảnh. File này là bản vanilla JavaScript có code lấy cảm hứng từ repo tham khảo [fSpy_3d-matching/](fSpy_3d-matching/); repo tham khảo không phải dependency bắt buộc của frontend.
-2. **Đặt sản phẩm:** người dùng chọn sản phẩm rồi chọn hoặc kéo đến vị trí muốn đặt trong phòng.
-3. **Xem thử:** khi bấm nút xem thử, frontend chuẩn bị ảnh phòng, ảnh hướng dẫn, ảnh sản phẩm và vị trí; [roomPreviewService.js](client/src/services/roomPreviewService.js) gửi payload đến backend. Backend kiểm tra dữ liệu, tạo prompt theo vị trí/sản phẩm và [cloudflareImageService.js](server/src/services/cloudflareImageService.js) gửi ảnh + prompt đến Cloudflare Workers AI. Kết quả được ghép lại và lưu vào Collection bằng trường chuẩn `resultImage`.
+2. **Đặt sản phẩm:** người dùng tìm/lọc sản phẩm trong danh sách 6 món mỗi trang, rồi bấm hoặc kéo nhiều sản phẩm đến các vị trí trong phòng. Mỗi món giữ vị trí, kích thước, góc xoay, trạng thái lật và thứ tự lớp.
+3. **Xem thử:** ngay khi thả sản phẩm hoặc kéo xong, bản ghép tại chỗ hiển thị tức thì. Frontend tạo một ảnh hướng dẫn chứa **toàn bộ sản phẩm đang có trong phòng**, mask hợp nhất và ảnh tham chiếu ghép, rồi gửi đến backend. [cloudflareImageService.js](server/src/services/cloudflareImageService.js) giữ tên cũ để tránh sửa lan rộng nhưng hiện điều phối chuỗi Pollinations → Cloudflare → Hugging Face theo các khóa có trong `.env`; thứ tự có thể đổi bằng cấu hình. AI lỗi không được làm mất bố cục tại chỗ; người dùng có thể thử lại. Collection dùng trường chuẩn `resultImage` và lưu cả danh sách `placements`.
 
 Ảnh minh họa người dùng cung cấp có các điểm màu được đánh số và nối thành đường bao. Hãy xem đó là tham chiếu UX quan trọng cho bước 1.
 
-**Trạng thái cần giữ:** người dùng sẽ mô tả thêm các lỗi Room Studio sau. Không tự ý thay đổi thuật toán camera, cách chọn điểm, crop, prompt, composite hoặc kết quả fallback trước khi có mô tả lỗi, ảnh đầu vào và kết quả mong muốn cụ thể. Khi sửa, phải kiểm tra lại cả ba bước và không làm mất luồng Cloudflare hiện có.
+**Trạng thái cần giữ:** người dùng sẽ mô tả thêm các lỗi Room Studio sau. Không tự ý thay đổi thuật toán camera, cách chọn điểm, crop, prompt, composite hoặc kết quả fallback trước khi có mô tả lỗi, ảnh đầu vào và kết quả mong muốn cụ thể. Khi sửa, phải kiểm tra lại cả ba bước và không làm mất chuỗi provider hiện có.
 
 ## 3. Đăng nhập và Admin là backend thật
 
@@ -34,7 +34,7 @@ Room Studio phải được hiểu theo ba bước người dùng:
 
 ## 4. Dữ liệu sản phẩm và giá
 
-- Dataset hiện tại có **50 sản phẩm**, ảnh local tương ứng và các danh mục đã chuẩn hóa.
+- Dataset hiện tại có **57 sản phẩm**, ảnh local tương ứng và các danh mục đã chuẩn hóa.
 - [ProductContext.jsx](client/src/context/ProductContext.jsx) ưu tiên API, chỉ dùng `client/public/data_import/data_import.json` làm dữ liệu dự phòng khi backend chưa trả dữ liệu.
 - Admin dùng [AdminPage.jsx](client/src/pages/AdminPage.jsx) để CRUD qua API; không coi localStorage là nguồn ghi dữ liệu chính.
 - Giá cào từ Shopee có thể thay đổi. Hiện `price` chỉ là giá tham khảo/affiliate và `sourceUrl` là link mở sang nguồn. Chưa thêm cập nhật giá tự động cho đến khi có tool đáng tin cậy để Admin chạy hằng ngày hoặc bấm cập nhật và kiểm tra được kết quả.
@@ -47,7 +47,7 @@ Giữ các nguyên tắc:
 
 - route gọi controller, controller gọi model trực tiếp khi CRUD đơn giản;
 - mỗi hàm làm một việc, tên biến rõ, ưu tiên luồng tuần tự dễ đọc;
-- chỉ tạo service riêng khi có tích hợp bên ngoài hoặc logic dùng lại thật sự, như Cloudflare;
+- chỉ tạo service riêng khi có tích hợp bên ngoài hoặc logic dùng lại thật sự, như chuỗi provider tạo ảnh;
 - comment giải thích mục đích và dữ liệu vào/ra, không comment lại câu lệnh hiển nhiên;
 - không thêm Tailwind/Bootstrap/Three.js, không thêm tầng abstraction chỉ để tách file;
 - với hình học/canvas, chấp nhận file dài hơn vì đó là thuật toán; ưu tiên test và chú thích rõ thay vì cắt nhỏ mù quáng.
@@ -59,7 +59,7 @@ Bản đồ từng file cốt lõi nằm ở [README.md](README.md), mục 7.
 Phần cốt lõi cần tập trung khi bảo vệ:
 
 - `client/`: giao diện, Room Studio, Collection, auth modal;
-- `server/`: API auth, product, preview và Cloudflare;
+- `server/`: API auth, product, preview và chuỗi provider tạo ảnh;
 - `tools/`: import/sync dữ liệu;
 - `client/public/data_import/` và ảnh sản phẩm cần thiết;
 - README, START_HERE và tài liệu review.
@@ -74,11 +74,33 @@ Phần cốt lõi cần tập trung khi bảo vệ:
 4. Xác định mục tiêu, file được phép sửa, hành vi phải giữ và cách rollback trước khi đổi.
 5. Sau khi sửa: chạy build frontend, kiểm tra cú pháp backend, kiểm tra diff và cập nhật tài liệu nếu đổi hợp đồng.
 
+### 7.1. Cách AI trao đổi khi yêu cầu chưa rõ
+
+- Ở phản hồi đầu tiên, nói ngắn gọn AI hiểu mục tiêu và phạm vi công việc là gì.
+- Trước thay đổi có hậu quả, nếu điểm chưa rõ có thể làm đổi phạm vi, UX, dữ liệu, bảo mật, deploy, Git hoặc tài liệu review, hãy hỏi **một câu trọng tâm** rồi mới làm; không tự đoán ý người dùng.
+- Không hỏi lại theo thủ tục nếu câu trả lời đã rõ trong code, README, START_HERE hoặc bằng chứng local. Hãy đọc bằng chứng trước rồi chỉ hỏi phần còn thiếu thật sự.
+- Có thể đọc được file hoặc dùng được tool không có nghĩa là đã được phép push, deploy, dùng tài khoản, gửi dữ liệu ra ngoài hoặc làm lộ secret. Các hành động đó cần đúng phạm vi người dùng đã cho phép.
+
+### 7.2. Chủ sở hữu thông tin
+
+| Loại thông tin | Nguồn chính |
+|---|---|
+| Mục đích dự án, ranh giới ổn định và cách AI cộng tác | `START_HERE.md` |
+| Cách nhóm cài đặt, chạy, dùng Git và deploy | `README.md` |
+| Hành vi hệ thống đang chạy | code, route, model và cấu hình không chứa giá trị secret |
+| Nội dung trình bày đồ án | file Review `.docx` mới nhất được người dùng chỉ định |
+| Token, mật khẩu và giá trị môi trường thật | `.env` hoặc nơi lưu secret riêng; không ghi vào tài liệu và không commit |
+
+File Review là tài liệu trình bày được đối chiếu từ hệ thống, không phải nguồn sự thật runtime và không phải nhật ký cho mọi thay đổi nhỏ. Chỉ cập nhật Review khi người dùng yêu cầu hoặc khi thay đổi đã được cho phép làm ảnh hưởng đến nội dung được trình bày như phạm vi, trang/route, luồng người dùng, chức năng, cấu trúc dữ liệu, yêu cầu thiết bị/trình duyệt, sơ đồ, wireframe hoặc phân công. Refactor, sửa comment, di chuyển file, cài lại dependency và lỗi nhỏ không đổi hành vi không bắt buộc sửa Review.
+
+Trước khi sửa Review, đối chiếu với code và tài liệu nguồn chính; nếu hai nguồn mâu thuẫn thì báo rõ thay vì tự hòa giải. Chưa bổ sung phần giải thích code cụ thể của Review 3 cho đến khi project gần hoàn thành và người dùng yêu cầu.
+
 ## 8. Tiêu chí hoàn thành
 
 - `npm run build` trong `client/` thành công.
-- Backend có thể khởi động bằng `.env` hiện tại của nhóm với `MONGO_URI` và các biến Cloudflare cần cho preview; không tự thêm biến mới nếu chưa có lý do và chưa thống nhất.
+- Backend có thể khởi động bằng `.env` hiện tại của nhóm với `MONGO_URI` và Cloudflare. Pollinations/Hugging Face là fallback tùy chọn; chỉ bật provider khi `.env` có đủ khóa tương ứng.
 - Login/register và Admin CRUD dùng API thật, không dùng demo local.
-- 50 sản phẩm và link nguồn không bị xóa nhầm.
-- Collection đọc được dữ liệu cũ và dữ liệu mới dùng `resultImage`.
+- 57 sản phẩm và link nguồn không bị xóa nhầm.
+- Collection đọc được dữ liệu cũ; dữ liệu mới dùng `resultImage`, `placements` và tọa độ chuẩn hóa từ 0 đến 1.
+- Người đăng nhập có thể đồng bộ thiết kế vào MongoDB, chủ động công khai/đặt riêng tư và sao chép một mẫu công khai để dùng lại. Khách vẫn có thể lưu trên thiết bị.
 - README/START_HERE không chứa secret thật và liên kết tương đối trong repo hoạt động.

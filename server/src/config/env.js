@@ -13,4 +13,11 @@ module.exports = {
   cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
   cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN,
   cloudflareImageModel: process.env.CLOUDFLARE_IMAGE_MODEL || '@cf/black-forest-labs/flux-2-klein-4b',
+  // Optional image-edit fallbacks. Existing Cloudflare-only .env files keep working.
+  roomImageProviderOrder: process.env.ROOM_IMAGE_PROVIDER_ORDER || 'pollinations,cloudflare,huggingface',
+  pollinationsApiKey: process.env.POLLINATIONS_API_KEY,
+  pollinationsImageModels: process.env.POLLINATIONS_IMAGE_MODELS || 'gpt-image-2,gptimage-large,klein,kontext',
+  huggingFaceToken: process.env.HF_TOKEN,
+  // HF_TOKEN alone is intentionally insufficient: set an image-to-image model served by hf-inference.
+  huggingFaceImageModel: process.env.HUGGINGFACE_IMAGE_MODEL,
 };

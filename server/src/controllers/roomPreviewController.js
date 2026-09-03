@@ -10,6 +10,7 @@ function validateRequest(body) {
   if (!body || typeof body !== 'object') throw createError('Dữ liệu yêu cầu không hợp lệ.');
   if (typeof body.roomImageDataUrl !== 'string' || !body.roomImageDataUrl) throw createError('Thiếu ảnh phòng gốc.');
   if (typeof body.guideImageDataUrl !== 'string' || !body.guideImageDataUrl) throw createError('Thiếu ảnh hướng dẫn của căn phòng.');
+  if (body.maskImageDataUrl != null && typeof body.maskImageDataUrl !== 'string') throw createError('Mask vùng chỉnh sửa không hợp lệ.');
   if (typeof body.productImageDataUrl !== 'string' || !body.productImageDataUrl) throw createError('Thiếu ảnh sản phẩm tách nền.');
   if (typeof body.productName !== 'string' || !body.productName.trim()) throw createError('Thiếu tên sản phẩm.');
   if (body.productName.trim().length > 200) throw createError('Tên sản phẩm quá dài.');
@@ -38,6 +39,7 @@ async function create(req, res, next) {
     const result = await cloudflareImageService.generateRoomPreview({
       roomImageDataUrl: req.body.roomImageDataUrl,
       guideImageDataUrl: req.body.guideImageDataUrl,
+      maskImageDataUrl: req.body.maskImageDataUrl,
       productImageDataUrl: req.body.productImageDataUrl,
       productName: req.body.productName.trim(),
       placement: req.body.placement,

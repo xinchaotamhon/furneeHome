@@ -33,23 +33,27 @@ Dành cho Windows:
 | Trang | Đường dẫn (URL) | Chức năng chính |
 |---|---|---|
 | **Trang chủ** | `/` | Giới thiệu dự án, danh mục nổi bật, dẫn nhanh đến phòng thử |
-| **Danh sách sản phẩm** | `/products` | 50 sản phẩm chuẩn hóa (Bàn học, Ghế, Tủ, Kệ sách, Đèn, Decor), link Shopee |
-| **Phòng thử (Room Studio)** | `/room-studio` | **3 bước trực quan:** 1. Chấm góc phòng $\rightarrow$ 2. Chọn đồ & bấm góc muốn kê $\rightarrow$ 3. Xem thử AI |
-| **Bộ sưu tập** | `/collection` | Xem lại đồ yêu thích và các ảnh phòng AI đã tạo (có cơ chế chống tràn Storage) |
+| **Danh sách sản phẩm** | `/products` | 57 sản phẩm chuẩn hóa (Bàn học, Ghế, Tủ, Kệ sách, Đèn, Decor), link Shopee |
+| **Phòng thử (Room Studio)** | `/room-studio` | **3 bước:** chấm góc $\rightarrow$ tìm/chọn tối đa 6 món mỗi trang $\rightarrow$ đặt nhiều món; bản ghép hiện ngay và AI tạo lại toàn bộ bố cục sau khi thả/kéo |
+| **Bộ sưu tập** | `/collection` | Xem đồ yêu thích, mở lại đúng bố cục phòng, đồng bộ tài khoản và chủ động chia sẻ mẫu |
+| **Mẫu công khai** | `/collections/public` | Xem các mẫu được chủ sở hữu công khai; trang chi tiết cho phép dùng lại thành bản sao riêng tư |
 | **Quản trị** | `/admin` | Thêm, sửa, xóa sản phẩm trong CSDL MongoDB Atlas (dành cho Admin) |
 
 ---
 
 ## 🌿 4. Hướng dẫn làm việc với Git cho 4 thành viên nhóm
 
-Mỗi thành viên làm trên nhánh riêng (`feature/phuc`, `feature/trieu`, `feature/dung`). Trưởng nhóm review rồi mới merge vào `main`.
+Mỗi thành viên làm trên nhánh riêng (`feature/phuc-next`, `feature/trieu`, `feature/dung`). Trưởng nhóm review rồi mới merge vào `main`.
 
 ### 0️⃣ Thiết lập lần đầu
 ```powershell
 git clone https://github.com/xinchaotamhon/furneeHome.git
 cd furneeHome
 git fetch origin
-git switch --track origin/feature/phuc   # đổi thành nhánh của bạn
+git switch main
+git pull --ff-only origin main
+git switch -c feature/phuc-next          # đổi thành tên nhánh mới của bạn
+git push -u origin feature/phuc-next
 
 cd client
 npm install
@@ -59,7 +63,7 @@ npm install
 
 ### 1️⃣ Sửa riêng lỗi nhánh của Phúc
 
-`origin/feature/phuc` đang lệch lịch sử; phần sản phẩm và giới hạn 20 ký tự của Phúc đã có phiên bản mới hơn trên `main`. Phúc commit phần đang làm dở, giữ nguyên nhánh cũ và tạo nhánh mới từ `main`:
+`origin/phuc` và `origin/feature/phuc` đều được tạo từ lịch sử cũ. Các commit cần thiết đã được trưởng nhóm merge vào `main`; không pull `main` trực tiếp vào hai nhánh cũ này. Phúc giữ chúng làm bản lưu và tạo nhánh mới từ `main`:
 
 ```powershell
 git fetch origin
@@ -127,7 +131,7 @@ node tools/importProducts.js
 
 ### 🔹 Quyết định về giá
 
-Hiện dữ liệu đúng là **50 sản phẩm**. Giá Shopee có thể thay đổi nên không xem giá đã cào là giá bán hiện tại. Trong giai đoạn này:
+Hiện dữ liệu đúng là **57 sản phẩm**. Giá Shopee có thể thay đổi nên không xem giá đã cào là giá bán hiện tại. Trong giai đoạn này:
 
 - `price` chỉ là giá tham khảo; có thể để `0` nếu sản phẩm đi theo hướng affiliate.
 - `sourceUrl`/link Shopee là đường dẫn người dùng mở để xem giá và mua.
@@ -150,6 +154,13 @@ Dự án dùng **một file `.env` duy nhất ở thư mục gốc**. Giữ nguy
 | `CLOUDFLARE_ACCOUNT_ID` | Account ID của Cloudflare Workers AI |
 | `CLOUDFLARE_API_TOKEN` | Token gọi Cloudflare Workers AI; chỉ backend đọc |
 | `CLOUDFLARE_IMAGE_MODEL` | Model tạo ảnh, mặc định là Flux-2 Klein |
+| `ROOM_IMAGE_PROVIDER_ORDER` | Thứ tự provider tùy chọn; mặc định `pollinations,cloudflare,huggingface` để thử nhóm model mạnh trước |
+| `POLLINATIONS_API_KEY` | Khóa Pollinations tùy chọn; có khóa thì mới bật fallback này |
+| `POLLINATIONS_IMAGE_MODELS` | Danh sách model Pollinations từ mạnh đến nhẹ, phân cách bằng dấu phẩy |
+| `HF_TOKEN` | Token Hugging Face tùy chọn |
+| `HUGGINGFACE_IMAGE_MODEL` | Model image-to-image được `hf-inference` hỗ trợ; phải có cùng `HF_TOKEN` mới bật fallback |
+
+Chỉ cần các biến Cloudflare hiện có là Room Studio vẫn chạy như trước. Khi thêm khóa Pollinations hoặc Hugging Face, backend sẽ tự chuyển provider nếu nơi đang dùng hết quota, timeout hoặc tạm lỗi. Free quota do từng nhà cung cấp quyết định và có thể thay đổi; không provider nào được coi là miễn phí vô hạn.
 
 ### Thêm JWT_SECRET cho xác thực backend
 
@@ -195,7 +206,7 @@ furneehome/
 │   ├── public/
 │   │   ├── favicon.ico               # Biểu tượng trình duyệt
 │   │   ├── data_import/
-│   │   │   └── data_import.json      # Backup 50 sản phẩm khi API chưa sẵn sàng
+│   │   │   └── data_import.json      # Backup 57 sản phẩm khi API chưa sẵn sàng
 │   │   └── images/
 │   │       ├── README.md             # Quy ước đặt ảnh sản phẩm
 │   │       └── products/
@@ -223,15 +234,17 @@ furneehome/
 │       ├── context/
 │       │   ├── AuthContext.jsx       # Login/register thật, JWT và logout
 │       │   ├── ProductContext.jsx     # Tải sản phẩm và gọi CRUD Admin
-│       │   └── CollectionContext.jsx # Lưu yêu thích/mẫu phòng ở localStorage
+│       │   └── CollectionContext.jsx # Lưu local và đồng bộ mẫu phòng của tài khoản
 │       ├── hooks/
 │       │   └── useDebounce.js        # Trì hoãn tìm kiếm khi người dùng gõ
 │       │
 │       ├── pages/
 │       │   ├── HomePage.jsx           # Trang giới thiệu
-│       │   ├── ProductListPage.jsx    # Tìm kiếm và xem 50 sản phẩm
+│       │   ├── ProductListPage.jsx    # Tìm kiếm và xem 57 sản phẩm
 │       │   ├── RoomStudioPage.jsx     # Chọn điểm, đặt đồ, xem thử AI
-│       │   ├── CollectionPage.jsx     # Xem sản phẩm/mẫu phòng đã lưu
+│       │   ├── CollectionPage.jsx     # Xem, mở lại và chia sẻ mẫu đã lưu
+│       │   ├── PublicCollectionsPage.jsx # Danh sách mẫu phòng công khai
+│       │   ├── PublicCollectionDetailPage.jsx # Xem và dùng lại một mẫu công khai
 │       │   ├── AdminPage.jsx          # CRUD sản phẩm qua API
 │       │   └── NotFoundPage.jsx       # URL không tồn tại
 │       │
@@ -239,7 +252,8 @@ furneehome/
 │       │   ├── apiClient.js           # Axios client và Bearer token
 │       │   ├── authService.js         # API login/register
 │       │   ├── productService.js      # API đọc/thêm/sửa/xóa sản phẩm
-│       │   └── roomPreviewService.js  # API tạo preview AI
+│       │   ├── roomPreviewService.js  # API tạo preview AI
+│       │   └── roomDesignService.js   # API lưu/chia sẻ/dùng lại mẫu phòng
 │       │
 │       ├── styles/
 │       │   ├── theme.css              # Màu, font và design token
@@ -320,7 +334,8 @@ Hệ thống được thiết kế tối ưu để deploy hoàn toàn miễn ph�
    - **Root Directory:** `server`
    - **Build Command:** `npm install`
    - **Start Command:** `node src/server.js`
-   - **Environment Variables:** `MONGO_URI`, `CLIENT_URL`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_IMAGE_MODEL`; thêm `JWT_SECRET` khi deploy và thêm `ADMIN_EMAIL`/`ADMIN_PASSWORD` nếu cần chạy seed.
+   - **Environment Variables chính:** `MONGO_URI`, `CLIENT_URL`, `JWT_SECRET`. Nếu dùng Cloudflare làm provider đầu tiên, thêm `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_IMAGE_MODEL`.
+   - **Fallback ảnh tùy chọn:** `ROOM_IMAGE_PROVIDER_ORDER`, `POLLINATIONS_API_KEY`, `POLLINATIONS_IMAGE_MODELS`, `HF_TOKEN`, `HUGGINGFACE_IMAGE_MODEL`. Thêm `ADMIN_EMAIL`/`ADMIN_PASSWORD` chỉ nếu cần chạy seed.
 
 3. **Database $\rightarrow$ MongoDB Atlas Cloud:**
    - Cần cấu hình **Network Access** $\rightarrow$ `0.0.0.0/0` để Backend Render kết nối được.
@@ -329,8 +344,9 @@ Hệ thống được thiết kế tối ưu để deploy hoàn toàn miễn ph�
 
 ## 🎓 9. Ứng dụng Fourgether Ôn tập & Phân vai 4 thành viên
 
-- Thư mục [fourgether/](fourgether) là ứng dụng độc lập hỗ trợ 4 thành viên (**Hiệp, Phúc, Triều, Dũng**) ôn tập bảo vệ đồ án:
-  - **32 Thẻ Flashcard chuyên sâu:** Hỏi đáp vị trí source code, luồng xử lý AI và kiến trúc hệ thống.
-  - **Lưu tiến độ cá nhân riêng biệt:** Từng thành viên tích thuộc câu nào thì hệ thống lưu riêng cho người đó trên điện thoại/máy tính.
-  - **Checklist công việc:** Theo dõi nhiệm vụ của từng vai trò (Trưởng nhóm AI, Backend MongoDB, Frontend CSS, Shopee Tools).
-  - **Deploy:** [https://github.com/xinchaotamhon/fourgether](https://github.com/xinchaotamhon/fourgether) (tự động deploy qua Cloudflare Pages).
+- [Fourgether](https://github.com/xinchaotamhon/fourgether) là ứng dụng tĩnh độc lập để **Hiệp, Phúc, Triều, Dũng** ôn tập bảo vệ đồ án:
+  - Trang đầu là cây kiến thức từ FurneeHome đến 4 thành viên và các chủ đề phụ trách.
+  - Bấm thành viên hoặc chủ đề để học ngay bằng 39 flashcard; hỗ trợ lật thẻ và phím tắt.
+  - Hiệp nhận phần khó nhất, sau đó là Phúc, Triều và Dũng.
+  - Tiến độ chỉ giữ trong phiên hiện tại, không lưu cache ứng dụng hay dữ liệu trình duyệt; tải lại là một phiên học mới.
+  - Repo độc lập có thể deploy trực tiếp lên Cloudflare Pages.
