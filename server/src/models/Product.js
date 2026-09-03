@@ -11,6 +11,9 @@ const productSchema = new mongoose.Schema({
   images: [{ type: String, trim: true }],
   image: { type: String, default: '' },
   transparentImage: { type: String, default: '' },
+  sellerName: { type: String, default: '' },
+  isOfficial: { type: Boolean, default: false },
+  rating: { type: Number, default: 0, min: 0, max: 5 },
   dimensions: {
     widthCm: { type: Number, min: 1 },
     depthCm: { type: Number, min: 1 },

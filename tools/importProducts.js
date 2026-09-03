@@ -59,37 +59,47 @@ function toSlug(value = '') {
     .replace(/^-+|-+$/g, '') || 'san-pham-shopee';
 }
 
+function createProductSlug(name, productCode = '') {
+  const suffix = productCode && !productCode.startsWith('sp-') ? `-${productCode}` : '';
+  const maxNameLength = Math.max(1, 100 - suffix.length);
+  const shortName = toSlug(name).slice(0, maxNameLength).replace(/-+$/g, '');
+  return `${shortName}${suffix}`.slice(0, 100);
+}
+
 function inferCategory(name = '') {
   const clean = name.trim();
 
-  // 1. Tủ (Tủ quần áo, tủ nhựa, tủ vải, tủ đầu giường...)
+  if (/(?<!\p{L})(sofa|ghế sofa|ghe sofa)(?!\p{L})/iu.test(clean)) return 'Sofa';
+  if (/(?<!\p{L})(giường|giuong|bed)(?!\p{L})/iu.test(clean)) return 'Giường';
+
+  // Đặt đèn trước bàn để không phân loại nhầm "đèn bàn" là bàn học.
+  if (/(?<!\p{L})(đèn|lamp|lighting|den ban|den hoc|den ngu|den cay|den led)(?!\p{L})/iu.test(clean) && !/(?<!\p{L})(màu đen|mau den)(?!\p{L})/iu.test(clean)) return 'Đèn';
+  if (/(?<!\p{L})(thảm|tham|tranh|decor|cây|gối|carpet)(?!\p{L})/iu.test(clean)) return 'Đồ decor';
+  if (/(?<!\p{L})(gương|guong|mirror)(?!\p{L})/iu.test(clean)) return 'Gương';
+
+  if (/(?<!\p{L})(giàn phơi|gian phoi|treo quần áo|treo quan ao|sào|sao)(?!\p{L})/iu.test(clean)) return 'Giá treo';
+  if (/(?<!\p{L})(xe đẩy|xe day|trolley|cart)(?!\p{L})/iu.test(clean)) return 'Xe đẩy';
+
+  // Tủ quần áo, tủ nhựa, tủ vải, tủ đầu giường...
   if (/(?<!\p{L})(tủ|wardrobe|cabinet|tu vai|tu nhua|tu go)(?!\p{L})/iu.test(clean)) {
     return 'Tủ';
   }
 
-  // 2. Bàn học / Bàn làm việc / Bàn gấp (ngoại trừ "kệ để bàn" / "giá để bàn")
+  if (/(?<!\p{L})(bàn ăn|ban an|dining table)(?!\p{L})/iu.test(clean)) return 'Bàn ăn';
+
+  // Bàn học / Bàn làm việc / Bàn gấp (ngoại trừ "kệ để bàn" / "giá để bàn")
   if (!/(?<!\p{L})(kệ|ke|giá|gia)(?!\p{L})/iu.test(clean) && /(?<!\p{L})(bàn|ban|desk|table|laptop)(?!\p{L})/iu.test(clean)) {
     return 'Bàn học';
   }
 
-  // 3. Ghế
+  // Ghế
   if (/(?<!\p{L})(ghế|ghe|chair|stool)(?!\p{L})/iu.test(clean)) {
     return 'Ghế';
   }
 
-  // 4. Kệ sách / Giá treo / Kệ đa năng
-  if (/(?<!\p{L})(kệ|ke|giá|gia|sào|shelf|rack)(?!\p{L})/iu.test(clean)) {
+  // Kệ sách / Kệ đa năng
+  if (/(?<!\p{L})(kệ|ke|giá|gia|shelf|rack)(?!\p{L})/iu.test(clean)) {
     return 'Kệ sách';
-  }
-
-  // 5. Đèn (tránh nhầm chữ 'màu đen' hoặc 'đen')
-  if (/(?<!\p{L})(đèn|lamp|lighting|den ban|den hoc|den ngu|den cay|den led)(?!\p{L})/iu.test(clean) && !/(?<!\p{L})(màu đen|mau den)(?!\p{L})/iu.test(clean)) {
-    return 'Đèn';
-  }
-
-  // 6. Đồ decor / Thảm
-  if (/(?<!\p{L})(thảm|tham|tranh|decor|cây|gối|carpet)(?!\p{L})/iu.test(clean)) {
-    return 'Đồ decor';
   }
 
   return 'Nội thất';
@@ -116,10 +126,11 @@ function extractShopeeIdentifiers(url = '') {
 }
 
 function processProductItem(item) {
-  const url = typeof item === 'string' ? item : item.url;
+  const details = typeof item === 'string' ? { url: item } : (item || {});
+  const url = details.url;
   const { rawItemId, productCode } = extractShopeeIdentifiers(url);
 
-  let rawName = item.name;
+  let rawName = details.name;
   if (!rawName) {
     try {
       const parsed = new URL(url);
@@ -128,25 +139,25 @@ function processProductItem(item) {
     } catch { }
   }
   const name = rawName || 'Sản phẩm nội thất Shopee';
-  const categoryName = item.category || inferCategory(name);
-  const price = Number(item.price) || 0;
+  const categoryName = details.category || inferCategory(name);
+  const price = Number(details.price) || 0;
 
   // Tự động kiểm tra file ảnh cắt theo mã Item ID (ví dụ: 52663854319.png)
   const localCutoutPath = path.join(ROOT_DIR, 'client/public/images/products', `${rawItemId}.png`);
 
-  let transparentImage = item.transparentImage;
+  let transparentImage = details.transparentImage;
   if (!transparentImage && rawItemId && require('fs').existsSync(localCutoutPath)) {
     transparentImage = `/images/products/${rawItemId}.png`;
   }
 
-  const image = item.image || transparentImage || '/images/products/desk-4060.png';
+  const image = details.image || transparentImage || '/images/products/desk-4060.png';
   const finalCutout = transparentImage || image;
-  const sellerName = item.sellerName || (item.isOfficial ? 'Shopee Mall' : 'Shopee Seller');
-  const description = item.description || name;
+  const sellerName = details.sellerName || (details.isOfficial ? 'Shopee Mall' : 'Shopee Seller');
+  const description = details.description || name;
 
   return {
     name,
-    slug: `${toSlug(name)}-${productCode}`.slice(0, 100),
+    slug: createProductSlug(name, productCode),
     categoryName,
     price,
     image,
@@ -154,12 +165,72 @@ function processProductItem(item) {
     sourceUrl: url,
     shopeeSearchUrl: url,
     sellerName,
-    isOfficial: Boolean(item.isOfficial),
-    rating: item.rating || 5.0,
+    isOfficial: Boolean(details.isOfficial),
+    rating: Number.isFinite(Number(details.rating)) ? Number(details.rating) : 5.0,
     description,
     stock: 100,
     isActive: true,
   };
+}
+
+/**
+ * Kiểm tra dữ liệu và file ảnh trước khi kết nối MongoDB.
+ * Giá 0 được phép vì Shopee đổi giá liên tục, nhưng được báo để nhóm rà lại.
+ */
+function validateProductData(products) {
+  const errors = [];
+  const warnings = [];
+  const seenSlugs = new Map();
+
+  for (let index = 0; index < products.length; index++) {
+    const product = products[index];
+    const position = index + 1;
+    const { rawItemId } = extractShopeeIdentifiers(product.sourceUrl);
+
+    if (!product.name?.trim()) errors.push(`[${position}] Thiếu tên sản phẩm.`);
+    if (!product.categoryName?.trim()) errors.push(`[${position}] Thiếu danh mục.`);
+    if (!product.description?.trim()) errors.push(`[${position}] Thiếu mô tả.`);
+    if (!Number.isFinite(product.price) || product.price < 0) errors.push(`[${position}] Giá không hợp lệ.`);
+    if (product.price === 0) warnings.push(`[${position}] Giá đang là 0 (chỉ nên dùng khi chưa xác minh giá Shopee).`);
+    if (!Number.isFinite(product.rating) || product.rating < 0 || product.rating > 5) errors.push(`[${position}] Rating phải nằm trong khoảng 0–5.`);
+
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(product.sourceUrl);
+    } catch {
+      errors.push(`[${position}] Link nguồn không đọc được.`);
+    }
+
+    if (parsedUrl && !/(^|\.)shopee\.vn$/i.test(parsedUrl.hostname)) {
+      errors.push(`[${position}] Link nguồn phải thuộc shopee.vn.`);
+    }
+    if (!rawItemId) errors.push(`[${position}] Link Shopee thiếu Shop ID hoặc Item ID.`);
+
+    const expectedImage = rawItemId ? `/images/products/${rawItemId}.png` : '';
+    if (!product.image || !product.transparentImage) {
+      errors.push(`[${position}] Thiếu ảnh sản phẩm hoặc ảnh tách nền.`);
+    } else if (expectedImage && (product.image !== expectedImage || product.transparentImage !== expectedImage)) {
+      errors.push(`[${position}] Cần ảnh tách nền đúng mã Shopee: ${expectedImage}`);
+    } else {
+      for (const imagePath of [product.image, product.transparentImage]) {
+        if (!imagePath.startsWith('/images/products/')) {
+          errors.push(`[${position}] Ảnh phải dùng đường dẫn local /images/products/.`);
+          break;
+        }
+        const filePath = path.join(ROOT_DIR, 'client/public', imagePath.replace(/^\//, ''));
+        if (!require('fs').existsSync(filePath)) {
+          errors.push(`[${position}] Không tìm thấy file ảnh: ${imagePath}`);
+          break;
+        }
+      }
+    }
+
+    if (!product.slug || product.slug.endsWith('-')) errors.push(`[${position}] Slug rỗng hoặc kết thúc bằng dấu gạch ngang.`);
+    if (seenSlugs.has(product.slug)) errors.push(`[${position}] Slug trùng với sản phẩm [${seenSlugs.get(product.slug)}].`);
+    else seenSlugs.set(product.slug, position);
+  }
+
+  return { errors, warnings };
 }
 
 /**
@@ -270,6 +341,19 @@ async function validateAndImport(products) {
     return false;
   }
 
+  const dataCheck = validateProductData(products);
+  if (dataCheck.warnings.length > 0) {
+    console.warn('⚠️  CẢNH BÁO DỮ LIỆU:');
+    dataCheck.warnings.forEach((warning) => console.warn(`   ${warning}`));
+    console.warn('');
+  }
+  if (dataCheck.errors.length > 0) {
+    console.error('🚫 [LỖI DỮ LIỆU TRƯỚC KHI NẠP]:');
+    dataCheck.errors.forEach((error) => console.error(`   ${error}`));
+    console.error('\n🛑 TẠM DỪNG: sửa dữ liệu hoặc bổ sung PNG tách nền trước khi chạy lại.\n');
+    return false;
+  }
+
   // -------------------------------------------------------------
   // TẦNG 2: KIỂM TRA ĐỐI CHIẾU VỚI MONGODB
   // -------------------------------------------------------------
@@ -363,6 +447,7 @@ async function validateAndImport(products) {
       price: item.price,
       stock: 100,
       category: categoryId,
+      categoryName: item.categoryName,
       images: [item.image],
       image: item.image,
       transparentImage: item.transparentImage,
@@ -414,16 +499,16 @@ async function syncAllProductsToJsonBackup(db) {
         slug: p.slug,
         category: categoryName,
         categoryName,
-        price: p.price || 0,
+        price: Number.isFinite(p.price) ? p.price : 0,
         image: p.image || p.transparentImage || '/images/products/desk-4060.png',
         transparentImage: p.transparentImage || p.image || '/images/products/desk-4060.png',
         sourceUrl: p.sourceUrl || p.shopeeSearchUrl || '',
         shopeeSearchUrl: p.shopeeSearchUrl || p.sourceUrl || '',
         sellerName: p.sellerName || 'Shopee Seller',
         isOfficial: Boolean(p.isOfficial),
-        rating: p.rating || 5.0,
+        rating: Number.isFinite(p.rating) ? p.rating : 5.0,
         description: p.description || p.name || '',
-        stock: p.stock || 100,
+        stock: Number.isFinite(p.stock) ? p.stock : 100,
         isActive: p.isActive !== false,
       };
     });
@@ -439,14 +524,29 @@ async function syncAllProductsToJsonBackup(db) {
 async function main() {
   console.log('\n🚀 Bắt đầu chương trình nạp sản phẩm Shopee (FurneeHome)...\n');
   const processedProducts = DEFAULT_PRODUCTS.map(processProductItem);
+
+  if (process.argv.includes('--dry-run')) {
+    const duplicates = checkLocalDuplicates(processedProducts);
+    const dataCheck = validateProductData(processedProducts);
+    console.log(`🔎 Dry run: ${processedProducts.length} sản phẩm, không kết nối MongoDB và không ghi file.`);
+    dataCheck.warnings.forEach((warning) => console.warn(`⚠️  ${warning}`));
+    duplicates.forEach((duplicate) => console.error(`🚫 Link [${duplicate.duplicateIndex}] trùng [${duplicate.firstIndex}]: ${duplicate.key}`));
+    dataCheck.errors.forEach((error) => console.error(`🚫 ${error}`));
+    if (duplicates.length || dataCheck.errors.length) process.exitCode = 1;
+    else console.log('✅ Dữ liệu và file ảnh hợp lệ để kiểm tra tiếp với MongoDB.');
+    return;
+  }
+
   await validateAndImport(processedProducts);
 }
 
 module.exports = {
   extractShopeeIdentifiers,
+  inferCategory,
   checkProductExistsInMongo,
   checkLocalDuplicates,
   processProductItem,
+  validateProductData,
   validateAndImport,
 };
 

@@ -112,6 +112,7 @@ function cleanDesignInput(body = {}) {
     photo: cleanText(body.photo, 'Ảnh thiết kế cũ', MAX_IMAGE_LENGTH),
     roomImage: cleanText(body.roomImage, 'Ảnh căn phòng', MAX_IMAGE_LENGTH),
     resultImage: cleanText(body.resultImage, 'Ảnh kết quả', MAX_IMAGE_LENGTH),
+    userPrompt: cleanText(body.userPrompt, 'Mô tả mong muốn', 300),
     model: cleanText(body.model, 'Tên model', 100),
     elapsedMs: body.elapsedMs === undefined
       ? undefined
@@ -257,6 +258,9 @@ async function reuse(req, res, next) {
       photo: source.photo,
       roomImage: source.roomImage,
       resultImage: source.resultImage,
+      userPrompt: source.userPrompt,
+      model: source.model,
+      elapsedMs: source.elapsedMs,
       imageSize: source.imageSize,
       target: source.target,
       scale: source.scale,

@@ -33,9 +33,9 @@ Dành cho Windows:
 | Trang | Đường dẫn (URL) | Chức năng chính |
 |---|---|---|
 | **Trang chủ** | `/` | Giới thiệu dự án, danh mục nổi bật, dẫn nhanh đến phòng thử |
-| **Danh sách sản phẩm** | `/products` | 57 sản phẩm chuẩn hóa (Bàn học, Ghế, Tủ, Kệ sách, Đèn, Decor), link Shopee |
-| **Phòng thử (Room Studio)** | `/room-studio` | **3 bước:** chấm góc $\rightarrow$ tìm/chọn tối đa 6 món mỗi trang $\rightarrow$ đặt nhiều món; bản ghép hiện ngay và AI tạo lại toàn bộ bố cục sau khi thả/kéo |
-| **Bộ sưu tập** | `/collection` | Xem đồ yêu thích, mở lại đúng bố cục phòng, đồng bộ tài khoản và chủ động chia sẻ mẫu |
+| **Danh sách sản phẩm** | `/products` | 57 sản phẩm thuộc các nhóm Ghế, Bàn học, Tủ, Kệ sách và Nội thất; mở link Shopee để xem nguồn |
+| **Phòng thử (Room Studio)** | `/room-studio` | **3 bước:** chấm đúng 4 điểm sàn $\rightarrow$ chọn hoặc gợi ý ngẫu nhiên 3 món $\rightarrow$ đặt nhiều món; spinner và ảnh AI hiện ngay trong khung phòng |
+| **Bộ sưu tập** | `/collection` | Lưu ảnh, vị trí/kích thước/xoay/lật/layer, 4 điểm sàn và mô tả; mở lại bố cục hoặc chủ động chia sẻ mẫu |
 | **Mẫu công khai** | `/collections/public` | Xem các mẫu được chủ sở hữu công khai; trang chi tiết cho phép dùng lại thành bản sao riêng tư |
 | **Quản trị** | `/admin` | Thêm, sửa, xóa sản phẩm trong CSDL MongoDB Atlas (dành cho Admin) |
 
@@ -121,8 +121,11 @@ const DEFAULT_PRODUCTS = [
 Mở terminal tại thư mục gốc `furneehome` và chạy:
 
 ```bash
+node tools/importProducts.js --dry-run
 node tools/importProducts.js
 ```
+
+Lệnh `--dry-run` chỉ kiểm tra URL, ID, slug, PNG, danh mục, giá và dữ liệu trùng; không kết nối MongoDB và không ghi file. Chỉ chạy lệnh import thật sau khi kiểm tra đạt.
 
 > **Cơ chế tự động của Tool:**
 > 1. **Kiểm tra MongoDB:** Nếu link hoặc mã sản phẩm **ĐÃ CÓ TRÊN MONGODB**, tool sẽ **TỪ CHỐI nạp ngay lập tức** và in cảnh báo chi tiết để tránh trùng lặp.
@@ -131,7 +134,7 @@ node tools/importProducts.js
 
 ### 🔹 Quyết định về giá
 
-Hiện dữ liệu đúng là **57 sản phẩm**. Giá Shopee có thể thay đổi nên không xem giá đã cào là giá bán hiện tại. Trong giai đoạn này:
+Hiện dữ liệu đúng là **57 sản phẩm**; toàn bộ URL/PNG đã kiểm tra hợp lệ nhưng `price` của 57 món vẫn đang bằng `0`. Giá Shopee có thể thay đổi nên không xem giá đã cào là giá bán hiện tại. Trong giai đoạn này:
 
 - `price` chỉ là giá tham khảo; có thể để `0` nếu sản phẩm đi theo hướng affiliate.
 - `sourceUrl`/link Shopee là đường dẫn người dùng mở để xem giá và mua.

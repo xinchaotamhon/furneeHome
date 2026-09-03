@@ -12,6 +12,13 @@ function targetText(item) {
   return `${Math.round(x)}%, ${Math.round(y)}%`;
 }
 
+function savedSettingsText(item) {
+  const placementCount = (item.placements || item.sceneItems || item.items || []).length;
+  const cornerCount = (item.markedCorners || []).length;
+  if (!placementCount) return `${item.productName || 'Sản phẩm'} · vị trí ${targetText(item)}`;
+  return `${placementCount} sản phẩm · ${cornerCount} điểm phối cảnh`;
+}
+
 function saveHandoff(item) {
   const target = item.target || { x: 0.5, y: 0.72 };
   localStorage.setItem(HANDOFF_KEY, JSON.stringify({
@@ -24,6 +31,7 @@ function saveHandoff(item) {
     resultImage: item.resultImage || '',
     roomImage: item.roomImage || '',
     roomFileName: item.roomFileName || '',
+    roomRequest: item.userPrompt || '',
     markedCorners: item.markedCorners || [],
     sceneItems: item.placements || item.sceneItems || item.items || [],
   }));
@@ -68,6 +76,8 @@ export default function CollectionPage() {
       return;
     }
 
+    if (!window.confirm('Công khai mẫu này sẽ chia sẻ ảnh phòng, ảnh kết quả và cách sắp xếp để người khác có thể dùng lại. Bạn có muốn tiếp tục?')) return;
+
     const updated = await updateRoomTemplate(item.id, { visibility: 'public' });
     if (updated?.shareSlug) {
       await copyText(`${window.location.origin}/collections/public/${updated.shareSlug}`);
@@ -87,7 +97,7 @@ export default function CollectionPage() {
 
     <div className="privacy-note">
       <strong>Quyền riêng tư</strong>
-      <span>Mẫu phòng chỉ được chia sẻ khi bạn chủ động bấm “Chia sẻ”.</span>
+      <span>Mẫu mặc định là riêng tư. Khi bạn bấm “Chia sẻ”, ảnh phòng, kết quả và cách sắp xếp sẽ được người khác xem và dùng lại.</span>
     </div>
     {isLoadingDesigns && <p className="muted" aria-live="polite">Đang tải mẫu phòng từ tài khoản…</p>}
     {syncMessage && <p className="studio-message" aria-live="polite">{syncMessage}</p>}
@@ -129,7 +139,8 @@ export default function CollectionPage() {
           <div>
             <span className="category-label">{item.visibility === 'public' ? 'ĐANG CÔNG KHAI' : 'MẪU RIÊNG TƯ'}</span>
             <h2>{item.name}</h2>
-            <p>{item.productName} · vị trí {targetText(item)}</p>
+            <p>{savedSettingsText(item)}</p>
+            {(item.placements || []).length > 0 && <small className="muted">Đã lưu vị trí, kích thước, góc xoay, lật ảnh và thứ tự lớp.</small>}
             {item.syncStatus === 'local' && <small className="muted">Chỉ lưu trên thiết bị này vì chưa đồng bộ được tài khoản.</small>}
           </div>
           <div className="saved-actions">

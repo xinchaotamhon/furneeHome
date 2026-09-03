@@ -38,7 +38,7 @@ function isWallMounted(productName = '') {
   return /treo|tranh|gương|khung lưới|đèn tường|clock|đồng hồ treo/i.test(productName);
 }
 
-function buildPrompt(productName, placement, usesReferenceImages = true) {
+function buildPrompt(productName, placement, usesReferenceImages = true, userPrompt = '') {
   const isFullScene = /^interior scene:/i.test(productName || '');
   const isWall = isWallMounted(productName);
   const isLeft = placement.x < 0.42;
@@ -47,6 +47,9 @@ function buildPrompt(productName, placement, usesReferenceImages = true) {
   const inputDescription = usesReferenceImages
     ? 'Image 0 is the original room. Image 1 is the placement guide. Image 2 is the exact product reference.'
     : 'The input image already contains a placement guide for the product. Refine only that guided area.';
+  const userDirection = userPrompt
+    ? `User preference: ${userPrompt}. Follow it only when it does not conflict with room preservation or the guided positions.`
+    : '';
 
   if (isFullScene) {
     return [
@@ -56,9 +59,11 @@ function buildPrompt(productName, placement, usesReferenceImages = true) {
         : 'The input image already shows every product at its required position.',
       `Keep every product visible in the guide: ${productName.replace(/^interior scene:\s*/i, '')}.`,
       'Preserve their positions, relative sizes, rotations, colors and layer order.',
-      'All floor furniture must touch the floor; wall decor must stay on the wall. Match room perspective and lighting.',
-      'Preserve the room and do not add text, logos, watermarks, extra furniture or duplicate products.',
-    ].join(' ');
+      'Replace pasted-looking cutouts with naturally integrated furniture while keeping each product recognizable.',
+      'All floor furniture must touch the floor; wall decor must stay on the wall. Match room perspective, light, contact shadows and occlusion.',
+      'Preserve the original room framing and every existing room element. Do not crop the room or add text, logos, watermarks, extra furniture or duplicate products.',
+      userDirection,
+    ].filter(Boolean).join(' ');
   }
 
   if (isWall) {
@@ -69,7 +74,8 @@ function buildPrompt(productName, placement, usesReferenceImages = true) {
       'Preserve every room element outside the guided product area.',
       'Match the existing perspective, light direction, color and wall contact shadow.',
       'Do not add text, logos, watermarks, extra furniture or duplicate products.',
-    ].join(' ');
+      userDirection,
+    ].filter(Boolean).join(' ');
   }
 
   const wallPlacementRule = isLeft
@@ -86,11 +92,12 @@ function buildPrompt(productName, placement, usesReferenceImages = true) {
     'Follow the room floor perspective and existing light direction.',
     'Preserve every room element outside the guided product area.',
     'Do not add text, logos, watermarks, extra furniture, duplicate products or oversized shadows.',
-  ].join(' ');
+    userDirection,
+  ].filter(Boolean).join(' ');
 }
 
 function buildNegativePrompt() {
-  return 'text, logo, watermark, duplicate furniture, extra furniture, floating object, oversized shadow, distorted legs, warped floor, changed room, blur';
+  return 'text, logo, watermark, duplicate furniture, extra furniture, floating object, oversized shadow, distorted legs, warped floor, changed room, pasted sticker, cutout edge, green outline, selection box, blur';
 }
 
 function configuredModels(value) {
@@ -181,9 +188,9 @@ async function fetchWithTimeout(url, options, provider, model) {
   }
 }
 
-function createMultipartBody({ roomImage, guideImage, productImage, productName, placement }) {
+function createMultipartBody({ roomImage, guideImage, productImage, productName, userPrompt, placement }) {
   const form = new FormData();
-  form.append('prompt', buildPrompt(productName, placement));
+  form.append('prompt', buildPrompt(productName, placement, true, userPrompt));
   form.append('negative_prompt', buildNegativePrompt());
   form.append('input_image_0', new Blob([roomImage.buffer], { type: roomImage.mimeType }), 'room-original.jpg');
   form.append('input_image_1', new Blob([guideImage.buffer], { type: guideImage.mimeType }), 'placement-guide.jpg');
@@ -191,9 +198,9 @@ function createMultipartBody({ roomImage, guideImage, productImage, productName,
   return form;
 }
 
-function createDiffusionBody({ model, guideImage, maskImage, productName, placement }) {
+function createDiffusionBody({ model, guideImage, maskImage, productName, userPrompt, placement }) {
   const body = {
-    prompt: buildPrompt(productName, placement, false),
+    prompt: buildPrompt(productName, placement, false, userPrompt),
     negative_prompt: buildNegativePrompt(),
     image_b64: guideImage.base64,
     num_steps: 20,
@@ -204,13 +211,13 @@ function createDiffusionBody({ model, guideImage, maskImage, productName, placem
   return JSON.stringify(body);
 }
 
-async function callCloudflare({ model, roomImage, guideImage, maskImage, productImage, productName, placement }) {
+async function callCloudflare({ model, roomImage, guideImage, maskImage, productImage, productName, userPrompt, placement }) {
   const provider = 'cloudflare';
   const requestUrl = `https://api.cloudflare.com/client/v4/accounts/${env.cloudflareAccountId}/ai/run/${model}`;
   const isDiffusionModel = model.includes('stable-diffusion-v1-5');
   const body = isDiffusionModel
-    ? createDiffusionBody({ model, guideImage, maskImage, productName, placement })
-    : createMultipartBody({ roomImage, guideImage, productImage, productName, placement });
+    ? createDiffusionBody({ model, guideImage, maskImage, productName, userPrompt, placement })
+    : createMultipartBody({ roomImage, guideImage, productImage, productName, userPrompt, placement });
   const headers = { Authorization: `Bearer ${env.cloudflareApiToken}` };
   if (isDiffusionModel) headers['Content-Type'] = 'application/json';
 
@@ -240,11 +247,18 @@ async function callCloudflare({ model, roomImage, guideImage, maskImage, product
   });
 }
 
-async function callPollinations({ model, guideImage, productName, placement }) {
+async function callPollinations({ model, roomImage, guideImage, productImage, productName, userPrompt, placement }) {
   const provider = 'pollinations';
   const form = new FormData();
+  const supportsMultipleReferences = /seedream|nanobanana|klein/i.test(model);
+  if (supportsMultipleReferences) {
+    form.append('image', new Blob([roomImage.buffer], { type: roomImage.mimeType }), 'room-original.png');
+  }
   form.append('image', new Blob([guideImage.buffer], { type: guideImage.mimeType }), 'room-placement-guide.png');
-  form.append('prompt', buildPrompt(productName, placement, false));
+  if (supportsMultipleReferences) {
+    form.append('image', new Blob([productImage.buffer], { type: productImage.mimeType }), 'product-reference.png');
+  }
+  form.append('prompt', buildPrompt(productName, placement, supportsMultipleReferences, userPrompt));
   form.append('model', model);
   form.append('size', '1024x1024');
   form.append('response_format', 'b64_json');
@@ -272,7 +286,7 @@ async function callPollinations({ model, guideImage, productName, placement }) {
   });
 }
 
-async function callHuggingFace({ model, guideImage, productName, placement }) {
+async function callHuggingFace({ model, guideImage, productName, userPrompt, placement }) {
   const provider = 'huggingface';
   const response = await fetchWithTimeout(
     `https://router.huggingface.co/hf-inference/models/${model}`,
@@ -285,7 +299,7 @@ async function callHuggingFace({ model, guideImage, productName, placement }) {
       body: JSON.stringify({
         inputs: guideImage.base64,
         parameters: {
-          prompt: buildPrompt(productName, placement, false),
+          prompt: buildPrompt(productName, placement, false, userPrompt),
           negative_prompt: buildNegativePrompt(),
           num_inference_steps: 20,
           guidance_scale: 7.5,
@@ -298,10 +312,10 @@ async function callHuggingFace({ model, guideImage, productName, placement }) {
   return readImageResponse(response, provider, model);
 }
 
-async function callProvider(candidate, images, productName, placement) {
-  if (candidate.provider === 'cloudflare') return callCloudflare({ model: candidate.model, ...images, productName, placement });
-  if (candidate.provider === 'pollinations') return callPollinations({ model: candidate.model, ...images, productName, placement });
-  if (candidate.provider === 'huggingface') return callHuggingFace({ model: candidate.model, ...images, productName, placement });
+async function callProvider(candidate, images, productName, userPrompt, placement) {
+  if (candidate.provider === 'cloudflare') return callCloudflare({ model: candidate.model, ...images, productName, userPrompt, placement });
+  if (candidate.provider === 'pollinations') return callPollinations({ model: candidate.model, ...images, productName, userPrompt, placement });
+  if (candidate.provider === 'huggingface') return callHuggingFace({ model: candidate.model, ...images, productName, userPrompt, placement });
   throw createError(`Provider ảnh không hợp lệ: ${candidate.provider}.`, 503);
 }
 
@@ -315,7 +329,7 @@ function makeConfigurationError() {
   return createError('Chưa có provider tạo ảnh nào được cấu hình. Hãy thêm Cloudflare hoặc một khóa provider tùy chọn vào .env.', 503);
 }
 
-async function generateRoomPreview({ roomImageDataUrl, guideImageDataUrl, maskImageDataUrl, productImageDataUrl, productName, placement, editRegion }) {
+async function generateRoomPreview({ roomImageDataUrl, guideImageDataUrl, maskImageDataUrl, productImageDataUrl, productName, userPrompt, placement, editRegion }) {
   const roomImage = parseImageDataUrl(roomImageDataUrl, 'roomImageDataUrl');
   const guideImage = parseImageDataUrl(guideImageDataUrl, 'guideImageDataUrl');
   const maskImage = maskImageDataUrl ? parseImageDataUrl(maskImageDataUrl, 'maskImageDataUrl') : null;
@@ -336,7 +350,7 @@ async function generateRoomPreview({ roomImageDataUrl, guideImageDataUrl, maskIm
     if (disabledProviders.has(candidate.provider)) continue;
 
     try {
-      const imageDataUrl = await callProvider(candidate, images, productName, placement);
+      const imageDataUrl = await callProvider(candidate, images, productName, userPrompt, placement);
       return {
         imageDataUrl,
         provider: candidate.provider,

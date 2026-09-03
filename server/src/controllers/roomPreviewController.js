@@ -14,6 +14,8 @@ function validateRequest(body) {
   if (typeof body.productImageDataUrl !== 'string' || !body.productImageDataUrl) throw createError('Thiếu ảnh sản phẩm tách nền.');
   if (typeof body.productName !== 'string' || !body.productName.trim()) throw createError('Thiếu tên sản phẩm.');
   if (body.productName.trim().length > 200) throw createError('Tên sản phẩm quá dài.');
+  if (body.userPrompt != null && typeof body.userPrompt !== 'string') throw createError('Mô tả mong muốn không hợp lệ.');
+  if ((body.userPrompt || '').trim().length > 300) throw createError('Mô tả mong muốn tối đa 300 ký tự.');
 
   const placement = body.placement;
   if (!placement || typeof placement !== 'object') throw createError('Thiếu vị trí đặt sản phẩm.');
@@ -42,6 +44,7 @@ async function create(req, res, next) {
       maskImageDataUrl: req.body.maskImageDataUrl,
       productImageDataUrl: req.body.productImageDataUrl,
       productName: req.body.productName.trim(),
+      userPrompt: (req.body.userPrompt || '').trim(),
       placement: req.body.placement,
       editRegion: req.body.editRegion,
     });

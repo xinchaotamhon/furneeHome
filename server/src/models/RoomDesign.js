@@ -36,6 +36,7 @@ const roomDesignSchema = new mongoose.Schema({
     anchor: { type: String, default: 'bottom-center' },
   },
   resultImage: { type: String, default: '' },
+  userPrompt: { type: String, default: '', trim: true, maxlength: 300 },
   model: { type: String, default: '' },
   elapsedMs: Number,
   scale: { type: Number, default: 1, min: 0.1, max: 4 },
