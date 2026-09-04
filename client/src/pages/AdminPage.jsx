@@ -3,15 +3,45 @@ import ProductArtwork from '../components/product/ProductArtwork';
 import { useProducts } from '../context/ProductContext';
 import { formatPrice } from '../utils/formatPrice';
 
-const emptyForm = {
-  name: '',
-  category: 'Bàn học',
-  price: '',
-  description: '',
-  image: '',
-  transparentImage: '',
-  sourceUrl: '',
-};
+function readImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Không thể đọc file ảnh.')); };
+    image.src = url;
+  });
+}
+
+function canvasBlob(canvas, quality) {
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', quality));
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Không thể nén ảnh.'));
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function optimizeProductImage(file) {
+  const image = await readImageFile(file);
+  let scale = Math.min(1, 900 / Math.max(image.naturalWidth, image.naturalHeight));
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+    for (const quality of [0.86, 0.72, 0.58]) {
+      const blob = await canvasBlob(canvas, quality);
+      if (blob && blob.size <= 500 * 1024) return blobToDataUrl(blob);
+    }
+    scale *= 0.78;
+  }
+  throw new Error('Ảnh vẫn quá lớn sau khi tối ưu.');
+}
 
 function getCategoryName(product) {
   if (typeof product.category === 'object') return product.category?.name || product.categoryName || '';
@@ -23,37 +53,30 @@ function getErrorMessage(error) {
 }
 
 export default function AdminPage() {
-  const { products, addProduct, updateProduct, removeProduct, refreshProducts } = useProducts();
-  const [form, setForm] = useState(emptyForm);
-  const [editingId, setEditingId] = useState(null);
+  const {
+    products, importShopeeProduct, removeProduct, refreshProducts, addProductImage, downloadProductJson,
+  } = useProducts();
+  const [sourceUrl, setSourceUrl] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const categories = new Set(products.map(getCategoryName).filter(Boolean));
-
-  const resetForm = () => {
-    setForm(emptyForm);
-    setEditingId(null);
-  };
+  const [uploadingProductId, setUploadingProductId] = useState('');
 
   const submit = async (event) => {
     event.preventDefault();
     setError('');
+    setNotice('');
+    if (!sourceUrl.trim()) {
+      setError('Hãy dán URL Shopee.');
+      return;
+    }
+
     setIsSaving(true);
-
-    const product = {
-      name: form.name.trim(),
-      category: form.category.trim(),
-      price: Number(form.price),
-      description: form.description.trim(),
-      image: form.image.trim(),
-      transparentImage: form.transparentImage.trim(),
-      sourceUrl: form.sourceUrl.trim(),
-    };
-
     try {
-      if (editingId) await updateProduct({ ...product, _id: editingId });
-      else await addProduct(product);
-      resetForm();
+      const result = await importShopeeProduct(sourceUrl.trim());
+      const product = result?.product || result;
+      setSourceUrl('');
+      setNotice(result?.alreadyExists ? 'Sản phẩm đã có.' : `Đã thêm: ${product?.name || 'sản phẩm'}`);
     } catch (submitError) {
       setError(getErrorMessage(submitError));
     } finally {
@@ -61,26 +84,33 @@ export default function AdminPage() {
     }
   };
 
-  const edit = (product) => {
-    setEditingId(product._id);
-    setForm({
-      name: product.name || '',
-      category: getCategoryName(product),
-      price: product.price ?? '',
-      description: product.description || '',
-      image: product.image || product.images?.[0] || '',
-      transparentImage: product.transparentImage || '',
-      sourceUrl: product.sourceUrl || product.shopeeSearchUrl || '',
-    });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const uploadImage = async (product, file) => {
+    if (!file) return;
+    setError('');
+    setNotice('');
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 12 * 1024 * 1024) {
+      setError('Chỉ nhận PNG, JPEG hoặc WebP không quá 12 MB.');
+      return;
+    }
+    setUploadingProductId(product._id);
+    try {
+      await addProductImage(product._id, await optimizeProductImage(file));
+      setNotice(`Đã thêm ảnh: ${product.name}`);
+    } catch (uploadError) {
+      setError(getErrorMessage(uploadError));
+    } finally {
+      setUploadingProductId('');
+    }
   };
 
   const remove = async (product) => {
-    if (!window.confirm('Xóa ' + product.name + '?')) return;
+    if (!window.confirm(`Xóa ${product.name}?`)) return;
     setError('');
+    setNotice('');
     setIsSaving(true);
     try {
       await removeProduct(product._id);
+      setNotice('Đã xóa sản phẩm.');
     } catch (removeError) {
       setError(getErrorMessage(removeError));
     } finally {
@@ -90,74 +120,57 @@ export default function AdminPage() {
 
   return (
     <main className="container page admin-page">
-      <div className="page-heading">
-        <p className="eyebrow">CHỈ HIỂN THỊ VỚI ADMIN</p>
-        <h1>Trang quản trị</h1>
-        <p>Quản lý sản phẩm trực tiếp qua backend và MongoDB. Giá có thể để 0 nếu sản phẩm chỉ dùng theo hướng affiliate.</p>
+      <div className="page-heading admin-enter">
+        <p className="eyebrow">QUẢN TRỊ</p>
+        <h1>Quản trị sản phẩm</h1>
       </div>
 
-      <section className="admin-stats">
-        <article><strong>{products.length}</strong><span>Sản phẩm đang hiển thị</span></article>
-        <article><strong>{categories.size}</strong><span>Danh mục</span></article>
-        <article><strong>API</strong><span>Nguồn quản lý</span></article>
-      </section>
-
       <div className="admin-layout">
-        <form className="admin-form panel-card" onSubmit={submit}>
+        <form className="admin-form panel-card admin-enter" onSubmit={submit}>
           <div className="section-title">
-            <div><span className="step-label">SẢN PHẨM</span><h2>{editingId ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm'}</h2></div>
+            <div><span className="step-label">SẢN PHẨM</span><h2>Thêm sản phẩm</h2></div>
           </div>
 
-          <label>Tên sản phẩm
-            <input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+          <label>URL Shopee
+            <input
+              type="url"
+              inputMode="url"
+              placeholder="https://shopee.vn/..."
+              value={sourceUrl}
+              onChange={(event) => setSourceUrl(event.target.value)}
+              autoComplete="url"
+              required
+            />
           </label>
 
-          <div className="form-two-columns">
-            <label>Danh mục
-              <input required value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} />
-            </label>
-            <label>Giá tham khảo (VND)
-              <input type="number" min="0" required value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} />
-            </label>
-          </div>
-
-          <label>Mô tả
-            <textarea rows="3" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
-          </label>
-
-          <label>Ảnh sản phẩm
-            <input type="text" placeholder="/images/ten-anh.png hoặc URL" value={form.image} onChange={(event) => setForm({ ...form, image: event.target.value })} />
-          </label>
-
-          <label>Ảnh tách nền (nếu có)
-            <input type="text" placeholder="/images/ten-anh-transparent.png hoặc URL" value={form.transparentImage} onChange={(event) => setForm({ ...form, transparentImage: event.target.value })} />
-          </label>
-
-          <label>Link xem/mua sản phẩm
-            <input type="url" placeholder="Link Shopee hoặc trang nguồn" value={form.sourceUrl} onChange={(event) => setForm({ ...form, sourceUrl: event.target.value })} />
-          </label>
-
-          {error && <p className="form-error">{error}</p>}
-
-          <div className="form-actions">
-            <button className="button" type="submit" disabled={isSaving}>{isSaving ? 'Đang lưu…' : (editingId ? 'Lưu thay đổi' : 'Thêm sản phẩm')}</button>
-            {editingId && <button className="button button-secondary" type="button" onClick={resetForm} disabled={isSaving}>Hủy</button>}
-          </div>
+          <button className="button" type="submit" disabled={isSaving}>
+            {isSaving ? 'Đang thêm…' : 'Thêm sản phẩm'}
+          </button>
+          {error && <p className="form-error" role="alert">{error}</p>}
+          {notice && <p className="form-success" role="status">{notice}</p>}
         </form>
 
-        <section className="admin-products panel-card">
+        <section className="admin-products panel-card admin-enter">
           <div className="section-title">
-            <div><span className="step-label">DỮ LIỆU BACKEND</span><h2>Danh sách sản phẩm</h2></div>
-            <button className="text-button" type="button" onClick={refreshProducts} disabled={isSaving}>Tải lại</button>
+            <div><span className="step-label">{products.length} SẢN PHẨM</span><h2>Danh sách sản phẩm</h2></div>
+            <div className="row-actions">
+              <button className="text-button" type="button" onClick={refreshProducts} disabled={isSaving}>Tải lại</button>
+              <button className="text-button" type="button" onClick={() => downloadProductJson().catch((downloadError) => setError(getErrorMessage(downloadError)))} disabled={isSaving}>Tải JSON</button>
+            </div>
           </div>
 
           <div className="admin-product-list">
             {products.map((product) => (
               <article key={product._id}>
                 <div className="admin-thumb"><ProductArtwork product={product} /></div>
-                <div><strong>{product.name}</strong><span>{getCategoryName(product)} · {formatPrice(product.price)}</span></div>
+                <div>
+                  <strong>{product.name}</strong>
+                  <span>{getCategoryName(product)} · {formatPrice(product.price)}</span>
+                </div>
                 <div className="row-actions">
-                  <button type="button" onClick={() => edit(product)} disabled={isSaving}>Sửa</button>
+                  <label className="text-button">{uploadingProductId === product._id ? 'Đang lưu…' : 'Thêm ảnh'}
+                    <input hidden type="file" accept="image/png,image/jpeg,image/webp" disabled={Boolean(uploadingProductId)} onChange={(event) => uploadImage(product, event.target.files?.[0])} />
+                  </label>
                   <button className="danger" type="button" onClick={() => remove(product)} disabled={isSaving}>Xóa</button>
                 </div>
               </article>

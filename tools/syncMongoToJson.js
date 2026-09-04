@@ -46,14 +46,18 @@ async function syncMongoToJson() {
 
   const cleanData = products.map((p) => {
     let categoryName = 'Nội thất';
-    if (p.category) {
-      categoryName = categoryMap.get(String(p.category)) || p.categoryName || 'Nội thất';
+    if (p.category && categoryMap.has(String(p.category))) {
+      categoryName = categoryMap.get(String(p.category));
+    } else if (p.categoryName) {
+      categoryName = p.categoryName;
     }
+
+    const cleanSlug = (p.slug || '').replace(/-+$/, '');
 
     return {
       _id: String(p._id),
       name: p.name || 'Sản phẩm nội thất Shopee',
-      slug: p.slug,
+      slug: cleanSlug,
       category: categoryName,
       categoryName,
       price: p.price || 0,

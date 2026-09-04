@@ -2,9 +2,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 const User = require('../models/User');
+const { localOnlyAccountAllowed } = require('../middleware/authMiddleware');
 
 function userData(user) {
-  return { id: user._id, name: user.name, email: user.email, role: user.role };
+  return { id: user._id, name: user.name, username: user.username || '', email: user.email, role: user.role };
 }
 
 function createToken(user) {
@@ -15,18 +16,23 @@ function authResponse(user) {
   return { token: createToken(user), user: userData(user) };
 }
 
+function buildLoginLookup(identity) {
+  return { isActive: true, $or: [{ email: identity }, { username: identity }] };
+}
+
 async function login(req, res, next) {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập email và mật khẩu.', data: null });
+    const { email, username, identity, password } = req.body;
+    const normalizedIdentity = String(identity || username || email || '').trim().toLowerCase();
+    if (!normalizedIdentity || !password) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập tên đăng nhập hoặc email và mật khẩu.', data: null });
     }
 
-    const user = await User.findOne({ email: email.trim().toLowerCase(), isActive: true });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    const user = await User.findOne(buildLoginLookup(normalizedIdentity));
+    if (!user || !(await bcrypt.compare(password, user.password)) || !localOnlyAccountAllowed(req, user)) {
       return res.status(401).json({
         success: false,
-        message: 'Email hoặc mật khẩu không chính xác.',
+        message: 'Tên đăng nhập/email hoặc mật khẩu không chính xác.',
         data: null,
       });
     }
@@ -37,7 +43,7 @@ async function login(req, res, next) {
 
 async function register(req, res, next) {
   try {
-    const { name, email, password } = req.body;
+    const { name, username, email, password } = req.body;
     if (!name?.trim() || !email?.trim() || !password) {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập đủ họ tên, email và mật khẩu.', data: null });
     }
@@ -46,13 +52,23 @@ async function register(req, res, next) {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const existingUser = await User.findOne({ email: normalizedEmail });
+    const normalizedUsername = username?.trim().toLowerCase();
+    if (normalizedUsername && !/^[a-z0-9][a-z0-9._-]{2,31}$/.test(normalizedUsername)) {
+      return res.status(400).json({ success: false, message: 'Tên đăng nhập cần 3–32 ký tự: chữ, số, dấu chấm, gạch dưới hoặc gạch ngang.', data: null });
+    }
+    const existingUser = await User.findOne({
+      $or: [
+        { email: normalizedEmail },
+        ...(normalizedUsername ? [{ username: normalizedUsername }] : []),
+      ],
+    });
     if (existingUser) {
-      return res.status(409).json({ success: false, message: 'Email này đã được đăng ký.', data: null });
+      return res.status(409).json({ success: false, message: 'Email hoặc tên đăng nhập này đã được đăng ký.', data: null });
     }
 
     const user = await User.create({
       name: name.trim(),
+      ...(normalizedUsername ? { username: normalizedUsername } : {}),
       email: normalizedEmail,
       password: await bcrypt.hash(password, 12),
       role: 'customer',
@@ -62,4 +78,4 @@ async function register(req, res, next) {
   } catch (error) { next(error); }
 }
 
-module.exports = { login, register };
+module.exports = { login, register, buildLoginLookup };

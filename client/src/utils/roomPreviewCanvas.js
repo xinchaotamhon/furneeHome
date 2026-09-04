@@ -1,14 +1,17 @@
 import { computeProductPerspectiveTransform } from './cameraSolver';
 
 const DEFAULT_PRODUCT_SCALE = 0.22;
-// FLUX multi-reference inputs are limited to 512 px per edge on Workers AI.
-const MAX_GUIDE_EDGE = 512;
-const MAX_REFERENCE_EDGE = 512;
+// Workers AI FLUX requires every reference edge to be smaller than 512 px.
+const MAX_GUIDE_EDGE = 511;
+const MAX_REFERENCE_EDGE = 511;
 const CROP_PADDING_PX = 16;
+const REFERENCE_BACKGROUND = '#f3f1ec';
+const REFERENCE_OBJECT_RATIO = 0.9;
 
 function loadImage(source) {
   return new Promise((resolve, reject) => {
     const image = new Image();
+    if (/^https?:\/\//i.test(source)) image.crossOrigin = 'anonymous';
     image.onload = () => resolve(image);
     image.onerror = () => reject(new Error('Không thể đọc ảnh để tạo bản hướng dẫn.'));
     image.src = source;
@@ -24,40 +27,56 @@ export function getProductImageSource(product) {
   return product?.transparentImage || product?.image || '';
 }
 
+function getProductImageSources(product) {
+  return [...new Set([product?.transparentImage, product?.image].filter(Boolean))];
+}
+
 function getCategoryBaseScale(product) {
+  let baseScale;
   if (product?.defaultScale && Number.isFinite(Number(product.defaultScale))) {
-    return Number(product.defaultScale);
+    baseScale = Number(product.defaultScale);
+  } else {
+    const name = (product?.name || '').toLowerCase();
+    const cat = (typeof product?.category === 'object' ? product?.category?.name : product?.category || product?.categoryName || '').toLowerCase();
+    const combined = `${cat} ${name}`;
+
+    if (/đèn|lamp|clock|decor|đồng hồ|tranh|cây|chậu|hoa/.test(combined)) baseScale = 0.12;
+    else if (/tủ nhựa|tủ mini|kệ đầu giường|tab đầu giường|hộc tủ|tủ 3|tủ 4|tủ 5|homi|matsu|ngăn kéo mini/.test(combined)) baseScale = 0.18;
+    else if (/bàn gấp|bàn học mini|bàn làm việc mini|bàn để giường|bàn chữ nhật gấp/.test(combined)) baseScale = 0.19;
+    else if (/ghế|chair|đôn|nệm ngồi/.test(combined)) baseScale = 0.21;
+    else if (/kệ sách|kệ để đồ|kệ đa năng|kệ treo|giá sách/.test(combined)) baseScale = 0.23;
+    else if (/tủ vải|tủ quần áo|tủ gỗ|wardrobe/.test(combined)) baseScale = 0.28;
+    else if (/thảm|rug|carpet/.test(combined)) baseScale = 0.36;
+    else baseScale = 0.21;
   }
-  const name = (product?.name || '').toLowerCase();
-  const cat = (typeof product?.category === 'object' ? product?.category?.name : product?.category || product?.categoryName || '').toLowerCase();
-  const combined = `${cat} ${name}`;
 
-  if (/đèn|lamp|clock|decor|đồng hồ|tranh|cây|chậu|hoa/.test(combined)) return 0.12;
-  if (/tủ nhựa|tủ mini|kệ đầu giường|tab đầu giường|hộc tủ|tủ 3|tủ 4|tủ 5|homi|matsu|ngăn kéo mini/.test(combined)) return 0.18;
-  if (/bàn gấp|bàn học mini|bàn làm việc mini|bàn để giường|bàn chữ nhật gấp/.test(combined)) return 0.19;
-  if (/ghế|chair|đôn|nệm ngồi/.test(combined)) return 0.21;
-  if (/kệ sách|kệ để đồ|kệ đa năng|kệ treo|giá sách/.test(combined)) return 0.23;
-  if (/tủ vải|tủ quần áo|tủ gỗ|wardrobe/.test(combined)) return 0.28;
-  if (/thảm|rug|carpet/.test(combined)) return 0.36;
-
-  return 0.21;
+  // Không có mốc đo của phòng nên dimensionsCm không thể biến thành tỷ lệ mét đáng tin.
+  // Fact “ngồi bệt” chỉ hạ mặc định theo hướng thận trọng; người dùng vẫn chỉnh tỷ lệ trực tiếp.
+  return product?.usageType === 'floor-seating' ? Math.min(baseScale, 0.17) : baseScale;
 }
 
 export function getProductScale(product, target = { y: 75 }) {
   const baseScale = getCategoryBaseScale(product);
   const targetY = Number.isFinite(target?.y) ? target.y : 75;
-  // Tự động tính tỷ lệ phối cảnh theo chiều sâu: Càng xa (y thấp) vật càng nhỏ, càng gần (y cao) vật càng to
+  // Đây là gợi ý tỷ lệ theo chiều sâu ảnh, không phải phép đo kích thước thật của căn phòng.
   const depthFactor = 0.60 + (Math.max(30, Math.min(targetY, 95)) / 100) * 0.45;
   return Math.min(0.65, Math.max(0.08, baseScale * depthFactor));
 }
 
-function isWallMounted(productName = '') {
-  return /treo|tranh|gương|khung lưới|đèn tường|clock|đồng hồ treo/i.test(productName);
+function getPlacementSurface(product = {}) {
+  return product?.placementSurface || 'unknown';
+}
+
+function isWallMounted(product = {}) {
+  const surface = getPlacementSurface(product);
+  if (surface === 'wall') return true;
+  if (surface === 'floor' || surface === 'tabletop') return false;
+  return /treo|tranh|gương|khung lưới|đèn tường|clock|đồng hồ treo/i.test(product?.name || '');
 }
 
 export function getProductPreviewStyle(product, target, isFlipped = false, cameraParams = null) {
   const scale = getProductScale(product, target);
-  const isWall = isWallMounted(product?.name);
+  const isWall = isWallMounted(product);
   const { cssTransform } = computeProductPerspectiveTransform(target, isWall, isFlipped, cameraParams);
 
   return {
@@ -95,9 +114,9 @@ function makeCanvas(width, height) {
   return canvas;
 }
 
-function drawPhysicsFloorShadow(context, rect, productName = '', target = { x: 50 }) {
-  const isWall = isWallMounted(productName);
-  if (isWall) return;
+function drawPhysicsFloorShadow(context, rect, product = {}, target = { x: 50 }) {
+  const surface = getPlacementSurface(product);
+  if (isWallMounted(product) || surface === 'tabletop') return;
 
   const { productX, productY, productWidth, productHeight } = rect;
   const footY = productY + productHeight;
@@ -147,13 +166,13 @@ function drawPhysicsFloorShadow(context, rect, productName = '', target = { x: 5
   context.restore();
 }
 
-function drawAiProductGuide(fullCanvas, productImage, rectangle, isFlipped = false, productName = '', target = { x: 50 }, cameraParams = null, rotation = 0) {
+function drawAiProductGuide(fullCanvas, productImage, rectangle, isFlipped = false, product = {}, target = { x: 50 }, cameraParams = null, rotation = 0) {
   const context = fullCanvas.getContext('2d');
-  const isWall = isWallMounted(productName);
+  const isWall = isWallMounted(product);
   const { canvasTransform } = computeProductPerspectiveTransform(target, isWall, isFlipped, cameraParams);
 
   // 1. Vẽ bóng đổ tiếp xúc vật lý chạm sàn
-  drawPhysicsFloorShadow(context, rectangle, productName, target);
+  drawPhysicsFloorShadow(context, rectangle, product, target);
 
   // 2. Vẽ sản phẩm với phối cảnh tự động tính từ cameraSolver
   context.save();
@@ -172,9 +191,10 @@ function drawAiProductGuide(fullCanvas, productImage, rectangle, isFlipped = fal
 }
 
 function createReferenceComposite(scene) {
-  const columns = 3;
+  const columns = Math.min(3, Math.max(1, scene.length));
   const rows = Math.ceil(scene.length / columns);
-  const canvas = makeCanvas(MAX_REFERENCE_EDGE, Math.min(MAX_REFERENCE_EDGE, Math.max(1, rows) * 128));
+  // Keep a full 511×511 sheet even for one item: the reference is no longer a tiny 1/3 cell.
+  const canvas = makeCanvas(MAX_REFERENCE_EDGE, MAX_REFERENCE_EDGE);
   const context = canvas.getContext('2d');
   const cellWidth = canvas.width / columns;
   const cellHeight = canvas.height / rows;
@@ -188,8 +208,73 @@ function createReferenceComposite(scene) {
     if (placement.isFlipped) context.scale(-1, 1);
     context.drawImage(image, -width / 2, -height / 2, width, height);
     context.restore();
+
+    const labelX = (index % columns) * cellWidth;
+    const labelY = Math.floor(index / columns) * cellHeight;
+    context.fillStyle = 'rgba(21, 48, 38, 0.88)';
+    context.fillRect(labelX + 8, labelY + 8, 38, 26);
+    context.fillStyle = '#ffffff';
+    context.font = 'bold 16px sans-serif';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(String(index + 1), labelX + 27, labelY + 21);
   });
   return canvas;
+}
+
+function createSingleProductReference(image) {
+  const canvas = makeCanvas(MAX_REFERENCE_EDGE, MAX_REFERENCE_EDGE);
+  const context = canvas.getContext('2d');
+  // An opaque, quiet background gives the image model a reliable silhouette even
+  // when the source PNG has transparent pixels around the product.
+  context.fillStyle = REFERENCE_BACKGROUND;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  const maxObjectEdge = canvas.width * REFERENCE_OBJECT_RATIO;
+  const ratio = Math.min(
+    maxObjectEdge / image.naturalWidth,
+    maxObjectEdge / image.naturalHeight,
+  );
+  const width = image.naturalWidth * ratio;
+  const height = image.naturalHeight * ratio;
+  context.drawImage(
+    image,
+    (canvas.width - width) / 2,
+    (canvas.height - height) / 2,
+    width,
+    height,
+  );
+  return canvas.toDataURL('image/png');
+}
+
+/**
+ * Build one full-size reference canvas per product for inspiration mode.
+ * Candidates are intentionally consumed in order until at most three images
+ * load successfully, so a broken URL can be replaced without misaligning the
+ * sceneProducts metadata sent alongside the image array.
+ */
+export async function createProductReferenceImages(products = [], maxImages = 3) {
+  const limit = Math.min(3, Math.max(1, Number(maxImages) || 3));
+  const usable = [];
+  for (const product of products) {
+    if (usable.length >= limit) break;
+    for (const source of getProductImageSources(product)) {
+      try {
+        const image = await loadImage(source);
+        usable.push({
+          product,
+          imageDataUrl: createSingleProductReference(image),
+        });
+        break;
+      } catch {
+        // Try the product's alternate image URL, then move to the next candidate.
+      }
+    }
+  }
+  if (!usable.length) throw new Error('Chưa có sản phẩm nào dùng được để tạo gợi ý.');
+  return {
+    productImageDataUrls: usable.map(({ imageDataUrl }) => imageDataUrl),
+    products: usable.map(({ product }) => product),
+  };
 }
 
 function getScenePlacements({ placements, productSource, target, product, isFlipped }) {
@@ -201,10 +286,30 @@ export async function createRoomPreviewImages({ roomSource, placements, productS
   const scenePlacements = getScenePlacements({ placements, productSource, target, product, isFlipped });
   if (!roomSource || !scenePlacements.length) throw new Error('Cần có ảnh phòng và ít nhất một sản phẩm tách nền.');
 
-  const sources = scenePlacements.map((placement) => placement.productSource || getProductImageSource(placement.product));
-  if (sources.some((source) => !source)) throw new Error('Một sản phẩm trong phòng chưa có ảnh tách nền.');
+  const sourceEntries = scenePlacements.map((placement) => ({
+    placement,
+    sources: [...new Set([
+      placement.productSource,
+      ...getProductImageSources(placement.product),
+    ].filter(Boolean))],
+    name: placement.productName || placement.product?.name || 'Sản phẩm chưa đặt tên',
+  }));
+  const missingNames = sourceEntries.filter(({ sources }) => !sources.length).map(({ name }) => name);
+  if (missingNames.length) {
+    throw new Error(`Thiếu ảnh tách nền cho: ${missingNames.join(', ')}.`);
+  }
 
-  const [roomImage, ...productImages] = await Promise.all([loadImage(roomSource), ...sources.map(loadImage)]);
+  const roomImage = await loadImage(roomSource);
+  const productImages = await Promise.all(sourceEntries.map(async ({ sources, name }) => {
+    for (const source of sources) {
+      try {
+        return await loadImage(source);
+      } catch {
+        // Try the next URL for this product before reporting an unavailable item.
+      }
+    }
+    throw new Error(`Không thể đọc ảnh tách nền của ${name}.`);
+  }));
   const roomSize = fitSize(roomImage.naturalWidth, roomImage.naturalHeight, MAX_GUIDE_EDGE);
   const roomCanvas = makeCanvas(roomSize.width, roomSize.height);
   roomCanvas.getContext('2d').drawImage(roomImage, 0, 0, roomSize.width, roomSize.height);
@@ -224,7 +329,8 @@ export async function createRoomPreviewImages({ roomSource, placements, productS
     const placementTarget = placement.target || target;
     const sceneProduct = placement.product || product;
     const rectangle = getProductRectangle(roomSize, image, placementTarget, sceneProduct, placement.scale);
-    drawAiProductGuide(guideCanvas, image, rectangle, placement.isFlipped, placement.productName || sceneProduct?.name, placementTarget, cameraParams, placement.rotation);
+    const productForPlacement = { ...sceneProduct, name: placement.productName || sceneProduct?.name };
+    drawAiProductGuide(guideCanvas, image, rectangle, placement.isFlipped, productForPlacement, placementTarget, cameraParams, placement.rotation);
     const angle = (Number(placement.rotation) || 0) * Math.PI / 180;
     const rotatedWidth = Math.abs(rectangle.productWidth * Math.cos(angle)) + Math.abs(rectangle.productHeight * Math.sin(angle));
     const rotatedHeight = Math.abs(rectangle.productWidth * Math.sin(angle)) + Math.abs(rectangle.productHeight * Math.cos(angle));
@@ -244,6 +350,15 @@ export async function createRoomPreviewImages({ roomSource, placements, productS
     guideImageDataUrl: guideCanvas.toDataURL('image/jpeg', 0.9),
     maskImageDataUrl: maskCanvas.toDataURL('image/png'),
     productImageDataUrl: referenceCanvas.toDataURL('image/png'),
+    referenceSheet: {
+      filename: `scene-references-${String(scene.length).padStart(2, '0')}-z-order.png`,
+      count: scene.length,
+      order: scene.map(({ placement }, index) => ({
+        referenceNumber: index + 1,
+        productId: placement.productId || placement.product?._id || placement.product?.id || '',
+        productName: placement.productName || placement.product?.name || '',
+      })),
+    },
     editRegion: { x: 0, y: 0, width: 1, height: 1 },
   };
 }

@@ -1,0 +1,376 @@
+const assert = require('node:assert/strict');
+const test = require('node:test');
+
+const {
+  hasExpectedImageSignature,
+  mergeCanonicalProducts,
+  sourceUrlMetadata,
+  toPlainProduct,
+  validateAdminProductImage,
+  validateProductImageGallery,
+} = require('../server/src/services/productCatalogService');
+const {
+  createAnonymousGenerationQuotaService, getClientAddress, hashAddress,
+} = require('../server/src/services/anonymousGenerationQuotaService');
+const { isLocalRequest, localOnlyAccountAllowed, requireAdmin } = require('../server/src/middleware/authMiddleware');
+const { buildLoginLookup } = require('../server/src/controllers/authController');
+const { compactProductListItem } = require('../server/src/controllers/productController');
+const { readProductionMode, readTrustProxy } = require('../server/src/config/env');
+const { importMetadataFromShopee } = require('../server/src/services/shopeeImportService');
+
+function createQuotaModel() {
+  const records = new Map();
+  const copy = (record) => (record ? { ...record } : null);
+  const isEligible = (record, filter) => record && filter.$or.some((condition) => (
+    condition.state === 'available' ? record.state === 'available'
+      : record.state === 'reserved' && record.reservedUntil < condition.reservedUntil.$lt
+  ));
+  return {
+    records,
+    async findOneAndUpdate(filter, update, options) {
+      const record = records.get(filter.ipHash);
+      if (record && !isEligible(record, filter)) {
+        if (options.upsert) {
+          const error = new Error('duplicate ipHash');
+          error.code = 11000;
+          throw error;
+        }
+        return null;
+      }
+      const target = record || { ipHash: update.$setOnInsert.ipHash, state: 'available' };
+      Object.assign(target, update.$set);
+      records.set(filter.ipHash, target);
+      return copy(target);
+    },
+    findOne(filter) {
+      return { select: async () => copy(records.get(filter.ipHash)) };
+    },
+    async updateOne(filter, update) {
+      const record = records.get(filter.ipHash);
+      if (!record || record.state !== filter.state || record.reservationId !== filter.reservationId) return { modifiedCount: 0 };
+      Object.assign(record, update.$set);
+      return { modifiedCount: 1 };
+    },
+  };
+}
+
+function request(address = '203.0.113.7') {
+  return { ip: address, socket: { remoteAddress: address }, headers: {} };
+}
+
+function response() {
+  return {
+    statusCode: 200,
+    body: null,
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; },
+  };
+}
+
+function fetchResponse(body, { status = 200, contentType = 'application/json' } = {}) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: { get(name) { return name.toLowerCase() === 'content-type' ? contentType : null; } },
+    async text() { return body; },
+  };
+}
+
+test('admin URL prefill accepts a Shopee HTTPS product URL without fetching it', () => {
+  const metadata = sourceUrlMetadata('https://shopee.vn/Ban-gap-thap-ngoi-bet-i.123.456?utm=ignored');
+  assert.equal(metadata.sourceUrl, 'https://shopee.vn/Ban-gap-thap-ngoi-bet-i.123.456');
+  assert.equal(metadata.name, 'Ban gap thap ngoi bet');
+  assert.equal(metadata.shopeeShopId, '123');
+  assert.equal(metadata.shopeeItemId, '456');
+  assert.equal(metadata.metadataSource, 'url-slug');
+  const productRoute = sourceUrlMetadata('https://shopee.vn/product/123/456?tracking=ignored');
+  assert.equal(productRoute.shopeeShopId, '123');
+  assert.equal(productRoute.shopeeItemId, '456');
+});
+
+test('admin URL prefill rejects a non-Shopee or non-HTTPS URL', () => {
+  assert.throws(() => sourceUrlMetadata('http://shopee.vn/item-i.1.2'));
+  assert.throws(() => sourceUrlMetadata('https://example.com/item-i.1.2'));
+  assert.throws(
+    () => sourceUrlMetadata('https://shopee.vn/%E0%A4%A'),
+    (error) => error.status === 400,
+  );
+});
+
+test('one-click Shopee import accepts complete official API metadata without inventing fields', async () => {
+  const apiFixture = JSON.stringify({
+    data: {
+      item: {
+        shopid: 123,
+        itemid: 456,
+        name: 'Bàn thấp ngồi bệt',
+        description: 'Bàn gấp thấp cho phòng trọ.',
+        price: 25900000000,
+        images: ['abc_123'],
+        shop_name: 'Cửa hàng mẫu',
+        rating_star: 4.8,
+      },
+    },
+  });
+  const imported = await importMetadataFromShopee('https://shopee.vn/ban-thap-i.123.456?tracking=1', {
+    fetchImpl: async (url) => {
+      assert.match(url, /\/api\/v4\/item\/get\?itemid=456&shopid=123$/);
+      return fetchResponse(apiFixture);
+    },
+  });
+  assert.equal(imported.metadataSource, 'shopee-api');
+  assert.equal(imported.name, 'Bàn thấp ngồi bệt');
+  assert.equal(imported.price, 259000);
+  assert.equal(imported.sellerName, 'Cửa hàng mẫu');
+  assert.equal(imported.sourceImages[0], 'https://down-vn.img.susercontent.com/file/abc_123');
+});
+
+test('Shopee import reads the embedded MFE JSON format used by product pages', async () => {
+  const htmlFixture = `<!doctype html><script type="text/mfe-initial-data">{"data":{"item":{"shopid":123,"itemid":456,"name":"Ghế gấp","price":19900000000,"images":["mfe_image"]}}}</script>`;
+  let calls = 0;
+  const imported = await importMetadataFromShopee('https://shopee.vn/ghe-gap-i.123.456', {
+    fetchImpl: async () => {
+      calls += 1;
+      return calls === 1 ? fetchResponse('{"error":90309999}', { status: 403 }) : fetchResponse(htmlFixture, { contentType: 'text/html' });
+    },
+  });
+  assert.equal(calls, 2);
+  assert.equal(imported.metadataSource, 'html-mfe-data');
+  assert.equal(imported.name, 'Ghế gấp');
+  assert.equal(imported.price, 199000);
+});
+
+test('Shopee import reads current PDP BFF data split across item, price and image blocks', async () => {
+  const initialData = {
+    initialState: {
+      DOMAIN_PDP: {
+        data: {
+          PDP_BFF_DATA: {
+            cachedMap: {
+              '123/456': {
+                item: {
+                  shop_id: 123,
+                  item_id: 456,
+                  title: 'Bàn học gấp gọn',
+                  description: 'Bàn thấp dùng khi ngồi bệt.',
+                  categories: [{ display_name: 'Nội thất' }, { display_name: 'Bàn' }],
+                },
+                product_price: { price: { single_value: 15900000000 } },
+                product_images: {
+                  images: ['main_image'],
+                  gallery_contents: [{ image: { url: 'second_image' } }],
+                },
+                product_review: { rating_star: 4.8 },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+  const htmlFixture = `<!doctype html><script type="text/mfe-initial-data">${JSON.stringify(initialData)}</script>`;
+  let requestCount = 0;
+  const imported = await importMetadataFromShopee('https://shopee.vn/ban-hoc-i.123.456', {
+    fetchImpl: async () => {
+      requestCount += 1;
+      return fetchResponse(requestCount === 1 ? '' : htmlFixture, {
+        status: requestCount === 1 ? 403 : 200,
+        contentType: requestCount === 1 ? 'application/json' : 'text/html',
+      });
+    },
+  });
+
+  assert.equal(imported.name, 'Bàn học gấp gọn');
+  assert.equal(imported.price, 159000);
+  assert.equal(imported.category, 'Bàn');
+  assert.equal(imported.rating, 4.8);
+  assert.equal(imported.sourceImages.length, 2);
+});
+
+test('Shopee import refuses anti-bot pages instead of creating URL-slug or zero-price data', async () => {
+  await assert.rejects(
+    importMetadataFromShopee('https://shopee.vn/ban-gap-i.123.456', {
+      fetchImpl: async () => fetchResponse('<html><body>blocked</body></html>', { contentType: 'text/html' }),
+    }),
+    (error) => error.status === 422 && /chưa trả đủ/.test(error.message),
+  );
+});
+
+test('canonical JSON keeps AI placement attributes and legacy product fields', () => {
+  const product = toPlainProduct({
+    _id: 'product-1', name: 'Bàn thấp', slug: 'ban-thap', category: { name: 'Bàn học' },
+    price: 0, images: ['/images/a.png', '/images/b.png'], image: '/images/a.png',
+    transparentImage: '/images/a.png', sourceUrl: 'https://shopee.vn/item-i.1.2',
+    dimensionsCm: { width: 80, depth: 40, height: 35 }, usageType: 'floor-seating',
+    placementSurface: 'floor', aiDescription: 'Bàn thấp để ngồi bệt.', isActive: true,
+  });
+  assert.equal(product.category, 'Bàn học');
+  assert.deepEqual(product.dimensionsCm, { width: 80, depth: 40, height: 35 });
+  assert.equal(product.usageType, 'floor-seating');
+  assert.equal(product.placementSurface, 'floor');
+  assert.equal(product.aiDescription, 'Bàn thấp để ngồi bệt.');
+  assert.deepEqual(product.images, ['/images/a.png', '/images/b.png']);
+});
+
+test('downloadable fallback JSON stays light while MongoDB keeps uploaded base64 images', () => {
+  const dataImage = `data:image/webp;base64,${Buffer.from('RIFF0000WEBPpayload').toString('base64')}`;
+  const product = toPlainProduct({
+    _id: 'product-2', name: 'Ghế nhỏ', image: dataImage, transparentImage: dataImage,
+    images: [dataImage, '/images/products/chair.webp'], isActive: true,
+  }, { includeDataUrls: false });
+  assert.equal(product.image, '/images/products/chair.webp');
+  assert.equal(product.transparentImage, '/images/products/chair.webp');
+  assert.deepEqual(product.images, ['/images/products/chair.webp']);
+});
+
+test('public product list does not send the same uploaded image twice', () => {
+  const dataImage = `data:image/webp;base64,${Buffer.from('RIFF0000WEBPpayload').toString('base64')}`;
+  const product = compactProductListItem({ _id: 'product-3', image: dataImage, transparentImage: dataImage });
+  assert.equal(product.image, dataImage);
+  assert.equal(product.transparentImage, '');
+});
+
+test('canonical JSON merge preserves unknown fields and JSON-only rows, but removes an explicit deletion', () => {
+  const merged = mergeCanonicalProducts(
+    [
+      { _id: 'db-1', name: 'Tên cũ', customLegacyField: 'must-survive' },
+      { _id: 'json-only', name: 'Dữ liệu cũ chỉ có trong JSON', customLegacyField: 'also-survives' },
+      { _id: 'deleted', name: 'Đã xóa' },
+    ],
+    [{ _id: 'db-1', name: 'Tên mới', categoryName: 'Bàn học', price: 0, isActive: true }],
+    { removedIds: ['deleted'] },
+  );
+  assert.equal(merged.length, 2);
+  assert.equal(merged[0].name, 'Tên mới');
+  assert.equal(merged[0].customLegacyField, 'must-survive');
+  assert.equal(merged[1]._id, 'json-only');
+  assert.equal(merged.some((item) => item._id === 'deleted'), false);
+});
+
+test('anonymous generation quota only derives a deterministic one-way address key', () => {
+  const first = hashAddress('127.0.0.1');
+  assert.match(first, /^[a-f0-9]{64}$/);
+  assert.equal(first, hashAddress('127.0.0.1'));
+  assert.notEqual(first, hashAddress('127.0.0.2'));
+  assert.equal(first.includes('127.0.0.1'), false);
+});
+
+test('anonymous quota reserves once, releases on failure, then permanently consumes on success', async () => {
+  const quotaModel = createQuotaModel();
+  const service = createAnonymousGenerationQuotaService({ quotaModel, now: () => new Date('2026-09-04T00:00:00Z') });
+  const first = request();
+  const firstResponse = response();
+  let firstNext = false;
+  await service.reserveAnonymousGeneration(first, firstResponse, () => { firstNext = true; });
+  assert.equal(firstNext, true);
+  assert.equal(quotaModel.records.size, 1);
+
+  const competing = request();
+  const competingResponse = response();
+  await service.reserveAnonymousGeneration(competing, competingResponse, () => assert.fail('competing request must not continue'));
+  assert.equal(competingResponse.statusCode, 401);
+  assert.equal(competingResponse.body.code, 'GUEST_GENERATION_PENDING');
+
+  await service.releaseAnonymousGeneration(first);
+  const retry = request();
+  let retryNext = false;
+  await service.reserveAnonymousGeneration(retry, response(), () => { retryNext = true; });
+  assert.equal(retryNext, true);
+  await service.markAnonymousGenerationSucceeded(retry);
+
+  const afterSuccess = response();
+  await service.reserveAnonymousGeneration(request(), afterSuccess, () => assert.fail('used quota must not continue'));
+  assert.equal(afterSuccess.statusCode, 401);
+  assert.equal(afterSuccess.body.code, 'GUEST_LIMIT_REACHED');
+});
+
+test('authenticated users bypass guest quota and untrusted XFF is not used as client IP', async () => {
+  const quotaModel = createQuotaModel();
+  const service = createAnonymousGenerationQuotaService({ quotaModel });
+  const signedIn = request();
+  signedIn.user = { _id: 'real-user' };
+  let nextCalled = false;
+  await service.reserveAnonymousGeneration(signedIn, response(), () => { nextCalled = true; });
+  assert.equal(nextCalled, true);
+  assert.equal(quotaModel.records.size, 0);
+
+  const spoofed = { ip: '198.51.100.10', socket: { remoteAddress: '198.51.100.10' }, headers: { 'x-forwarded-for': '1.2.3.4' } };
+  assert.equal(getClientAddress(spoofed), '198.51.100.10');
+});
+
+test('local-only accounts are accepted solely from direct loopback outside production', () => {
+  assert.equal(isLocalRequest({ socket: { remoteAddress: '::ffff:127.0.0.1' } }), true);
+  assert.equal(isLocalRequest({ socket: { remoteAddress: '10.0.0.2' } }), false);
+  assert.equal(localOnlyAccountAllowed({ socket: { remoteAddress: '127.0.0.1' } }, { localOnly: true }), true);
+  assert.equal(localOnlyAccountAllowed({ socket: { remoteAddress: '10.0.0.2' } }, { localOnly: true }), false);
+  assert.equal(localOnlyAccountAllowed({ socket: { remoteAddress: '127.0.0.1' } }, { localOnly: true }, true), false);
+});
+
+test('login lookup supports a username and legacy email through the same safe query', () => {
+  assert.deepEqual(buildLoginLookup('admin'), {
+    isActive: true,
+    $or: [{ email: 'admin' }, { username: 'admin' }],
+  });
+});
+
+test('non-admin users cannot reach protected product import or upload handlers', () => {
+  const denied = response();
+  let nextCalled = false;
+  requireAdmin({ user: { role: 'customer' } }, denied, () => { nextCalled = true; });
+  assert.equal(nextCalled, false);
+  assert.equal(denied.statusCode, 403);
+  assert.equal(denied.body.success, false);
+});
+
+test('image upload signature must match declared PNG, JPEG, or WebP type', () => {
+  assert.equal(hasExpectedImageSignature('image/png', Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])), true);
+  assert.equal(hasExpectedImageSignature('image/png', Buffer.from('not-a-png')), false);
+  assert.equal(hasExpectedImageSignature('image/jpeg', Buffer.from([0xff, 0xd8, 0xff, 0x00])), true);
+  assert.equal(hasExpectedImageSignature('image/webp', Buffer.from('RIFF0000WEBPpayload')), true);
+});
+
+test('admin image validation enforces format, per-file size and gallery limits', () => {
+  const webp = `data:image/webp;base64,${Buffer.from('RIFF0000WEBPpayload').toString('base64')}`;
+  assert.equal(validateAdminProductImage(webp), webp);
+  assert.throws(() => validateAdminProductImage('data:image/png;base64,bm90LXBuZw=='));
+  assert.throws(() => validateAdminProductImage(`data:image/webp;base64,${Buffer.alloc(513 * 1024).toString('base64')}`));
+  assert.throws(() => validateProductImageGallery({}, Array.from({ length: 7 }, (_, index) => `${webp}${index}`)));
+});
+
+test('preview and deployed Admin routes keep authentication middleware in front of writes', () => {
+  const previewRoutes = require('../server/src/routes/roomPreviewRoutes');
+  const preview = previewRoutes.stack.find((layer) => layer.route?.path === '/');
+  assert.deepEqual(preview.route.stack.map((layer) => layer.name), [
+    'optionalAuthenticate', 'reserveAnonymousGeneration', 'create',
+  ]);
+
+  const productRoutes = require('../server/src/routes/productRoutes');
+  const protectedRoutes = productRoutes.stack.filter((layer) => (
+    layer.route && !(layer.route.path === '/' && layer.route.methods.get)
+  ));
+  protectedRoutes.forEach((layer) => {
+    const names = layer.route.stack.map((handler) => handler.name);
+    assert.deepEqual(names.slice(0, 2), ['authenticate', 'requireAdmin']);
+  });
+  const shopeeImport = productRoutes.stack.find((layer) => layer.route?.path === '/import-shopee');
+  assert.deepEqual(shopeeImport.route.stack.map((handler) => handler.name), ['authenticate', 'requireAdmin', 'importShopee']);
+});
+
+test('trust proxy parser supports local off, one Render hop and explicit allowlists', () => {
+  assert.equal(readTrustProxy('false'), false);
+  assert.equal(readTrustProxy('1'), 1);
+  assert.deepEqual(readTrustProxy('loopback,10.0.0.0/8'), ['loopback', '10.0.0.0/8']);
+});
+
+test('Render is always treated as production even when NODE_ENV was omitted', () => {
+  assert.equal(readProductionMode(undefined, 'true'), true);
+  assert.equal(readProductionMode('production', undefined), true);
+  assert.equal(readProductionMode('development', undefined), false);
+});
+
+test('production seed explicitly converts a matching local-only admin into a deploy account', () => {
+  const source = require('node:fs').readFileSync(require.resolve('../server/src/utils/seedData.js'), 'utf8');
+  assert.match(source, /localOnly:\s*false/);
+  assert.match(source, /env\.isProduction/);
+  assert.match(source, /ADMIN_PASSWORD production phải có tối thiểu 12 ký tự/);
+});

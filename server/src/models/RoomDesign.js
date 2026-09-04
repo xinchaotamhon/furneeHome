@@ -10,6 +10,12 @@ const placementSchema = new mongoose.Schema({
   productName: { type: String, required: true, trim: true },
   image: { type: String, default: '' },
   transparentImage: { type: String, default: '' },
+  productFacts: {
+    usageType: { type: String, enum: ['unknown', 'floor-seating', 'standard'], default: 'unknown' },
+    placementSurface: { type: String, enum: ['unknown', 'floor', 'wall', 'tabletop'], default: 'unknown' },
+    dimensionsCm: { width: Number, depth: Number, height: Number },
+    aiDescription: { type: String, maxlength: 300, default: '' },
+  },
   target: {
     x: { type: Number, required: true, min: 0, max: 1 },
     y: { type: Number, required: true, min: 0, max: 1 },
@@ -36,7 +42,10 @@ const roomDesignSchema = new mongoose.Schema({
     anchor: { type: String, default: 'bottom-center' },
   },
   resultImage: { type: String, default: '' },
+  resultMatchesLayout: { type: Boolean, default: true },
+  designMode: { type: String, enum: ['placement', 'inspiration'], default: 'placement' },
   userPrompt: { type: String, default: '', trim: true, maxlength: 300 },
+  designBrief: { purpose: String, style: String, keepClear: String, avoid: String },
   model: { type: String, default: '' },
   elapsedMs: Number,
   scale: { type: Number, default: 1, min: 0.1, max: 4 },

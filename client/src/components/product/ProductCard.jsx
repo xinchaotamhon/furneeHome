@@ -1,15 +1,18 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCollection } from '../../context/CollectionContext';
 import ProductArtwork from './ProductArtwork';
 
-export default function ProductCard({ product }) {
+export default function ProductCard({ product, onReferenceImageError }) {
   const navigate = useNavigate();
   const { isProductSaved, toggleProduct } = useCollection();
   const saved = isProductSaved(product._id);
+  const roomImage = product.transparentImage || product.image || '';
+  const [hasReferenceImage, setHasReferenceImage] = useState(Boolean(roomImage));
+  useEffect(() => setHasReferenceImage(Boolean(roomImage)), [roomImage]);
 
   const tryInRoom = () => {
-    localStorage.setItem('furneehome-room-product', product._id);
-    navigate('/room-studio');
+    navigate('/room-studio', { state: { product } });
   };
 
   const shopeeSearchUrl = product.shopeeSearchUrl
@@ -23,7 +26,10 @@ export default function ProductCard({ product }) {
   return (
     <article className="product-card">
       <div className="product-image-wrap">
-        <ProductArtwork product={product} />
+        <ProductArtwork product={product} onImageError={() => {
+          setHasReferenceImage(false);
+          onReferenceImageError?.(product);
+        }} />
       </div>
       <div className="product-card-content">
         <div className="product-meta-tags">
@@ -40,7 +46,7 @@ export default function ProductCard({ product }) {
           {product.rating ? <span className="product-rating">⭐ {product.rating}</span> : null}
         </div>
         <div className="card-actions">
-          <button className="button" type="button" onClick={tryInRoom} title="Đưa sản phẩm vào phòng thử AI">Thử phòng</button>
+          <button className="button" type="button" onClick={tryInRoom} disabled={!hasReferenceImage} title={hasReferenceImage ? 'Đưa sản phẩm vào phòng thử AI' : 'Admin cần thêm ảnh trước'}>{hasReferenceImage ? 'Thử phòng' : 'Chưa có ảnh'}</button>
           <a className="button button-secondary" href={product.sourceUrl || shopeeSearchUrl} target="_blank" rel="noreferrer" title="Xem trên Shopee">Shopee ↗</a>
           <button className={`icon-button ${saved ? 'is-saved' : ''}`} type="button" aria-label={saved ? 'Bỏ lưu' : 'Lưu sản phẩm'} onClick={() => toggleProduct(product)}>{saved ? '♥' : '♡'}</button>
         </div>
@@ -48,4 +54,3 @@ export default function ProductCard({ product }) {
     </article>
   );
 }
-

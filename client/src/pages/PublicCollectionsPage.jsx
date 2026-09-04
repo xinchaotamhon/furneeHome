@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import roomDesignService from '../services/roomDesignService';
 
 function getItems(data) {
@@ -8,13 +9,14 @@ function getItems(data) {
 }
 
 export default function PublicCollectionsPage() {
+  const { user, openLogin } = useAuth();
   const [designs, setDesigns] = useState([]);
   const [state, setState] = useState('loading');
   useEffect(() => {
     roomDesignService.listPublic().then((data) => { setDesigns(getItems(data)); setState('ready'); }).catch(() => setState('error'));
   }, []);
   return <main className="container page">
-    <div className="page-heading"><p className="eyebrow">CỘNG ĐỒNG FURNEEHOME</p><h1>Mẫu phòng công khai</h1><p>Xem cách mọi người sắp xếp nội thất và dùng một mẫu làm điểm bắt đầu cho căn phòng của bạn.</p></div>
+    <div className="page-heading fh-public-heading"><div><p className="eyebrow">CỘNG ĐỒNG FURNEEHOME</p><h1>Mẫu phòng công khai</h1><p>Xem cách mọi người sắp xếp nội thất và dùng một mẫu làm điểm bắt đầu cho căn phòng của bạn.</p></div>{user ? <Link className="button button-secondary" to="/collection">Chia sẻ mẫu của tôi</Link> : <button className="button button-secondary" type="button" onClick={() => openLogin('register')}>Đăng nhập để chia sẻ</button>}</div>
     <div className="privacy-note"><strong>Chia sẻ có chủ động</strong><span>Chỉ khi chủ sở hữu bật công khai thì ảnh phòng, ảnh kết quả và cách sắp xếp mới xuất hiện để người khác xem và dùng lại.</span></div>
     {state === 'loading' && <p className="muted">Đang tải mẫu phòng…</p>}
     {state === 'error' && <p className="error-message" role="alert">Không thể tải mẫu công khai lúc này. Bạn có thể thử lại sau.</p>}

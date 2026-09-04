@@ -1,5 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import ProductArtwork from '../components/product/ProductArtwork';
+import { useAuth } from '../context/AuthContext';
 import { useCollection } from '../context/CollectionContext';
 import { formatPrice } from '../utils/formatPrice';
 
@@ -13,15 +15,34 @@ function targetText(item) {
 }
 
 function savedSettingsText(item) {
+  if (item.designMode === 'inspiration') return 'Ý tưởng AI cả phòng · không gắn với sản phẩm trong danh mục';
   const placementCount = (item.placements || item.sceneItems || item.items || []).length;
   const cornerCount = (item.markedCorners || []).length;
   if (!placementCount) return `${item.productName || 'Sản phẩm'} · vị trí ${targetText(item)}`;
   return `${placementCount} sản phẩm · ${cornerCount} điểm phối cảnh`;
 }
 
+function restorePlacementSnapshot(placement = {}) {
+  const productFacts = placement.productFacts || {};
+  const existingProduct = placement.product || {};
+  return {
+    ...placement,
+    productFacts,
+    product: {
+      _id: existingProduct._id || placement.productId,
+      id: existingProduct.id || placement.productId,
+      name: existingProduct.name || placement.productName || 'Sản phẩm nội thất',
+      image: existingProduct.image || placement.image || '',
+      transparentImage: existingProduct.transparentImage || placement.transparentImage || '',
+      ...existingProduct,
+      ...productFacts,
+    },
+  };
+}
+
 function saveHandoff(item) {
   const target = item.target || { x: 0.5, y: 0.72 };
-  localStorage.setItem(HANDOFF_KEY, JSON.stringify({
+  sessionStorage.setItem(HANDOFF_KEY, JSON.stringify({
     selectedId: item.productId || item.product?._id || '',
     target: {
       x: target.x <= 1 ? target.x * 100 : target.x,
@@ -29,11 +50,16 @@ function saveHandoff(item) {
     },
     hasTarget: true,
     resultImage: item.resultImage || '',
+    designMode: item.designMode || 'placement',
+    imageSize: item.imageSize,
+    resultInfo: { model: item.model || '', elapsedMs: item.elapsedMs },
+    elapsedMs: item.elapsedMs,
     roomImage: item.roomImage || '',
     roomFileName: item.roomFileName || '',
     roomRequest: item.userPrompt || '',
+    designBrief: item.designBrief || {},
     markedCorners: item.markedCorners || [],
-    sceneItems: item.placements || item.sceneItems || item.items || [],
+    sceneItems: (item.placements || item.sceneItems || item.items || []).map(restorePlacementSnapshot),
   }));
 }
 
@@ -60,7 +86,9 @@ export default function CollectionPage() {
     syncMessage,
     syncError,
   } = useCollection();
+  const { user, openLogin } = useAuth();
   const navigate = useNavigate();
+  const [shareNotice, setShareNotice] = useState('');
   const products = items.filter((item) => item.type === 'product');
   const designs = items.filter((item) => item.type === 'room-template');
 
@@ -70,6 +98,18 @@ export default function CollectionPage() {
   };
 
   const shareDesign = async (item) => {
+    setShareNotice('');
+    if (!user) {
+      setShareNotice('Đăng nhập hoặc tạo tài khoản để đồng bộ mẫu này, rồi bạn mới có thể chọn công khai.');
+      openLogin('login');
+      return;
+    }
+
+    if (!item._id) {
+      setShareNotice('Mẫu này đang ở trên thiết bị. Hãy chờ đồng bộ vào tài khoản rồi thử chia sẻ lại.');
+      return;
+    }
+
     if (item.visibility === 'public' && item.shareSlug) {
       await copyText(`${window.location.origin}/collections/public/${item.shareSlug}`);
       window.alert('Đã sao chép liên kết chia sẻ.');
@@ -99,6 +139,7 @@ export default function CollectionPage() {
       <strong>Quyền riêng tư</strong>
       <span>Mẫu mặc định là riêng tư. Khi bạn bấm “Chia sẻ”, ảnh phòng, kết quả và cách sắp xếp sẽ được người khác xem và dùng lại.</span>
     </div>
+    {shareNotice && <p className="studio-message" aria-live="polite">{shareNotice}</p>}
     {isLoadingDesigns && <p className="muted" aria-live="polite">Đang tải mẫu phòng từ tài khoản…</p>}
     {syncMessage && <p className="studio-message" aria-live="polite">{syncMessage}</p>}
     {syncError && <p className="error-message" role="alert">{syncError}</p>}
@@ -118,8 +159,7 @@ export default function CollectionPage() {
           </div>
           <div className="saved-actions">
             <button className="button" type="button" onClick={() => {
-              localStorage.setItem('furneehome-room-product', item.product._id);
-              navigate('/room-studio');
+              navigate('/room-studio', { state: { product: item.product } });
             }}>Thử trong phòng</button>
             <button className="text-button danger" type="button" onClick={() => removeItem(item.id)}>Bỏ lưu</button>
           </div>
@@ -134,7 +174,9 @@ export default function CollectionPage() {
       {designs.length ? <div className="collection-grid">
         {designs.map((item) => <article className="saved-card room-saved-card" key={item.id}>
           <div className="room-template-icon">
-            {item.resultImage ? <img src={item.resultImage} alt={`Mẫu phòng ${item.name}`} /> : '▦'}
+            {item.resultImage || item.roomImage
+              ? <img src={item.resultImage || item.roomImage} alt={`Mẫu phòng ${item.name}`} />
+              : '▦'}
           </div>
           <div>
             <span className="category-label">{item.visibility === 'public' ? 'ĐANG CÔNG KHAI' : 'MẪU RIÊNG TƯ'}</span>
@@ -145,9 +187,9 @@ export default function CollectionPage() {
           </div>
           <div className="saved-actions">
             <button className="button" type="button" onClick={() => openDesign(item)}>Mở Phòng thử</button>
-            {item._id && <button className="button button-secondary" type="button" onClick={() => shareDesign(item)}>
-              {item.visibility === 'public' ? 'Sao chép link' : 'Chia sẻ công khai'}
-            </button>}
+            <button className="button button-secondary" type="button" onClick={() => shareDesign(item)}>
+              {item.visibility === 'public' ? 'Sao chép link' : (user ? 'Chia sẻ công khai' : 'Đăng nhập để chia sẻ')}
+            </button>
             {item.visibility === 'public' && <button className="text-button" type="button" onClick={() => updateRoomTemplate(item.id, { visibility: 'private' })}>Đặt riêng tư</button>}
             <button className="text-button danger" type="button" onClick={() => removeItem(item.id)}>Xóa mẫu</button>
           </div>

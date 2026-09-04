@@ -13,6 +13,20 @@ function readCachedProducts() {
   }
 }
 
+function lightweightProducts(products) {
+  return products.map((product) => ({
+    ...product,
+    image: typeof product.image === 'string' && !product.image.startsWith('data:') ? product.image : '',
+    transparentImage: typeof product.transparentImage === 'string' && !product.transparentImage.startsWith('data:') ? product.transparentImage : '',
+    images: Array.isArray(product.images)
+      ? product.images.filter((image) => typeof image === 'string' && !image.startsWith('data:'))
+      : [],
+    sourceImages: Array.isArray(product.sourceImages)
+      ? product.sourceImages.filter((image) => typeof image === 'string' && !image.startsWith('data:'))
+      : [],
+  }));
+}
+
 export function ProductProvider({ children }) {
   const [products, setProducts] = useState(readCachedProducts);
   const [loading, setLoading] = useState(true);
@@ -43,7 +57,7 @@ export function ProductProvider({ children }) {
     if (loadedProducts.length > 0) {
       setProducts(loadedProducts);
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(loadedProducts));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(lightweightProducts(loadedProducts)));
       } catch {
         // Không chặn giao diện nếu localStorage đầy.
       }
@@ -60,19 +74,22 @@ export function ProductProvider({ children }) {
     products,
     loading,
     refreshProducts: fetchProducts,
-    async addProduct(product) {
-      const createdProduct = await productService.create(product);
+    async importShopeeProduct(sourceUrl) {
+      const createdProduct = await productService.importShopee(sourceUrl);
       await fetchProducts();
       return createdProduct;
-    },
-    async updateProduct(product) {
-      const updatedProduct = await productService.update(product._id, product);
-      await fetchProducts();
-      return updatedProduct;
     },
     async removeProduct(id) {
       await productService.remove(id);
       await fetchProducts();
+    },
+    async addProductImage(id, dataUrl) {
+      const product = await productService.addImage(id, dataUrl);
+      await fetchProducts();
+      return product;
+    },
+    downloadProductJson() {
+      return productService.downloadJson();
     },
     resetProducts: fetchProducts,
   }), [products, loading]);

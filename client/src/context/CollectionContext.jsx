@@ -17,10 +17,11 @@ function normalizeRoomDesign(item) {
     id,
     type: 'room-template',
     target: {
-      x: Number(target.x) > 1 ? Number(target.x) / 100 : Number(target.x || 0.5),
-      y: Number(target.y) > 1 ? Number(target.y) / 100 : Number(target.y || 0.72),
+      x: Number(target.x) > 1 ? Number(target.x) / 100 : Number(target.x ?? 0.5),
+      y: Number(target.y) > 1 ? Number(target.y) / 100 : Number(target.y ?? 0.72),
     },
     placements,
+    designMode: item.designMode === 'inspiration' ? 'inspiration' : 'placement',
     productId: item.productId || item.product?._id || item.product?.id || '',
     productName: item.productName || item.product?.name || 'Sản phẩm đã chọn',
     savedAt: item.savedAt || item.createdAt || new Date().toISOString(),
@@ -45,17 +46,59 @@ function readCollection() {
   }
 }
 
+function nonDataUrl(value) {
+  return typeof value === 'string' && !value.startsWith('data:') ? value : '';
+}
+
+function lightweightProduct(product = {}) {
+  return {
+    ...product,
+    image: nonDataUrl(product.image),
+    transparentImage: nonDataUrl(product.transparentImage),
+    images: Array.isArray(product.images) ? product.images.map(nonDataUrl).filter(Boolean) : [],
+    sourceImages: Array.isArray(product.sourceImages) ? product.sourceImages.map(nonDataUrl).filter(Boolean) : [],
+  };
+}
+
+function lightweightPlacement(placement = {}) {
+  return {
+    id: placement.id,
+    productId: placement.productId,
+    productName: placement.productName,
+    productFacts: placement.productFacts || {},
+    product: lightweightProduct(placement.product),
+    image: nonDataUrl(placement.image),
+    transparentImage: nonDataUrl(placement.transparentImage),
+    target: placement.target,
+    scale: placement.scale,
+    rotation: placement.rotation,
+    flip: placement.flip ?? placement.isFlipped,
+    zIndex: placement.zIndex,
+  };
+}
+
+function lightweightCollectionItem(item) {
+  if (item.type === 'product') {
+    return { ...item, product: lightweightProduct(item.product) };
+  }
+  if (item.type !== 'room-template') return item;
+  return {
+    ...item,
+    // Images are durable on MongoDB for signed-in users. Keeping data URLs in
+    // localStorage quickly fills it and can make the whole site feel broken.
+    roomImage: nonDataUrl(item.roomImage),
+    resultImage: nonDataUrl(item.resultImage),
+    productImage: nonDataUrl(item.productImage),
+    placements: (item.placements || item.sceneItems || item.items || []).map(lightweightPlacement),
+  };
+}
+
 function safeSaveCollection(items) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items.map(lightweightCollectionItem)));
   } catch (error) {
     try {
-      const lightweight = items.slice(-8).map((item) => {
-        if (item.type === 'room-template' && item.resultImage?.length > 5000) {
-          return { ...item, resultImage: '' };
-        }
-        return item;
-      });
+      const lightweight = items.slice(-8).map(lightweightCollectionItem);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(lightweight));
     } catch {
       console.warn('Không thể cập nhật bộ sưu tập trong trình duyệt:', error);
@@ -157,6 +200,12 @@ export function CollectionProvider({ children }) {
         rotation: localItem.rotation,
         flip: localItem.flip,
         resultImage: localItem.resultImage || '',
+        resultMatchesLayout: localItem.resultMatchesLayout !== false,
+        designMode: localItem.designMode,
+        userPrompt: localItem.userPrompt || '',
+        designBrief: localItem.designBrief || {},
+        model: localItem.model || '',
+        elapsedMs: localItem.elapsedMs,
         roomImage: localItem.roomImage || '',
         imageSize: localItem.imageSize,
         placements: localItem.placements || [],

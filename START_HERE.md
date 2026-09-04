@@ -13,15 +13,20 @@ FurneeHome là website giúp học sinh, sinh viên và người ở phòng nh�
 
 ## 2. Hợp đồng chức năng Room Studio
 
-Room Studio phải được hiểu theo ba bước người dùng:
+Room Studio là một workspace vừa màn hình, không có footer hay bắt người dùng cuộn xuống để thấy ảnh kết quả. Công cụ chia tab, sản phẩm phân trang; ảnh phải hiển thị trọn vẹn và tọa độ kéo/chấm phải khớp vùng ảnh thật.
 
-1. **Chọn đúng 4 điểm sàn:** người dùng tải ảnh và chấm theo thứ tự **trước trái → sau trái → sau phải → trước phải**. Không chấm trần hoặc tường; 6 hay 12 điểm không làm kết quả tốt hơn vì [cameraSolver.js](client/src/utils/cameraSolver.js) chỉ dùng bốn điểm đầu để tạo hai cặp đường phối cảnh. File này là vanilla JavaScript có code lấy cảm hứng từ repo tham khảo [fSpy_3d-matching/](fSpy_3d-matching/); repo tham khảo không phải dependency bắt buộc của frontend.
-2. **Đặt sản phẩm:** người dùng tìm/lọc sản phẩm trong danh sách 6 món mỗi trang, rồi bấm hoặc kéo nhiều sản phẩm đến các vị trí trong phòng. Mỗi món giữ vị trí, kích thước, góc xoay, trạng thái lật và thứ tự lớp. Nút gợi ý ngẫu nhiên chọn tối đa 3 món thuộc các danh mục khác nhau để tạo bố cục khởi đầu.
-3. **Xem thử:** ngay khi thả sản phẩm hoặc kéo xong, bản ghép tại chỗ hiển thị tức thì. Frontend tạo một ảnh hướng dẫn chứa **toàn bộ sản phẩm đang có trong phòng**, mask hợp nhất và ảnh tham chiếu ghép, rồi gửi đến backend. Người dùng có thể thêm mô tả ngắn tối đa 300 ký tự. [cloudflareImageService.js](server/src/services/cloudflareImageService.js) giữ tên cũ để tránh sửa lan rộng nhưng hiện điều phối chuỗi Pollinations → Cloudflare → Hugging Face theo các khóa có trong `.env`; thứ tự có thể đổi bằng cấu hình. Spinner và ảnh AI phải hiện trong chính khung ảnh phòng; ảnh dùng `contain`, không crop. AI lỗi không được làm mất bố cục tại chỗ; người dùng có thể thử lại.
+1. **Tải ảnh rồi chọn cách thử:** `Gợi ý AI` là nút hành động nổi bật trên thanh công cụ, không phải một tab có nội dung bên dưới. Bấm nút sẽ chọn ngẫu nhiên tối đa ba sản phẩm có ảnh tham chiếu thật trong catalog FurneeHome, ưu tiên khác danh mục, rồi gửi ảnh phòng, từng ảnh sản phẩm riêng 511×511 theo đúng thứ tự product facts và mô tả tùy chọn (300 ký tự) bằng `mode: inspiration`. AI tự dùng một phần trong số đó nếu phòng không đủ chỗ; dùng ít món tốt hơn che lối đi hoặc thay đổi phòng. Không yêu cầu người dùng chọn món, đặt vị trí hay chấm sàn.
+2. **Tự đặt sản phẩm:** tìm/lọc trong danh sách phân trang, **chọn rõ một món rồi bấm vị trí trên ảnh**; bấm ảnh khi chưa chọn không được tự chọn món. Có thể đặt nhiều món, rồi chỉnh vị trí, kích thước, góc xoay, lật và thứ tự lớp. Căn phối cảnh là **tùy chọn**: nếu dùng, chấm bốn đỉnh của một **ô chữ nhật thực trên vùng sàn nhìn thấy** theo thứ tự **trước trái → sau trái → sau phải → trước phải**. Không chấm toàn bộ chu vi phòng, không đoán góc sau phần nhà vệ sinh lồi, không chấm tường/trần. Có thể dùng ron gạch, mép thảm hoặc ván sàn hình chữ nhật; nếu không thấy mốc thật rõ thì bỏ qua. [cameraSolver.js](client/src/utils/cameraSolver.js) chỉ dùng bốn điểm để lấy hai hướng phối cảnh, không tái dựng hình dạng toàn phòng.
+3. **Khai báo điều AI cần giữ:** form nhu cầu dùng các trường `purpose`, `style`, `keepClear`, `avoid`; từng món có `usageType`, `placementSurface`, kích thước cm nếu biết và `aiDescription`. Không bịa kích thước khi thiếu dữ liệu. Thứ tự ưu tiên tạo ảnh là **kiến trúc phòng và đúng sản phẩm/công năng → vị trí, tỷ lệ, layer → phong cách**. Ví dụ bàn ngồi bệt phải giữ chân ngắn, mặt bàn thấp và không tự thêm ghế cao.
+4. **Xem và lưu:** bản ghép Canvas xuất hiện trước, sau đó gửi ảnh gốc, guide **toàn bộ scene**, mask hợp nhất và sheet tham chiếu sản phẩm đến AI (`mode: placement`). Spinner và ảnh kết quả nằm ngay trong khung phòng; có thể quay lại bố cục. AI lỗi không được xóa scene hay kết quả trước. Nút Gợi ý AI tạo một kết quả `inspiration` riêng và không sửa danh sách món người dùng đang đặt thủ công.
 
-Collection dùng trường chuẩn `resultImage` và lưu cả `placements`, `markedCorners`, `userPrompt`, model đã dùng và tọa độ chuẩn hóa. Mẫu công khai có page riêng và có thể được sao chép thành bản riêng để chỉnh tiếp.
+[cloudflareImageService.js](server/src/services/cloudflareImageService.js) giữ tên cũ nhưng điều phối Pollinations → Cloudflare → Hugging Face theo khóa/cấu hình. Model không hỗ trợ hoặc bị giới hạn riêng thì thử model tiếp theo; lỗi khóa/rate limit toàn provider thì sang provider sau. Không fallback để vượt qua từ chối nội dung. Chỉ dùng quota có sẵn; không đảm bảo miễn phí vô hạn, dưới 1 giây hay bảo toàn kiến trúc tuyệt đối bởi model bên ngoài.
 
-**Trạng thái cần giữ:** không tự ý đổi thứ tự bốn điểm, crop ảnh, làm mất bản Canvas dự phòng hoặc bỏ chuỗi provider hiện có. Khi sửa Room Studio, phải kiểm tra lại cả ba bước, mở lại mẫu đã lưu và giao diện mobile.
+Collection lưu `designMode` (`placement`/`inspiration`), `resultImage`, ảnh gốc, `placements` cùng product facts, `markedCorners`, `designBrief`, `userPrompt`, model và thời gian tạo. Tọa độ lưu chuẩn hóa 0–1. Ý tưởng AI có thể có `placements: []`; không tạo sản phẩm giả. Mẫu công khai có page riêng; chỉ người đăng nhập mới được công khai hoặc dùng lại, và reuse luôn tạo một bản riêng tư mới.
+
+Khách chưa đăng nhập được **một lần tạo ảnh thành công** theo IP đã băm HMAC. Request đang xử lý được giữ tạm để tránh gọi song song; nếu mọi provider lỗi thì lượt được trả lại. Người đã đăng nhập không dùng giới hạn khách. Đây là giới hạn dùng thử đơn giản: nhiều người chung Wi-Fi/NAT có thể dùng chung một IP.
+
+**Trạng thái cần giữ:** không crop ảnh, không ép chấm góc, không mất bản ghép khi AI lỗi, không mất thông số khi lưu lên tài khoản. `phongtro.jpg` chỉ là một ảnh kiểm thử, không phải cấu trúc phòng mặc định. Gợi ý AI phải thích nghi với ảnh đã đầy đồ, phòng hẹp hoặc không đều, góc rộng, ít sàn, gác/bếp/WC/cầu thang, đồ cá nhân, người và thú cưng; giữ nguyên kiến trúc, đồ đang có, vật cản và lối đi. Khi sửa phải đo viewport và kiểm tra nhiều loại ảnh, cả hai chế độ, chuyển tab, mở lại collection và màn hình nhỏ.
 
 ## 3. Đăng nhập và Admin là backend thật
 
@@ -29,14 +34,15 @@ Collection dùng trường chuẩn `resultImage` và lưu cả `placements`, `ma
 - Backend [authController.js](server/src/controllers/authController.js) hash mật khẩu đăng ký bằng bcryptjs và trả JWT 7 ngày cùng thông tin user.
 - Frontend lưu token ở khóa `accessToken`; [apiClient.js](client/src/services/apiClient.js) tự gắn Bearer token.
 - Các API tạo/sửa/xóa sản phẩm ở [productRoutes.js](server/src/routes/productRoutes.js) bắt buộc JWT và role Admin. Route backend mới là lớp bảo vệ thật; kiểm tra role ở router chỉ là phản hồi UX.
-- Tài khoản Admin phải là user thật trong MongoDB. Chỉ khi cần tạo/cập nhật bằng biến môi trường mới dùng `ADMIN_EMAIL`, `ADMIN_PASSWORD` rồi chạy `cd server` và `npm run seed`. Không hard-code tài khoản/mật khẩu và không tự tạo tài khoản giả trong localStorage.
-- Local giữ nguyên startup contract hiện có: `JWT_SECRET` không bắt buộc để chạy bằng `.env` hiện tại. Khi deploy nên cấu hình secret riêng; không đọc, in hoặc commit giá trị thật của `.env`.
+- Tài khoản Admin phải là user thật trong MongoDB. Script `bootstrapLocalAdmin.js` chỉ tạo tài khoản `localOnly`, từ chối production và không tự chạy khi khởi động. Trên bản deploy, dùng `ADMIN_USERNAME`, `ADMIN_EMAIL`, mật khẩu mạnh trong secret rồi chạy seed; không dùng mật khẩu demo ngắn cho production.
+- Admin trên website deploy ghi sản phẩm và ảnh đã nén vào MongoDB. JSON đóng gói trong frontend không thể tự commit ngược từ Render; route export cho phép tải bản JSON mới để nhóm kiểm tra và commit khi muốn cập nhật fallback.
+- Local giữ nguyên startup contract hiện có: `JWT_SECRET` không bắt buộc để chạy bằng `.env` hiện tại. Render phải có `NODE_ENV=production` và `JWT_SECRET`; backend cũng coi `RENDER=true` là production để không dùng fallback local nếu cấu hình thiếu. Không đọc, in hoặc commit giá trị thật của `.env`.
 
 ## 4. Dữ liệu sản phẩm và giá
 
-- Dataset hiện tại có **57 sản phẩm**; 57 URL Shopee và 57 PNG local đã qua kiểm tra, không trùng ID/slug/URL. Hiện toàn bộ `price` vẫn là `0` và danh mục còn lệch nhiều về Kệ sách; khi thêm URL mới phải lưu giá tham khảo và ưu tiên các danh mục còn thiếu.
+- Dataset hiện tại có **68 sản phẩm**, 68 URL Shopee và 68 ID/slug riêng; toàn bộ `price` vẫn là `0`. Có 57 ảnh PNG local và 11 sản phẩm mới đang chờ Admin thêm ảnh. Giao diện phải hiện placeholder rõ ràng, đưa món có ảnh lên trước và không cho gửi món thiếu ảnh tham chiếu sang AI.
 - [ProductContext.jsx](client/src/context/ProductContext.jsx) ưu tiên API, chỉ dùng `client/public/data_import/data_import.json` làm dữ liệu dự phòng khi backend chưa trả dữ liệu.
-- Admin dùng [AdminPage.jsx](client/src/pages/AdminPage.jsx) để CRUD qua API; không coi localStorage là nguồn ghi dữ liệu chính.
+- Admin dùng [AdminPage.jsx](client/src/pages/AdminPage.jsx) để CRUD qua API, đọc mã cơ bản từ URL Shopee hợp lệ, thêm tối đa 6 ảnh sản phẩm và tải JSON mới nhất. Ảnh được client nén WebP trước khi lưu MongoDB; không coi localStorage hay ổ đĩa tạm của Render là nguồn ghi dữ liệu chính.
 - Giá cào từ Shopee có thể thay đổi. Hiện `price` chỉ là giá tham khảo/affiliate và `sourceUrl` là link mở sang nguồn. Chưa thêm cập nhật giá tự động cho đến khi có tool đáng tin cậy để Admin chạy hằng ngày hoặc bấm cập nhật và kiểm tra được kết quả.
 
 ## 5. Nguyên tắc code đơn giản
@@ -53,6 +59,8 @@ Giữ các nguyên tắc:
 - với hình học/canvas, chấp nhận file dài hơn vì đó là thuật toán; ưu tiên test và chú thích rõ thay vì cắt nhỏ mù quáng.
 
 Bản đồ từng file cốt lõi nằm ở [README.md](README.md), mục 7.
+
+Tham khảo UX đã chọn từ CLOVER: [React Bits](https://github.com/DavidHDev/react-bits) cho hiệu ứng nhẹ, [Open Design](https://github.com/nexu-io/open-design) cho cách tổ chức vùng làm việc và [React Flow](https://reactflow.dev/examples/layout/dagre) cho cây học. Chỉ lấy ý tưởng, không thêm các repo/framework này làm dependency. `fourgether/` là cây học theo luồng riêng, dùng font hệ thống hỗ trợ tiếng Việt; tiến độ chỉ giữ trong phiên, không lưu bộ nhớ trình duyệt.
 
 ## 6. Ranh giới phần trình bày đồ án
 
@@ -100,8 +108,10 @@ Trước khi sửa Review, đối chiếu với code và tài liệu nguồn ch�
 - `npm run build` trong `client/` thành công.
 - Backend có thể khởi động bằng `.env` hiện tại của nhóm với `MONGO_URI` và Cloudflare. Pollinations/Hugging Face là fallback tùy chọn; chỉ bật provider khi `.env` có đủ khóa tương ứng.
 - Login/register và Admin CRUD dùng API thật, không dùng demo local.
-- 57 sản phẩm và link nguồn không bị xóa nhầm.
-- Room Studio chỉ dùng đúng 4 điểm sàn theo thứ tự đã ghi, hiển thị trọn ảnh bằng `contain`, và đặt spinner/kết quả AI trong cùng khung ảnh.
-- Collection đọc được dữ liệu cũ; dữ liệu mới dùng `resultImage`, `placements`, `markedCorners`, `userPrompt` và tọa độ chuẩn hóa từ 0 đến 1.
+- 68 sản phẩm và link nguồn không bị xóa nhầm; 57 ảnh local hiện có vẫn phải đọc được, 11 món chờ ảnh không được hiện như ảnh hỏng hoặc gửi sang AI.
+- Room Studio không bắt buộc chấm sàn; khi căn phối cảnh chỉ dùng 4 điểm ô sàn theo thứ tự đã ghi. Đo cả page và panel để không giấu nút ngoài màn hình; ảnh, spinner, kết quả cùng khung, không crop.
+- Collection đọc được dữ liệu cũ; dữ liệu mới dùng `designMode`, `resultImage`, `placements` cùng product facts, `markedCorners`, `designBrief`, `userPrompt` và tọa độ chuẩn hóa từ 0 đến 1.
 - Người đăng nhập có thể đồng bộ thiết kế vào MongoDB, chủ động công khai/đặt riêng tư và sao chép một mẫu công khai để dùng lại. Khách vẫn có thể lưu trên thiết bị.
+- Khách chỉ tiêu một lượt tạo ảnh sau khi provider thành công; request lỗi trả lại lượt. IP thô không được lưu. Khi deploy sau proxy phải cấu hình `TRUST_PROXY` đúng topology.
 - README/START_HERE không chứa secret thật và liên kết tương đối trong repo hoạt động.
+- Chạy `node --test tools/smoke-room.cjs tools/smoke-admin.cjs`: kiểm tra hai chế độ ảnh, prompt/fallback, quota khách, lưu/dùng lại collection, auth/Admin, ảnh và JSON bằng mock; không tiêu quota AI thật. Đây không phải bằng chứng chất lượng ảnh provider; phải phân biệt với kiểm thử giao diện và một lần gọi provider có chủ đích.

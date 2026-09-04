@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const RoomDesign = require('../models/RoomDesign');
+const { cleanDesignBrief, cleanProductFacts } = require('../utils/roomSceneInput');
 
 const MAX_PLACEMENTS = 12;
 const MAX_MARKED_CORNERS = 16;
@@ -68,9 +69,10 @@ function cleanPlacements(value) {
 
     return {
       productId: cleanProductId(item.productId),
-      productName: cleanText(item.productName, 'Tên sản phẩm', 140, false),
+      productName: cleanText(item.productName, 'Tên sản phẩm', 200, false),
       image,
       transparentImage,
+      productFacts: cleanProductFacts(item.productFacts || item.product || {}),
       target: cleanTarget(item.target, `Vị trí sản phẩm ${index + 1}`),
       scale: cleanNumber(item.scale, 'Tỷ lệ', 0.1, 4, 1),
       rotation: cleanNumber(item.rotation, 'Góc xoay', -180, 180, 0),
@@ -107,12 +109,15 @@ function cleanDesignInput(body = {}) {
   const fields = {
     name: cleanText(body.name, 'Tên thiết kế', 120, false),
     productId: cleanProductId(body.productId),
-    productName: cleanText(body.productName, 'Tên sản phẩm', 140),
+    productName: cleanText(body.productName, 'Tên sản phẩm', 200),
     productImage: cleanText(body.productImage, 'Ảnh sản phẩm', MAX_PLACEMENT_IMAGE_LENGTH),
     photo: cleanText(body.photo, 'Ảnh thiết kế cũ', MAX_IMAGE_LENGTH),
     roomImage: cleanText(body.roomImage, 'Ảnh căn phòng', MAX_IMAGE_LENGTH),
     resultImage: cleanText(body.resultImage, 'Ảnh kết quả', MAX_IMAGE_LENGTH),
+    resultMatchesLayout: body.resultMatchesLayout === undefined ? undefined : Boolean(body.resultMatchesLayout),
+    designMode: body.designMode,
     userPrompt: cleanText(body.userPrompt, 'Mô tả mong muốn', 300),
+    designBrief: body.designBrief === undefined ? undefined : cleanDesignBrief(body.designBrief),
     model: cleanText(body.model, 'Tên model', 100),
     elapsedMs: body.elapsedMs === undefined
       ? undefined
@@ -131,6 +136,9 @@ function cleanDesignInput(body = {}) {
 
   if (fields.visibility !== undefined && !['private', 'public'].includes(fields.visibility)) {
     throw createError('Chế độ chia sẻ không hợp lệ');
+  }
+  if (fields.designMode !== undefined && !['placement', 'inspiration'].includes(fields.designMode)) {
+    throw createError('Loại thiết kế không hợp lệ');
   }
 
   Object.entries(fields).forEach(([key, value]) => {
@@ -258,7 +266,10 @@ async function reuse(req, res, next) {
       photo: source.photo,
       roomImage: source.roomImage,
       resultImage: source.resultImage,
+      resultMatchesLayout: source.resultMatchesLayout,
+      designMode: source.designMode || 'placement',
       userPrompt: source.userPrompt,
+      designBrief: source.designBrief,
       model: source.model,
       elapsedMs: source.elapsedMs,
       imageSize: source.imageSize,

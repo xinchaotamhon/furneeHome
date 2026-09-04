@@ -20,8 +20,9 @@ Dành cho Windows:
 
 Đăng nhập/đăng ký hiện dùng backend Express, MongoDB và JWT; không còn tài khoản thử được tạo trực tiếp trong trình duyệt.
 
-- **Khách hàng:** bấm **Đăng ký** trong modal để tạo tài khoản thật qua API.
-- **Admin:** tài khoản phải tồn tại trong collection `users` của MongoDB. Nếu cần tạo/cập nhật tài khoản từ biến môi trường thì mới dùng `ADMIN_EMAIL`, `ADMIN_PASSWORD` rồi chạy `cd server` và `npm run seed`; các biến này không cần để backend local khởi động.
+- **Khách hàng:** bấm **Đăng ký** trong modal để tạo tài khoản thật qua API; có thể đăng nhập bằng tên đăng nhập hoặc email.
+- **Admin deploy:** tài khoản phải tồn tại trong collection `users` của MongoDB. Cấu hình `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` bằng secret của Render rồi chạy seed một lần. Production yêu cầu mật khẩu tối thiểu 12 ký tự.
+- **Admin local:** script `server/src/utils/bootstrapLocalAdmin.js` chỉ tạo tài khoản `localOnly` để demo trên chính máy đó và luôn từ chối production. Không dùng tài khoản/mật khẩu demo ngắn cho website công khai.
 - Token đăng nhập được lưu ở trình duyệt dưới khóa `accessToken`; quyền thật vẫn được kiểm tra lại ở backend bằng JWT và middleware Admin.
 
 > Không ghi mật khẩu admin thật vào README, source code hoặc Git. Xem mục 6 để cấu hình biến môi trường.
@@ -33,11 +34,11 @@ Dành cho Windows:
 | Trang | Đường dẫn (URL) | Chức năng chính |
 |---|---|---|
 | **Trang chủ** | `/` | Giới thiệu dự án, danh mục nổi bật, dẫn nhanh đến phòng thử |
-| **Danh sách sản phẩm** | `/products` | 57 sản phẩm thuộc các nhóm Ghế, Bàn học, Tủ, Kệ sách và Nội thất; mở link Shopee để xem nguồn |
-| **Phòng thử (Room Studio)** | `/room-studio` | **3 bước:** chấm đúng 4 điểm sàn $\rightarrow$ chọn hoặc gợi ý ngẫu nhiên 3 món $\rightarrow$ đặt nhiều món; spinner và ảnh AI hiện ngay trong khung phòng |
-| **Bộ sưu tập** | `/collection` | Lưu ảnh, vị trí/kích thước/xoay/lật/layer, 4 điểm sàn và mô tả; mở lại bố cục hoặc chủ động chia sẻ mẫu |
-| **Mẫu công khai** | `/collections/public` | Xem các mẫu được chủ sở hữu công khai; trang chi tiết cho phép dùng lại thành bản sao riêng tư |
-| **Quản trị** | `/admin` | Thêm, sửa, xóa sản phẩm trong CSDL MongoDB Atlas (dành cho Admin) |
+| **Danh sách sản phẩm** | `/products` | 68 sản phẩm thuộc các nhóm Ghế, Bàn học, Tủ, Kệ sách và Nội thất; mở link Shopee để xem nguồn |
+| **Phòng thử (Room Studio)** | `/room-studio` | Tải ảnh → AI gợi ý cả phòng, hoặc chọn món rồi bấm vị trí để tự đặt. Khách có một lượt tạo ảnh thành công; chấm một ô sàn thật chỉ là tùy chọn |
+| **Bộ sưu tập** | `/collection` | Lưu ảnh gốc/kết quả, loại ý tưởng, vị trí/kích thước/xoay/lật/layer, điểm tham chiếu và mô tả; mở lại hoặc chủ động chia sẻ |
+| **Mẫu công khai** | `/collections/public` | Xem các mẫu được chủ sở hữu công khai; đăng nhập để công khai hoặc dùng lại thành bản sao riêng tư |
+| **Quản trị** | `/admin` | Dán URL Shopee, CRUD sản phẩm, thêm ảnh vào MongoDB và tải JSON fallback mới nhất (dành cho Admin) |
 
 ---
 
@@ -102,6 +103,9 @@ git push
 
 Để thêm đồ nội thất Shopee mới vào trang web và phòng thử AI:
 
+- **Cách nhanh trên website deploy:** Admin mở `/admin`, dán URL Shopee hợp lệ, hoàn thiện tên/danh mục/giá rồi bấm thêm. Chọn lại sản phẩm để tải ảnh; trình duyệt nén WebP trước khi backend lưu vào MongoDB. Nút tải JSON tạo bản fallback **nhẹ, không nhúng ảnh base64** để nhóm kiểm tra và commit khi cần; ảnh upload đầy đủ vẫn nằm trong MongoDB.
+- **Cách theo lô trong repo:** dùng ba bước dưới đây khi nhóm đã chuẩn bị nhiều ảnh PNG và muốn cập nhật MongoDB cùng JSON local.
+
 ### 🔹 Bước 1: Lưu ảnh tách nền (PNG)
 1. Lấy mã số **Item ID** ở cuối link Shopee (Ví dụ: `https://shopee.vn/...-i.1709649747.`**`52663854319`**).
 2. Lưu file ảnh tách nền vào thư mục:
@@ -134,7 +138,7 @@ Lệnh `--dry-run` chỉ kiểm tra URL, ID, slug, PNG, danh mục, giá và d�
 
 ### 🔹 Quyết định về giá
 
-Hiện dữ liệu đúng là **57 sản phẩm**; toàn bộ URL/PNG đã kiểm tra hợp lệ nhưng `price` của 57 món vẫn đang bằng `0`. Giá Shopee có thể thay đổi nên không xem giá đã cào là giá bán hiện tại. Trong giai đoạn này:
+Hiện dữ liệu có **68 sản phẩm** và 68 URL Shopee riêng; 57 món đã có PNG local, 11 món mới đang chờ Admin tải ảnh. Room Studio đưa món có ảnh lên trước và khóa món thiếu ảnh để không gửi reference giả sang AI. `price` của cả 68 món vẫn đang bằng `0`. Giá Shopee có thể thay đổi nên không xem giá đã cào là giá bán hiện tại. Trong giai đoạn này:
 
 - `price` chỉ là giá tham khảo; có thể để `0` nếu sản phẩm đi theo hướng affiliate.
 - `sourceUrl`/link Shopee là đường dẫn người dùng mở để xem giá và mua.
@@ -148,10 +152,14 @@ Dự án dùng **một file `.env` duy nhất ở thư mục gốc**. Giữ nguy
 
 | Biến | Mục đích |
 |---|---|
+| `NODE_ENV` | Đặt `production` trên Render để bật toàn bộ kiểm tra bảo mật production. Backend cũng tự nhận `RENDER=true` để không rơi về chế độ local nếu quên biến này |
 | `PORT` | Cổng backend, mặc định `5000` |
 | `CLIENT_URL` | Địa chỉ frontend được phép gọi API, thường là `http://localhost:5173` khi chạy máy cá nhân |
 | `MONGO_URI` | Chuỗi kết nối MongoDB Atlas |
 | `JWT_SECRET` | Secret tùy chọn; nếu không có, local hiện giữ fallback cũ để không phá cách chạy của nhóm. Khi deploy nên cấu hình secret riêng |
+| `ANONYMOUS_QUOTA_SALT` | Secret HMAC dùng băm IP cho một lượt tạo ảnh của khách; khi deploy nên đặt chuỗi riêng, không commit |
+| `TRUST_PROXY` | Cách Express tin proxy để đọc đúng IP. Local để trống/`false`; Render gọi trực tiếp có thể dùng `1`; nếu thêm proxy khác phải cấu hình lại đúng topology |
+| `ADMIN_USERNAME` | Tên đăng nhập Admin dùng khi chạy seed; không đưa vào Git nếu muốn giữ riêng |
 | `ADMIN_EMAIL` | Email dùng để tạo/cập nhật tài khoản Admin khi chạy seed |
 | `ADMIN_PASSWORD` | Mật khẩu Admin dùng khi chạy seed; không đưa vào Git |
 | `CLOUDFLARE_ACCOUNT_ID` | Account ID của Cloudflare Workers AI |
@@ -167,15 +175,11 @@ Chỉ cần các biến Cloudflare hiện có là Room Studio vẫn chạy như 
 
 ### Thêm JWT_SECRET cho xác thực backend
 
-Khi dùng đăng nhập thật, nên thêm một secret riêng vào chính file .env ở thư mục gốc:
-
-~~~
-JWT_SECRET=tu-chuoi-ngau-nhien-dai-it-nhat-32-ky-tu
-~~~
+Khi dùng đăng nhập thật, hãy thêm biến `JWT_SECRET` vào chính file `.env` ở thư mục gốc và đặt một chuỗi ngẫu nhiên riêng dài ít nhất 32 ký tự.
 
 - Có thể giữ nguyên .env hiện tại và chỉ thêm một dòng này; không cần sửa start-furneehome.bat.
 - Sau khi thêm hoặc thay secret, hãy khởi động lại backend; các token cũ sẽ hết hiệu lực và người dùng cần đăng nhập lại.
-- Không dùng đúng chuỗi ví dụ trên, không commit và không gửi secret qua chat.
+- Không commit hoặc gửi giá trị secret qua chat.
 
 Nếu cần tạo hoặc cập nhật tài khoản Admin từ biến môi trường, chạy:
 
@@ -209,7 +213,7 @@ furneehome/
 │   ├── public/
 │   │   ├── favicon.ico               # Biểu tượng trình duyệt
 │   │   ├── data_import/
-│   │   │   └── data_import.json      # Backup 57 sản phẩm khi API chưa sẵn sàng
+│   │   │   └── data_import.json      # Backup nhẹ của 68 sản phẩm khi API chưa sẵn sàng
 │   │   └── images/
 │   │       ├── README.md             # Quy ước đặt ảnh sản phẩm
 │   │       └── products/
@@ -243,7 +247,7 @@ furneehome/
 │       │
 │       ├── pages/
 │       │   ├── HomePage.jsx           # Trang giới thiệu
-│       │   ├── ProductListPage.jsx    # Tìm kiếm và xem 57 sản phẩm
+│       │   ├── ProductListPage.jsx    # Tìm kiếm và xem 68 sản phẩm
 │       │   ├── RoomStudioPage.jsx     # Chọn điểm, đặt đồ, xem thử AI
 │       │   ├── CollectionPage.jsx     # Xem, mở lại và chia sẻ mẫu đã lưu
 │       │   ├── PublicCollectionsPage.jsx # Danh sách mẫu phòng công khai
@@ -289,9 +293,10 @@ furneehome/
 │       │   └── errorHandler.js       # Format lỗi API
 │       ├── models/
 │       │   ├── User.js               # User và role customer/admin
-│       │   ├── Product.js             # Sản phẩm, ảnh, giá, link nguồn
+│       │   ├── Product.js             # Sản phẩm, gallery ảnh, giá, link nguồn
 │       │   ├── Category.js            # Danh mục
-│       │   └── RoomDesign.js          # Thiết kế phòng của user
+│       │   ├── RoomDesign.js          # Thiết kế phòng của user
+│       │   └── AnonymousGenerationQuota.js # Lượt tạo ảnh khách theo IP đã băm
 │       ├── routes/
 │       │   ├── index.js              # Gom route dưới /api
 │       │   ├── authRoutes.js         # /auth/login, /auth/register
@@ -300,14 +305,19 @@ furneehome/
 │       │   ├── roomDesignRoutes.js   # /room-designs
 │       │   └── adminRoutes.js        # /admin/users
 │       ├── services/
-│       │   └── cloudflareImageService.js # Prompt và gọi Cloudflare AI
+│       │   ├── cloudflareImageService.js # Prompt và chuỗi provider ảnh
+│       │   ├── anonymousGenerationQuotaService.js # Reserve/use/release lượt khách
+│       │   └── productCatalogService.js # Kiểm tra URL, ảnh và export JSON
 │       └── utils/
-│           └── seedData.js           # Seed Category/Admin khi cần
+│           ├── seedData.js           # Seed Category/Admin deploy khi cần
+│           └── bootstrapLocalAdmin.js # Tạo admin chỉ dùng trên máy local
 │
 ├── tools/                            # Script dữ liệu, không phải runtime website
 │   ├── importProducts.js             # Import sản phẩm từ Shopee
 │   ├── syncMongoToJson.js            # Đồng bộ MongoDB về JSON frontend
-│   └── fixProductCategories.js       # Chuẩn hóa danh mục
+│   ├── fixProductCategories.js       # Chuẩn hóa danh mục
+│   ├── smoke-room.cjs                # Smoke test Room Studio, prompt, quota
+│   └── smoke-admin.cjs               # Smoke test auth, Admin, ảnh, JSON
 │
 ├── fSpy_3d-matching/                 # Repo tham khảo cho camera matching
 ├── fourgether/                       # Flashcard/checklist ôn bảo vệ
@@ -331,14 +341,14 @@ Hệ thống được thiết kế tối ưu để deploy hoàn toàn miễn ph�
    - **Build Command:** `cd client && npm install && npm run build`
    - **Output Directory:** `client/dist`
    - **Environment Variable:** `VITE_API_URL=https://<your-render-backend>/api`
-   - *Tốc độ mở trang tức thì (~0.2s) nhờ mạng lưới CDN máy chủ tại Việt Nam.*
 
 2. **Backend (`server/`) $\rightarrow$ Deploy lên Render.com (Web Service):**
    - **Root Directory:** `server`
    - **Build Command:** `npm install`
    - **Start Command:** `node src/server.js`
-   - **Environment Variables chính:** `MONGO_URI`, `CLIENT_URL`, `JWT_SECRET`. Nếu dùng Cloudflare làm provider đầu tiên, thêm `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_IMAGE_MODEL`.
-   - **Fallback ảnh tùy chọn:** `ROOM_IMAGE_PROVIDER_ORDER`, `POLLINATIONS_API_KEY`, `POLLINATIONS_IMAGE_MODELS`, `HF_TOKEN`, `HUGGINGFACE_IMAGE_MODEL`. Thêm `ADMIN_EMAIL`/`ADMIN_PASSWORD` chỉ nếu cần chạy seed.
+   - **Environment Variables chính:** `NODE_ENV=production`, `MONGO_URI`, `CLIENT_URL`, `JWT_SECRET`, `ANONYMOUS_QUOTA_SALT`, `TRUST_PROXY=1`. Nếu dùng Cloudflare làm provider, thêm `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_IMAGE_MODEL`.
+   - **Fallback ảnh tùy chọn:** `ROOM_IMAGE_PROVIDER_ORDER`, `POLLINATIONS_API_KEY`, `POLLINATIONS_IMAGE_MODELS`, `HF_TOKEN`, `HUGGINGFACE_IMAGE_MODEL`. Thêm `ADMIN_USERNAME`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` chỉ khi chạy seed Admin.
+   - `TRUST_PROXY=1` phù hợp khi người dùng gọi trực tiếp một Render Web Service. Nếu đặt backend sau thêm Cloudflare/proxy khác, phải xác định lại số hop hoặc allowlist; cấu hình sai có thể làm giới hạn khách nhận nhầm IP.
 
 3. **Database $\rightarrow$ MongoDB Atlas Cloud:**
    - Cần cấu hình **Network Access** $\rightarrow$ `0.0.0.0/0` để Backend Render kết nối được.
@@ -347,9 +357,9 @@ Hệ thống được thiết kế tối ưu để deploy hoàn toàn miễn ph�
 
 ## 🎓 9. Ứng dụng Fourgether Ôn tập & Phân vai 4 thành viên
 
-- [Fourgether](https://github.com/xinchaotamhon/fourgether) là ứng dụng tĩnh độc lập để **Hiệp, Phúc, Triều, Dũng** ôn tập bảo vệ đồ án:
-  - Trang đầu là cây kiến thức từ FurneeHome đến 4 thành viên và các chủ đề phụ trách.
-  - Bấm thành viên hoặc chủ đề để học ngay bằng 39 flashcard; hỗ trợ lật thẻ và phím tắt.
-  - Hiệp nhận phần khó nhất, sau đó là Phúc, Triều và Dũng.
+- `fourgether/` là ứng dụng tĩnh để **Hiệp, Phúc, Triều, Dũng** cùng ôn toàn bộ đồ án:
+  - Trang đầu là cây kiến thức theo luồng người dùng → frontend → backend/AI → dữ liệu/deploy → câu hỏi bảo vệ; không chia kiến thức theo độ khó hay thành viên.
+  - Bấm một nhánh để mở thẻ ngay; hỗ trợ tìm kiếm, thu/phóng nhánh, lật thẻ và phím tắt.
+  - Mọi người học toàn bộ luồng; phân công công việc của nhóm không làm thay đổi nội dung phải biết.
   - Tiến độ chỉ giữ trong phiên hiện tại, không lưu cache ứng dụng hay dữ liệu trình duyệt; tải lại là một phiên học mới.
   - Repo độc lập có thể deploy trực tiếp lên Cloudflare Pages.
