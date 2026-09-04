@@ -18,6 +18,7 @@ export default function LoginModal() {
     event.preventDefault();
     if (isRegister && form.password !== form.confirmPassword) {
       setError('Mật khẩu nhập lại chưa khớp.');
+      setForm((prev) => ({ ...prev, password: '', confirmPassword: '' }));
       return;
     }
 
@@ -28,6 +29,8 @@ export default function LoginModal() {
       else await login(form);
     } catch (submitError) {
       setError(submitError.message || 'Không thể đăng nhập.');
+      // Wrong credentials (or any failed attempt) -> clear password field(s)
+      setForm((prev) => ({ ...prev, password: '', confirmPassword: '' }));
     } finally {
       setIsSubmitting(false);
     }
