@@ -3,7 +3,10 @@ const test = require('node:test');
 
 const {
   hasExpectedImageSignature,
+  adminProductImageTarget,
   mergeCanonicalProducts,
+  persistAdminProductImage,
+  productImageId,
   sourceUrlMetadata,
   toPlainProduct,
   validateAdminProductImage,
@@ -77,11 +80,11 @@ function fetchResponse(body, { status = 200, contentType = 'application/json' } 
 }
 
 test('admin URL prefill accepts a Shopee HTTPS product URL without fetching it', () => {
-  const metadata = sourceUrlMetadata('https://shopee.vn/Ban-gap-thap-ngoi-bet-i.123.456?utm=ignored');
-  assert.equal(metadata.sourceUrl, 'https://shopee.vn/Ban-gap-thap-ngoi-bet-i.123.456');
-  assert.equal(metadata.name, 'Ban gap thap ngoi bet');
-  assert.equal(metadata.shopeeShopId, '123');
-  assert.equal(metadata.shopeeItemId, '456');
+  const metadata = sourceUrlMetadata('https://shopee.vn/Ban-gap-thap-ngoi-bet-cm-i.691586816.58014018417?extParams=%7B%22foo%22%3A1%7D');
+  assert.equal(metadata.sourceUrl, 'https://shopee.vn/Ban-gap-thap-ngoi-bet-cm-i.691586816.58014018417');
+  assert.equal(metadata.name, 'Ban gap thap ngoi bet cm');
+  assert.equal(metadata.shopeeShopId, '691586816');
+  assert.equal(metadata.shopeeItemId, '58014018417');
   assert.equal(metadata.metadataSource, 'url-slug');
   const productRoute = sourceUrlMetadata('https://shopee.vn/product/123/456?tracking=ignored');
   assert.equal(productRoute.shopeeShopId, '123');
@@ -327,6 +330,67 @@ test('image upload signature must match declared PNG, JPEG, or WebP type', () =>
   assert.equal(hasExpectedImageSignature('image/png', Buffer.from('not-a-png')), false);
   assert.equal(hasExpectedImageSignature('image/jpeg', Buffer.from([0xff, 0xd8, 0xff, 0x00])), true);
   assert.equal(hasExpectedImageSignature('image/webp', Buffer.from('RIFF0000WEBPpayload')), true);
+});
+
+test('admin image storage derives a safe local filename from the Shopee item id matching PNG, JPG, or WebP', async () => {
+  const writes = [];
+  const fakeFs = {
+    async mkdir(directory, options) { writes.push({ operation: 'mkdir', directory, options }); },
+    async writeFile(filePath, contents) { writes.push({ operation: 'writeFile', filePath, contents }); },
+  };
+  const product = {
+    _id: 'mongo-id',
+    sourceUrl: 'https://shopee.vn/ban-cm-i.691586816.58014018417?ext=1',
+    shopeeItemId: '',
+  };
+  assert.equal(productImageId(product), '58014018417');
+
+  // PNG (mặc định cho ảnh tách nền)
+  assert.equal(adminProductImageTarget(product).publicPath, '/images/products/58014018417.png');
+  assert.equal(adminProductImageTarget(product, 'image/png').publicPath, '/images/products/58014018417.png');
+  const pngPayload = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]);
+  const pngDataUrl = `data:image/png;base64,${pngPayload.toString('base64')}`;
+  const savedPng = await persistAdminProductImage(product, pngDataUrl, { isProduction: false, fsImpl: fakeFs });
+  assert.equal(savedPng.value, '/images/products/58014018417.png');
+  assert.equal(savedPng.written, true);
+  assert.match(writes[writes.length - 1].filePath, /client[\\/]public[\\/]images[\\/]products[\\/]58014018417\.png$/);
+
+  // JPEG
+  assert.equal(adminProductImageTarget(product, 'image/jpeg').publicPath, '/images/products/58014018417.jpg');
+  const jpgPayload = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70]);
+  const jpgDataUrl = `data:image/jpeg;base64,${jpgPayload.toString('base64')}`;
+  const savedJpg = await persistAdminProductImage(product, jpgDataUrl, { isProduction: false, fsImpl: fakeFs });
+  assert.equal(savedJpg.value, '/images/products/58014018417.jpg');
+  assert.equal(savedJpg.written, true);
+  assert.match(writes[writes.length - 1].filePath, /client[\\/]public[\\/]images[\\/]products[\\/]58014018417\.jpg$/);
+
+  // WebP
+  assert.equal(adminProductImageTarget(product, 'image/webp').publicPath, '/images/products/58014018417.webp');
+  const webpPayload = Buffer.from('RIFF0000WEBPpayload');
+  const webpDataUrl = `data:image/webp;base64,${webpPayload.toString('base64')}`;
+  const savedWebp = await persistAdminProductImage(product, webpDataUrl, { isProduction: false, fsImpl: fakeFs });
+  assert.equal(savedWebp.value, '/images/products/58014018417.webp');
+  assert.equal(savedWebp.written, true);
+  assert.match(writes[writes.length - 1].filePath, /client[\\/]public[\\/]images[\\/]products[\\/]58014018417\.webp$/);
+  assert.equal(writes[writes.length - 1].contents.toString(), 'RIFF0000WEBPpayload');
+});
+
+test('admin image storage keeps Mongo data URL when deployed or when local write fails', async () => {
+  const dataUrl = `data:image/webp;base64,${Buffer.from('RIFF0000WEBPpayload').toString('base64')}`;
+  let writeCalls = 0;
+  const fakeFs = {
+    async mkdir() { writeCalls += 1; },
+    async writeFile() { writeCalls += 1; throw new Error('read-only filesystem'); },
+  };
+  const product = { _id: 'mongo-id', shopeeItemId: '58014018417' };
+  const deployed = await persistAdminProductImage(product, dataUrl, { isProduction: true, fsImpl: fakeFs });
+  assert.equal(deployed.value, dataUrl);
+  assert.equal(deployed.publicPath, '');
+  assert.equal(writeCalls, 0);
+  const failed = await persistAdminProductImage(product, dataUrl, { isProduction: false, fsImpl: fakeFs });
+  assert.equal(failed.value, dataUrl);
+  assert.equal(failed.publicPath, '');
+  assert.equal(failed.written, false);
 });
 
 test('admin image validation enforces format, per-file size and gallery limits', () => {

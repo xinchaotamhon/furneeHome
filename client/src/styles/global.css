@@ -918,6 +918,14 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
 .studio-result-label strong { font-size: .74rem; }
 .studio-result-label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .66rem; opacity: .85; }
 .studio-result-label button { justify-self: start; padding: 2px 5px; border: 1px solid rgb(255 255 255 / 55%); border-radius: 4px; color: #fff; background: transparent; font-size: .64rem; font-weight: 700; cursor: pointer; }
+.studio-result-products { position: absolute; right: 10px; bottom: 10px; z-index: 10; display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 6px; width: min(330px, calc(100% - 20px)); color: #fff; line-height: 1.2; }
+.studio-result-products summary { width: max-content; padding: 7px 10px; border: 1px solid rgb(255 255 255 / 25%); border-radius: 999px; background: rgb(28 49 37 / 92%); box-shadow: 0 6px 18px rgb(0 0 0 / 22%); backdrop-filter: blur(7px); font-size: .68rem; font-weight: 800; cursor: pointer; list-style: none; }
+.studio-result-products summary::-webkit-details-marker { display: none; }
+.studio-result-products-list { display: grid; gap: 6px; width: 100%; padding: 7px; border: 1px solid rgb(255 255 255 / 22%); border-radius: 11px; background: rgb(28 49 37 / 96%); box-shadow: 0 10px 26px rgb(0 0 0 / 28%); backdrop-filter: blur(8px); }
+.studio-result-product { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; padding: 5px; border-radius: 8px; background: rgb(255 255 255 / 7%); }
+.studio-result-product > .product-artwork { display: block; width: 44px; height: 44px; overflow: hidden; border-radius: 7px; background: #f5f2e9; }
+.studio-result-product strong { display: -webkit-box; min-width: 0; overflow: hidden; color: #fff; font-size: .68rem; line-height: 1.25; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.studio-result-product a { padding: 5px 7px; border-radius: 6px; color: #173524; background: #dcebdc; font-size: .63rem; font-weight: 800; }
 .studio-loader { position: absolute; inset: 0; z-index: 12; display: grid; place-content: center; justify-items: center; gap: 6px; color: #fff; background: rgb(17 26 21 / 56%); text-align: center; line-height: 1.25; }
 .studio-loader small { font-size: .72rem; }
 .room-spinner { width: 34px; height: 34px; border: 3px solid rgb(255 255 255 / 40%); border-top-color: #fff; border-radius: 50%; animation: studio-spin .8s linear infinite; }

@@ -4,8 +4,10 @@ const { cleanDesignBrief, cleanProductFacts } = require('../utils/roomSceneInput
 
 const MAX_PLACEMENTS = 12;
 const MAX_MARKED_CORNERS = 16;
+const MAX_INSPIRATION_PRODUCTS = 3;
 const MAX_IMAGE_LENGTH = 4_000_000;
 const MAX_PLACEMENT_IMAGE_LENGTH = 350_000;
+const MAX_REFERENCE_URL_LENGTH = 2_000;
 
 function createError(message, statusCode = 400) {
   const error = new Error(message);
@@ -46,6 +48,39 @@ function cleanProductId(value) {
   if (value === undefined || value === null || value === '') return undefined;
   if (!mongoose.isValidObjectId(value)) throw createError('Mã sản phẩm không hợp lệ');
   return value;
+}
+
+function cleanReferenceUrl(value, label) {
+  const url = cleanText(value, label, MAX_REFERENCE_URL_LENGTH, false);
+  if (!url) throw createError(`${label} là bắt buộc`);
+  if (/^data:/i.test(url)) {
+    throw createError(`${label} phải là URL, không phải data URL`);
+  }
+  return url;
+}
+
+function cleanInspirationProducts(value) {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) throw createError('Danh sách sản phẩm gợi ý không hợp lệ');
+  if (value.length > MAX_INSPIRATION_PRODUCTS) {
+    throw createError(`Chỉ được lưu tối đa ${MAX_INSPIRATION_PRODUCTS} sản phẩm gợi ý`);
+  }
+
+  return value.map((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw createError(`Sản phẩm gợi ý thứ ${index + 1} không hợp lệ`);
+    }
+
+    const productId = cleanProductId(item.productId);
+    if (!productId) throw createError(`Mã sản phẩm gợi ý thứ ${index + 1} là bắt buộc`);
+
+    return {
+      productId,
+      productName: cleanText(item.productName, 'Tên sản phẩm gợi ý', 200, false),
+      image: cleanReferenceUrl(item.image, 'Ảnh sản phẩm gợi ý'),
+      sourceUrl: cleanReferenceUrl(item.sourceUrl, 'Link nguồn sản phẩm gợi ý'),
+    };
+  });
 }
 
 function cleanPlacements(value) {
@@ -130,6 +165,7 @@ function cleanDesignInput(body = {}) {
       : cleanNumber(body.rotation, 'Góc xoay', -180, 180, 0),
     flip: body.flip === undefined ? undefined : Boolean(body.flip),
     placements: cleanPlacements(body.placements),
+    inspirationProducts: cleanInspirationProducts(body.inspirationProducts),
     markedCorners: cleanMarkedCorners(body.markedCorners),
     visibility: body.visibility,
   };
@@ -278,6 +314,7 @@ async function reuse(req, res, next) {
       rotation: source.rotation,
       flip: source.flip,
       placements: source.placements,
+      inspirationProducts: source.inspirationProducts,
       markedCorners: source.markedCorners,
       visibility: 'private',
       creatorName: getCreatorName(req.user),

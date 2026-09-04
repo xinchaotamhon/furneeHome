@@ -27,6 +27,22 @@ const placementSchema = new mongoose.Schema({
   zIndex: { type: Number, default: 0, min: 0, max: 100 },
 }, { _id: false });
 
+const inspirationProductSchema = new mongoose.Schema({
+  productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+  productName: { type: String, required: true, trim: true, maxlength: 200 },
+  image: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 2_000,
+    validate: {
+      validator: (value) => !/^data:/i.test(value),
+      message: 'Ảnh sản phẩm gợi ý phải là URL, không phải data URL',
+    },
+  },
+  sourceUrl: { type: String, required: true, trim: true, maxlength: 2_000 },
+}, { _id: false });
+
 const roomDesignSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   name: { type: String, required: true, trim: true },
@@ -57,6 +73,8 @@ const roomDesignSchema = new mongoose.Schema({
   },
 
   placements: { type: [placementSchema], default: [] },
+  // Chỉ lưu các món AI đã tham chiếu; không gán placement giả cho ý tưởng cả phòng.
+  inspirationProducts: { type: [inspirationProductSchema], default: [] },
   markedCorners: { type: [normalizedPointSchema], default: [] },
   roomImage: { type: String, default: '' },
   visibility: { type: String, enum: ['private', 'public'], default: 'private' },

@@ -40,9 +40,7 @@ export default function LoginModal() {
     <div className="modal-backdrop" role="presentation" onMouseDown={closeLogin}>
       <form className="login-card" aria-labelledby="auth-modal-title" onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
         <button className="modal-close" type="button" aria-label="Đóng" onClick={closeLogin}>×</button>
-        <p className="eyebrow">{isRegister ? 'BẮT ĐẦU MIỄN PHÍ' : 'CHÀO MỪNG BẠN QUAY LẠI'}</p>
         <h2 id="auth-modal-title">{isRegister ? 'Tạo tài khoản FurneeHome' : 'Đăng nhập FurneeHome'}</h2>
-        <p className="muted">{isRegister ? 'Lưu ý tưởng riêng, sau đó tự quyết định mẫu nào được công khai.' : 'Tiếp tục với Bộ sưu tập và những mẫu phòng đã lưu.'}</p>
         {isRegister && <label>Họ và tên
           <input type="text" placeholder="Nguyễn Văn A" required maxLength={20} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} onBlur={(event) => setForm({ ...form, name: event.target.value.trim() })} />
         </label>}
@@ -60,7 +58,6 @@ export default function LoginModal() {
         {error && <p className="form-error">{error}</p>}
         <button className="button" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Đang xử lý…' : (isRegister ? 'Tạo tài khoản miễn phí' : 'Đăng nhập')}</button>
         <button className="auth-switch" type="button" onClick={() => switchAuthMode(isRegister ? 'login' : 'register')} disabled={isSubmitting}>{isRegister ? 'Đã có tài khoản? Đăng nhập' : 'Chưa có tài khoản? Bắt đầu miễn phí'}</button>
-        <small className="muted">Đăng nhập để lưu mẫu vào tài khoản và chủ động công khai khi bạn muốn.</small>
       </form>
     </div>
   );

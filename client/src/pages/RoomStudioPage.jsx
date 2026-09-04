@@ -114,6 +114,7 @@ function productSnapshot(product) {
     usageType: product.usageType || 'unknown',
     placementSurface: product.placementSurface || 'unknown',
     aiDescription: product.aiDescription || '',
+    sourceUrl: product.sourceUrl || product.shopeeSearchUrl || '',
   };
 }
 function getProductCategory(product) {
@@ -157,6 +158,28 @@ function inferProductFacts(product) {
     aiDescription,
   };
 }
+function isCompactInspirationProduct(product) {
+  const facts = inferProductFacts(product);
+  const name = normalizeText(`${product?.name || ''} ${getProductCategory(product)}`);
+  const { width, depth, height } = facts.dimensionsCm || {};
+  const knownCompactSize = Number(width) > 0 && Number(depth) > 0
+    && Number(width) <= 90 && Number(depth) <= 70 && (!Number(height) || Number(height) <= 140);
+  const compactSurface = facts.placementSurface === 'wall' || facts.placementSurface === 'tabletop';
+  const compactName = /(?:den\s+(?:ban|kep)|ban\s+(?:bet|thap)|tham|goi|tranh|guong|dong\s+ho|ke\s+(?:nho|mini)|hop|gio)/.test(name);
+  const bulkyName = /(?:giuong|sofa|tu\s+quan\s+ao|tu\s+vai|gian\s+phoi|gia\s+treo\s+quan\s+ao)/.test(name);
+  return !bulkyName && (knownCompactSize || compactSurface || compactName);
+}
+function getProductRole(product) {
+  const name = normalizeText(`${product?.name || ''} ${getProductCategory(product)}`);
+  if (/(?:gian\s+phoi|gia\s+treo|tu\s+vai|treo\s+quan\s+ao)/.test(name)) return 'clothes-storage';
+  if (/(?:\bban\b|desk|table)/.test(name)) return 'table';
+  if (/(?:\bghe\b|sofa|chair|stool)/.test(name)) return 'seating';
+  if (/(?:\bden\b|lamp|light)/.test(name)) return 'lighting';
+  if (/(?:tham|rem|goi|nem|rug|curtain|cushion)/.test(name)) return 'textile';
+  if (/(?:tranh|guong|dong\s+ho|wall\s+decor)/.test(name)) return 'wall-decor';
+  if (/(?:\bke\b|\btu\b|gia\s+do|shelf|cabinet|drawer)/.test(name)) return 'storage';
+  return normalizeText(getProductCategory(product)) || 'other';
+}
 function pickRandomCatalogProducts(products, unavailableIds, limit = 3) {
   const shuffled = products
     .filter((product) => {
@@ -166,21 +189,31 @@ function pickRandomCatalogProducts(products, unavailableIds, limit = 3) {
     .map((product) => ({ product, order: Math.random() }))
     .sort((left, right) => left.order - right.order)
     .map(({ product }) => product);
+  const compact = shuffled.filter(isCompactInspirationProduct);
+  const pool = [...compact, ...shuffled.filter((product) => !compact.includes(product))];
   const selected = [];
-  const categories = new Set();
-  for (const product of shuffled) {
-    const category = getProductCategory(product);
-    if (categories.has(category)) continue;
+  const roles = new Set();
+  for (const product of pool) {
+    const role = getProductRole(product);
+    if (roles.has(role)) continue;
     selected.push(product);
-    categories.add(category);
+    roles.add(role);
     if (selected.length === limit) return selected;
   }
-  for (const product of shuffled) {
-    if (selected.includes(product)) continue;
-    selected.push(product);
+  for (const product of pool) {
+    if (!selected.includes(product)) selected.push(product);
     if (selected.length === limit) break;
   }
   return selected;
+}
+function inspirationProductSnapshot(product) {
+  const image = getProductImageSource(product);
+  return {
+    productId: product?._id || product?.id || '',
+    productName: product?.name || 'Sản phẩm FurneeHome',
+    image: image?.startsWith('data:') ? '' : (image || ''),
+    sourceUrl: product?.sourceUrl || product?.shopeeSearchUrl || '',
+  };
 }
 function createPlacement(product, target, zIndex) {
   return {
@@ -363,6 +396,9 @@ export default function RoomStudioPage() {
   const [resultInfo, setResultInfo] = useState(
     savedInitial?.resultInfo || null,
   );
+  const [inspirationProducts, setInspirationProducts] = useState(
+    () => (savedInitial?.inspirationProducts || []).slice(0, 3),
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastFailedPlacementId, setLastFailedPlacementId] = useState(null);
   const [roomRequest, setRoomRequest] = useState(
@@ -435,6 +471,7 @@ export default function RoomStudioPage() {
       showResult,
       elapsedMs,
       resultInfo,
+      inspirationProducts,
       roomRequest,
       designBrief,
     });
@@ -453,6 +490,7 @@ export default function RoomStudioPage() {
     showResult,
     elapsedMs,
     resultInfo,
+    inspirationProducts,
     roomRequest,
     designBrief,
   ]);
@@ -461,6 +499,20 @@ export default function RoomStudioPage() {
     products.find(
       (product) => product._id === selectedId || product.id === selectedId,
     ) || null;
+  const displayedInspirationProducts = useMemo(() => inspirationProducts.map((saved) => {
+    const catalogProduct = products.find(
+      (product) => product._id === saved.productId || product.id === saved.productId,
+    );
+    return {
+      ...(catalogProduct || {}),
+      ...saved,
+      _id: saved.productId || catalogProduct?._id,
+      id: saved.productId || catalogProduct?.id,
+      name: saved.productName || catalogProduct?.name,
+      image: saved.image || catalogProduct?.image,
+      sourceUrl: saved.sourceUrl || catalogProduct?.sourceUrl || catalogProduct?.shopeeSearchUrl || '',
+    };
+  }), [inspirationProducts, products]);
   const chooseProduct = (product) => {
     setSelectedId(product._id || product.id);
     const facts = { ...productSnapshot(product), ...inferProductFacts(product) };
@@ -732,6 +784,7 @@ export default function RoomStudioPage() {
       if (requestId !== requestSequenceRef.current) return;
       setResultImage(result.imageDataUrl);
       setResultMode("inspiration");
+      setInspirationProducts(references.products.slice(0, 3).map(inspirationProductSnapshot));
       setResultMatchesLayout(true);
       setNeedsAccount(false);
       setShowResult(true);
@@ -740,7 +793,7 @@ export default function RoomStudioPage() {
         provider: result.provider || "",
         model: result.model || "",
       });
-      setMessage(`Đã tạo gợi ý dựa trên tối đa ${references.products.length} sản phẩm FurneeHome.`);
+      setMessage('');
     } catch (error) {
       if (requestId !== requestSequenceRef.current) return;
       if (hadResult) setShowResult(previousShowResult);
@@ -885,6 +938,7 @@ export default function RoomStudioPage() {
       setSelectedPlacementId(null);
       setResultImage("");
       setResultMode("");
+      setInspirationProducts([]);
       setShowResult(false);
       setElapsedMs(null);
       setResultInfo(null);
@@ -963,6 +1017,7 @@ export default function RoomStudioPage() {
       rotation: normalizeRotation(latest.rotation),
       flip: latest.isFlipped,
       placements: savingInspiration ? [] : placements.map(compactPlacement),
+      inspirationProducts: savingInspiration ? inspirationProducts.slice(0, 3) : [],
       markedCorners: markedCorners.map((corner) => ({
         x: Number((corner.x / 100).toFixed(4)),
         y: Number((corner.y / 100).toFixed(4)),
@@ -998,6 +1053,7 @@ export default function RoomStudioPage() {
     setSelectedPlacementId(null);
     setResultImage("");
     setResultMode("");
+    setInspirationProducts([]);
     setShowResult(false);
     setElapsedMs(null);
     setResultInfo(null);
@@ -1229,7 +1285,6 @@ export default function RoomStudioPage() {
                       {elapsedMs
                         ? `${(elapsedMs / 1000).toFixed(1)} giây`
                         : "Vừa tạo xong"}
-                      {resultInfo?.model ? ` · ${resultInfo.model}` : ""}
                     </span>
                     <button
                       type="button"
@@ -1247,6 +1302,26 @@ export default function RoomStudioPage() {
                     </button>
                   </div>
                 )}
+                {activeResult && resultMode === "inspiration" && displayedInspirationProducts.length > 0 && (
+                  <details
+                    className="studio-result-products"
+                    onClick={(event) => event.stopPropagation()}
+                    onPointerDown={(event) => event.stopPropagation()}
+                  >
+                    <summary>{displayedInspirationProducts.length} sản phẩm được chọn</summary>
+                    <div className="studio-result-products-list">
+                      {displayedInspirationProducts.map((product) => (
+                        <div className="studio-result-product" key={product.productId || product._id || product.id}>
+                          <ProductArtwork product={product} />
+                          <strong title={product.name}>{product.name}</strong>
+                          {product.sourceUrl && (
+                            <a href={product.sourceUrl} target="_blank" rel="noreferrer">Xem</a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
                 {!activeResult && (
                   <div className="studio-stage-tip">
                     {isMarkingMode
@@ -1257,11 +1332,13 @@ export default function RoomStudioPage() {
               </div>
             </div>
           )}
-          <p className="studio-status" role="status">
-            {isGenerating && <span className="loading-dot" />}
-            {message}
-            {needsAccount && !user && <button type="button" className="studio-login-link" onClick={openRegister}>Đăng ký để tiếp tục</button>}
-          </p>
+          {(message || (needsAccount && !user)) && (
+            <p className="studio-status" role="status">
+              {isGenerating && <span className="loading-dot" />}
+              {message}
+              {needsAccount && !user && <button type="button" className="studio-login-link" onClick={openRegister}>Đăng ký để tiếp tục</button>}
+            </p>
+          )}
         </section>
         <aside className="studio-inspector">
           <nav className="studio-tabs" aria-label="Công cụ Phòng thử">

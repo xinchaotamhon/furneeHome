@@ -17,8 +17,16 @@ const controller = require('../server/src/controllers/roomPreviewController');
 const RoomDesign = require('../server/src/models/RoomDesign');
 const designs = require('../server/src/controllers/roomDesignController');
 const image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==';
-const input = { mode: 'inspiration', roomImageDataUrl: image, userPrompt: 'Gỗ sáng, dành lối đi tới nhà vệ sinh', imageSize: { width: 1600, height: 900 } };
-const placement = { ...input, mode: 'placement', guideImageDataUrl: image, productImageDataUrl: image, productName: 'Interior scene: bàn học, ghế', placement: { x: .3, y: .7, anchor: 'bottom-center' }, editRegion: { x: 0, y: 0, width: 1, height: 1 } };
+const inspirationProduct = {
+  name: 'Bàn thấp', usageType: 'floor-seating', placementSurface: 'floor',
+  dimensionsCm: { width: 60, depth: 40, height: 28 }, aiDescription: 'chân ngắn màu trắng',
+  target: { x: .5, y: .75 },
+};
+const input = {
+  mode: 'inspiration', roomImageDataUrl: image, userPrompt: 'Gỗ sáng, dành lối đi tới nhà vệ sinh',
+  imageSize: { width: 1600, height: 900 }, productImageDataUrls: [image], sceneProducts: [inspirationProduct],
+};
+const placement = { ...input, mode: 'placement', productImageDataUrls: undefined, guideImageDataUrl: image, productImageDataUrl: image, productName: 'Interior scene: bàn học, ghế', placement: { x: .3, y: .7, anchor: 'bottom-center' }, editRegion: { x: 0, y: 0, width: 1, height: 1 } };
 const success = () => new Response(JSON.stringify({ data: [{ b64_json: image.split(',')[1] }] }), { headers: { 'Content-Type': 'application/json' } });
 
 test('Bàn ngồi bệt giữ công năng, số đo thật và mô tả có cấu trúc trong prompt', async (t) => {
@@ -78,17 +86,20 @@ async function callController(handler, body, extra = {}) {
   return { status, result };
 }
 
-test('Gợi ý cả phòng không yêu cầu sản phẩm, guide, mask hay chấm sàn', async (t) => {
+test('Gợi ý cả phòng bắt buộc Product 1, nhưng không cần guide, mask hay chấm sàn', async (t) => {
   let calls = 0;
   mockFetch(t, async (url, options) => {
     calls++;
     assert.equal(url, 'https://gen.pollinations.ai/v1/images/edits');
-    assert.equal(options.body.getAll('image').length, 1);
+    assert.equal(options.body.getAll('image').length, 2);
     const prompt = options.body.get('prompt');
     assert.match(prompt, /bathroom|toilet/i);
     assert.match(prompt, /furnish/i);
     assert.match(prompt, /Gỗ sáng/);
-    assert.doesNotMatch(prompt, /Image 1|placement guide|exact product reference/);
+    assert.match(prompt, /Product 1 is required/i);
+    assert.match(prompt, /Products 2 and 3 are optional/i);
+    assert.match(prompt, /Image 1 is the exact visual reference/i);
+    assert.doesNotMatch(prompt, /placement guide/i);
     assert.notEqual(options.body.get('size'), '1024x1024');
     assert.equal(options.body.get('seed'), null);
     return success();
@@ -97,6 +108,12 @@ test('Gợi ý cả phòng không yêu cầu sản phẩm, guide, mask hay chấ
   assert.equal(response.status, 200);
   assert.equal(response.result.data.mode, 'inspiration');
   assert.equal(response.result.data.imageDataUrl, image);
+  assert.equal(calls, 1);
+
+  const withoutReference = await callController(controller.create, {
+    ...input, productImageDataUrls: [], sceneProducts: [],
+  });
+  assert.equal(withoutReference.status, 400);
   assert.equal(calls, 1);
 });
 
@@ -126,20 +143,20 @@ test('Gợi ý cả phòng gửi từng ảnh sản phẩm riêng và giữ đú
   assert.equal(request.images[1].name, 'product-1.png');
   assert.equal(request.images[2].name, 'product-2.png');
   assert.equal(request.images[3].name, 'product-3.png');
-  assert.match(request.prompt, /subset of the selected FurneeHome catalog products/i);
+  assert.match(request.prompt, /Product 1 is required: add it exactly once/i);
+  assert.match(request.prompt, /Products 2 and 3 are optional/i);
   assert.match(request.prompt, /Image 0 is the original room/i);
   assert.match(request.prompt, /Image 1 is the exact visual reference for FurneeHome Product 1/i);
   assert.match(request.prompt, /Image 3 is the exact visual reference for FurneeHome Product 3/i);
-  assert.match(request.prompt, /Use each referenced product at most once/i);
+  assert.match(request.prompt, /shelves, drawers, doors, wheels, handles, legs and panels/i);
+  assert.match(request.prompt, /Never merge two products, stretch one product/i);
   assert.match(request.prompt, /FurneeHome Product 1: "Bàn thấp"/);
   assert.match(request.prompt, /height 28 cm/);
   assert.match(request.prompt, /floor seating/i);
   assert.match(request.prompt, /Never turn it into a tall desk or dining table/i);
   assert.match(request.prompt, /walls, doors, windows, stairs, railings, columns, bathroom\/toilet/i);
-  assert.match(request.prompt, /Never add a bed, loft, mezzanine/i);
   assert.match(request.prompt, /may already be full, cluttered, occupied, narrow, irregular/i);
-  assert.match(request.prompt, /Using fewer products is better/i);
-  assert.match(request.prompt, /Preserve existing furniture, appliances, belongings, people and pets/i);
+  assert.match(request.prompt, /Preserve large existing furniture, appliances and built-in storage/i);
 });
 
 test('Cloudflare FLUX.2 nhận ảnh phòng và ba ảnh sản phẩm riêng', async (t) => {
@@ -205,14 +222,14 @@ test('Model không tồn tại thì thử model sau, giữ ảnh gốc và guide
   assert.equal(result.mode, 'placement');
 });
 
-test('Provider hết quota thì chuyển provider, không gửi guide giả cho gợi ý', async (t) => {
+test('Provider hết quota thì chuyển sang fallback vẫn hỗ trợ product references', async (t) => {
   let calls = 0;
   mockFetch(t, async (url, options) => {
     calls++;
     if (calls === 1) return new Response('{"error":{"code":"PAYMENT_REQUIRED","message":"Insufficient balance. available balance 0"}}', { status: 402 });
     assert.match(url, /api.cloudflare.com/);
     assert.ok(options.body.get('input_image_0'));
-    assert.equal(options.body.get('input_image_1'), null);
+    assert.equal(options.body.get('input_image_1').name, 'product-1.png');
     assert.equal(options.body.get('width'), '1024');
     assert.equal(options.body.get('height'), '576');
     return new Response(JSON.stringify({ result: { image: image.split(',')[1] } }), { headers: { 'Content-Type': 'application/json' } });
@@ -220,6 +237,21 @@ test('Provider hết quota thì chuyển provider, không gửi guide giả cho 
   const result = await service.generateRoomPreview(input);
   assert.equal(result.provider, 'cloudflare');
   assert.equal(calls, 2);
+});
+
+test('Gợi ý bỏ qua model không hỗ trợ reference ảnh sản phẩm', async (t) => {
+  const previousModels = config.pollinationsImageModels;
+  config.pollinationsImageModels = 'text-only,klein';
+  t.after(() => { config.pollinationsImageModels = previousModels; });
+  const models = [];
+  mockFetch(t, async (url, options) => {
+    assert.equal(url, 'https://gen.pollinations.ai/v1/images/edits');
+    models.push(options.body.get('model'));
+    return success();
+  });
+  const result = await service.generateRoomPreview(input);
+  assert.equal(result.provider, 'pollinations');
+  assert.deepEqual(models, ['klein']);
 });
 
 test('Model bị giới hạn quyền vẫn thử model Pollinations tiếp theo', async (t) => {
@@ -253,25 +285,31 @@ test('Lưu/dùng lại ý tưởng AI giữ prompt, loại ảnh và không thê
   const originalCreate = RoomDesign.create, originalFind = RoomDesign.findById, originalUpdate = RoomDesign.updateOne;
   t.after(() => { RoomDesign.create = originalCreate; RoomDesign.findById = originalFind; RoomDesign.updateOne = originalUpdate; });
   RoomDesign.create = async (data) => data;
-  const body = { name: 'Ý tưởng phòng nhỏ', designMode: 'inspiration', roomImage: image, resultImage: image, placements: [], markedCorners: [], userPrompt: input.userPrompt, model: 'klein' };
+  const inspirationProducts = [{
+    productId: '507f1f77bcf86cd799439012', productName: 'Bàn thấp',
+    image: '/images/products/ban-thap.png', sourceUrl: 'https://shopee.vn/ban-thap',
+  }];
+  const body = { name: 'Ý tưởng phòng nhỏ', designMode: 'inspiration', roomImage: image, resultImage: image, placements: [], inspirationProducts, markedCorners: [], userPrompt: input.userPrompt, model: 'klein' };
   const created = await callController(designs.create, body, { user: { _id: '507f1f77bcf86cd799439011', name: 'Smoke' } });
   assert.equal(created.status, 201);
   assert.equal(created.result.data.designMode, 'inspiration');
   assert.equal(created.result.data.userPrompt, input.userPrompt);
+  assert.deepEqual(created.result.data.inspirationProducts, inspirationProducts);
   RoomDesign.findById = async () => ({ ...created.result.data, _id: '507f1f77bcf86cd799439022', visibility: 'public' });
   RoomDesign.updateOne = async () => ({});
   const reused = await callController(designs.reuse, {}, { params: { id: '507f1f77bcf86cd799439022' }, user: { _id: '507f1f77bcf86cd799439011' } });
   assert.equal(reused.result.data.designMode, 'inspiration');
   assert.equal(reused.result.data.visibility, 'private');
   assert.deepEqual(reused.result.data.placements, []);
+  assert.deepEqual(reused.result.data.inspirationProducts, inspirationProducts);
   assert.equal(reused.result.data.userPrompt, input.userPrompt);
   assert.equal(reused.result.data.resultImage, image);
 });
 
-test('Collection gửi các trường phục hồi lên tài khoản', () => {
+test('Collection gửi các trường phục hồi và product references của ý tưởng lên tài khoản', () => {
   const source = require('node:fs').readFileSync(path.join(__dirname, '../client/src/context/CollectionContext.jsx'), 'utf8');
   const payload = source.slice(source.indexOf('const payload ='), source.indexOf('return roomDesignService.create'));
-  for (const field of ['designMode', 'userPrompt', 'model', 'elapsedMs', 'placements', 'markedCorners']) assert.match(payload, new RegExp(`${field}:`));
+  for (const field of ['designMode', 'userPrompt', 'model', 'elapsedMs', 'placements', 'inspirationProducts', 'markedCorners']) assert.match(payload, new RegExp(`${field}:`));
 });
 
 test('Phiên phòng thử dùng session; cache trình duyệt không giữ ảnh base64', () => {
@@ -284,6 +322,8 @@ test('Phiên phòng thử dùng session; cache trình duyệt không giữ ảnh
   assert.match(collection, /function lightweightCollectionItem/);
   assert.match(collection, /roomImage: nonDataUrl\(item\.roomImage\)/);
   assert.match(collection, /placements: .*\.map\(lightweightPlacement\)/);
+  assert.match(collection, /inspirationProducts: \(item\.inspirationProducts \|\| \[\]\)\.map\(lightweightInspirationProduct\)/);
+  assert.match(studio, /inspirationProducts,/);
   assert.match(products, /function lightweightProducts/);
 });
 
@@ -296,6 +336,9 @@ test('Gợi ý AI là nút tạo ngay và dùng ảnh tham chiếu sản phẩm 
   assert.match(studio, /pickRandomCatalogProducts\([\s\S]*INSPIRATION_CANDIDATE_COUNT/);
   assert.match(studio, /createProductReferenceImages\(suggestedProducts, 3\)/);
   assert.match(studio, /productImageDataUrls: references\.productImageDataUrls/);
+  assert.match(studio, /setInspirationProducts\(references\.products\.slice\(0, 3\)\.map\(inspirationProductSnapshot\)\)/);
+  assert.match(studio, /inspirationProducts: savingInspiration \? inspirationProducts\.slice\(0, 3\) : \[\]/);
+  assert.match(studio, /<summary>\{displayedInspirationProducts\.length\} sản phẩm được chọn<\/summary>/);
   assert.match(studio, /inferProductFacts\(product\)/);
   assert.match(canvas, /export async function createProductReferenceImages/);
   assert.doesNotMatch(canvas, /createProductReferenceSheet/);

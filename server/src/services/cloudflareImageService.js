@@ -148,15 +148,15 @@ function buildRoomPrompt(input, usesReferenceImages) {
     : 'Use the catalog product facts as text guidance only; do not invent a product that is not listed.';
   return [
     'First inspect this exact input room as it is. It may already be full, cluttered, occupied, narrow, irregular, photographed with a wide-angle lens, or show very little usable floor. Never assume an empty rectangular room, a tiled floor, four visible floor corners, a loft, or a large free wall.',
-    'Create one realistic furnishing idea by choosing only the subset of the selected FurneeHome catalog products below that safely and physically fits. Using fewer products is better than crowding the room or rebuilding it.',
+    'Create one realistic furnishing idea from the selected FurneeHome products below. Product 1 is required: add it exactly once, clearly visible and recognizable as a newly placed object. Do not return the original room unchanged. Products 2 and 3 are optional and should appear only when they physically fit without crowding the room.',
     productFacts,
     catalogReference,
-    'Add only the exact objects from the numbered product reference images. Use each referenced product at most once; do not invent, replace, duplicate or add any other product. Never add a bed, loft, mezzanine, chair, table, cabinet or decoration unless it is explicitly one of the selected FurneeHome products.',
+    'Use only the exact objects from the numbered product reference images. Keep their exact shape, material, colors, function and proportions. Preserve the visible number and arrangement of shelves, drawers, doors, wheels, handles, legs and panels. Never merge two products, stretch one product, replace it with a generic item, duplicate it or invent unlisted furniture.',
     'Use Image 0 as the architectural source of truth. Preserve its exact framing, aspect ratio, camera position, perspective and lighting.',
     'Absolutely preserve the exact walls, doors, windows, stairs, railings, columns, bathroom/toilet enclosures, fixtures, plumbing, floor, ceiling and every built-in structure. Do not remove, move, redesign, straighten or hide any of them.',
-    'Preserve existing furniture, appliances, belongings, people and pets. Never place a product through or on top of them, and never fabricate hidden space behind an obstruction.',
+    'Preserve large existing furniture, appliances and built-in storage when possible. People and pets may be removed from this design visualization, and small movable clutter may be tidied or repositioned to make one safe usable spot. Never fabricate hidden space behind an obstruction.',
     'The room may be irregular or concave: respect protruding bathroom walls, narrow passages, occluded corners and wide-angle distortion; never invent a simpler rectangular room.',
-    'Keep doors, bathroom access, stairs, cooking areas and walking paths clear. Place a selected product only in genuinely visible usable space at realistic scale. If no selected product fits safely, keep the room nearly unchanged.',
+    'Keep doors, bathroom access, stairs, cooking areas and walking paths clear. Put the required Product 1 in a genuinely visible usable position at realistic scale; choose the position yourself from the real space shown in Image 0.',
     'Match perspective, occlusion and realistic floor contact shadows. This is a room furnishing idea, not a product catalogue collage.',
     `Optional design direction: ${input.inspirationTheme}. Use it only to coordinate the result; never recolor a catalog product or alter the room to force this style.`,
     input.userPrompt ? `User preferences: ${input.userPrompt}.` : '',
@@ -181,6 +181,14 @@ function outputDimensions(imageSize) {
 
 function configuredModels(value) {
   return String(value || '').split(',').map((model) => model.trim()).filter(Boolean);
+}
+
+function supportsInspirationReferences(candidate) {
+  if (candidate.provider === 'cloudflare') return !/stable-diffusion/i.test(candidate.model);
+  if (candidate.provider === 'pollinations') {
+    return /^(gpt-image-2|gptimage-large|gptimage|klein)$|seedream|nanobanana/i.test(candidate.model);
+  }
+  return false;
 }
 
 function getProviderCandidates() {
@@ -456,7 +464,7 @@ async function generateRoomPreview({ mode = 'placement', imageSize, roomImageDat
     imageDataUrl,
     productImageDataUrls == null ? 'productImageDataUrl' : `productImageDataUrls[${index}]`,
   ));
-  if (isInspiration && productImageDataUrls != null
+  if (isInspiration
     && (productImages.length < 1 || productImages.length !== (sceneProducts || []).length)) {
     throw createError('Gợi ý AI cần số ảnh tham chiếu khớp danh sách sản phẩm.');
   }
@@ -466,8 +474,10 @@ async function generateRoomPreview({ mode = 'placement', imageSize, roomImageDat
   const totalBytes = roomImage.buffer.length + (smallRoomImage?.buffer.length || 0) + (isInspiration ? 0 : guideImage.buffer.length) + totalProductBytes + (maskImage?.buffer.length || 0);
   if (totalBytes > MAX_IMAGE_BYTES) throw createError('Tổng dung lượng các ảnh vượt quá giới hạn 15 MB.');
 
-  // Inpainting needs a product mask; whole-room concepts use the image-edit/img2img candidates instead.
-  const candidates = getProviderCandidates().filter((candidate) => !(isInspiration && candidate.model.includes('inpainting')));
+  // A whole-room idea must keep the exact product reference, not fall back to a text-only image model.
+  const candidates = getProviderCandidates().filter((candidate) => (
+    !isInspiration || supportsInspirationReferences(candidate)
+  ));
   if (!candidates.length) throw makeConfigurationError();
 
   const startedAt = Date.now();

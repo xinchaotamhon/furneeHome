@@ -13,8 +13,20 @@ function readImageFile(file) {
   });
 }
 
-function canvasBlob(canvas, quality) {
-  return new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', quality));
+function detectImageMimeType(file) {
+  const rawType = String(file?.type || '').toLowerCase();
+  if (rawType === 'image/png') return 'image/png';
+  if (rawType === 'image/jpeg' || rawType === 'image/jpg') return 'image/jpeg';
+  if (rawType === 'image/webp') return 'image/webp';
+  const name = String(file?.name || '').toLowerCase();
+  if (name.endsWith('.png')) return 'image/png';
+  if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
+  if (name.endsWith('.webp')) return 'image/webp';
+  return 'image/png';
+}
+
+function canvasBlob(canvas, mimeType, quality) {
+  return new Promise((resolve) => canvas.toBlob(resolve, mimeType, quality));
 }
 
 function blobToDataUrl(blob) {
@@ -27,15 +39,22 @@ function blobToDataUrl(blob) {
 }
 
 async function optimizeProductImage(file) {
+  const mimeType = detectImageMimeType(file);
   const image = await readImageFile(file);
   let scale = Math.min(1, 900 / Math.max(image.naturalWidth, image.naturalHeight));
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
     canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-    canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
-    for (const quality of [0.86, 0.72, 0.58]) {
-      const blob = await canvasBlob(canvas, quality);
+    const ctx = canvas.getContext('2d');
+    if (mimeType === 'image/jpeg') {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const qualities = mimeType === 'image/png' ? [undefined] : [0.86, 0.72, 0.58];
+    for (const quality of qualities) {
+      const blob = await canvasBlob(canvas, mimeType, quality);
       if (blob && blob.size <= 500 * 1024) return blobToDataUrl(blob);
     }
     scale *= 0.78;
@@ -88,7 +107,9 @@ export default function AdminPage() {
     if (!file) return;
     setError('');
     setNotice('');
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 12 * 1024 * 1024) {
+    const validExtensions = /\.(png|jpe?g|webp)$/i;
+    const isValidType = ['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || validExtensions.test(file.name || '');
+    if (!isValidType || file.size > 12 * 1024 * 1024) {
       setError('Chỉ nhận PNG, JPEG hoặc WebP không quá 12 MB.');
       return;
     }

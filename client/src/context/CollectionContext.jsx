@@ -21,6 +21,10 @@ function normalizeRoomDesign(item) {
       y: Number(target.y) > 1 ? Number(target.y) / 100 : Number(target.y ?? 0.72),
     },
     placements,
+    inspirationProducts: (Array.isArray(item.inspirationProducts) ? item.inspirationProducts : [])
+      .slice(0, 3)
+      .map(lightweightInspirationProduct)
+      .filter((product) => product.productId && product.productName && product.image && product.sourceUrl),
     designMode: item.designMode === 'inspiration' ? 'inspiration' : 'placement',
     productId: item.productId || item.product?._id || item.product?.id || '',
     productName: item.productName || item.product?.name || 'Sản phẩm đã chọn',
@@ -77,6 +81,15 @@ function lightweightPlacement(placement = {}) {
   };
 }
 
+function lightweightInspirationProduct(product = {}) {
+  return {
+    productId: product.productId || product._id || product.id || '',
+    productName: product.productName || product.name || '',
+    image: nonDataUrl(product.image),
+    sourceUrl: nonDataUrl(product.sourceUrl),
+  };
+}
+
 function lightweightCollectionItem(item) {
   if (item.type === 'product') {
     return { ...item, product: lightweightProduct(item.product) };
@@ -90,6 +103,7 @@ function lightweightCollectionItem(item) {
     resultImage: nonDataUrl(item.resultImage),
     productImage: nonDataUrl(item.productImage),
     placements: (item.placements || item.sceneItems || item.items || []).map(lightweightPlacement),
+    inspirationProducts: (item.inspirationProducts || []).map(lightweightInspirationProduct),
   };
 }
 
@@ -209,6 +223,7 @@ export function CollectionProvider({ children }) {
         roomImage: localItem.roomImage || '',
         imageSize: localItem.imageSize,
         placements: localItem.placements || [],
+        inspirationProducts: localItem.inspirationProducts || [],
         markedCorners: localItem.markedCorners || [],
         visibility: 'private',
       };

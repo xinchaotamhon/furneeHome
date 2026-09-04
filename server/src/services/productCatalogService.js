@@ -5,7 +5,7 @@ const env = require('../config/env');
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const DATA_JSON_FILE = path.join(PROJECT_ROOT, 'client', 'public', 'data_import', 'data_import.json');
-const ADMIN_IMAGE_DIRECTORY = path.join(PROJECT_ROOT, 'client', 'public', 'images', 'products', 'admin');
+const PRODUCT_IMAGE_DIRECTORY = path.join(PROJECT_ROOT, 'client', 'public', 'images', 'products');
 let canonicalExportQueue = Promise.resolve();
 
 function removeUndefinedFields(value) {
@@ -199,6 +199,64 @@ function validateAdminProductImage(dataUrl) {
   return `data:${match[1].toLowerCase()};base64,${contents.toString('base64')}`;
 }
 
+function productImageId(product) {
+  const fromProduct = String(product?.shopeeItemId || '').trim();
+  if (/^\d+$/.test(fromProduct)) return fromProduct;
+
+  // Older records may not have shopeeItemId populated yet. Keep the filename
+  // deterministic by deriving it from the canonical URL before falling back to
+  // the Mongo id.
+  if (product?.sourceUrl) {
+    try {
+      const fromUrl = sourceUrlMetadata(product.sourceUrl).shopeeItemId;
+      if (/^\d+$/.test(fromUrl)) return fromUrl;
+    } catch { /* the image can still be kept durably as a data URL */ }
+  }
+
+  const fromMongo = String(product?._id || '').trim().replace(/[^a-z0-9_-]/gi, '');
+  return fromMongo || '';
+}
+
+function adminProductImageTarget(product, mimeType = 'image/png') {
+  const id = productImageId(product);
+  const extension = MIME_TO_EXTENSION[mimeType.toLowerCase()];
+  if (!id || !extension) return null;
+  return {
+    publicPath: `/images/products/${id}${extension}`,
+    filePath: path.join(PRODUCT_IMAGE_DIRECTORY, `${id}${extension}`),
+  };
+}
+
+/**
+ * Store an admin image in the durable form appropriate for the runtime.
+ *
+ * Local/dev deployments can serve a checked-out public file, while production
+ * filesystems are ephemeral and therefore keep the validated data URL in Mongo.
+ * A local write failure deliberately falls back to that same Mongo-safe value.
+ */
+async function persistAdminProductImage(product, dataUrl, {
+  isProduction = env.isProduction,
+  fsImpl = fs,
+} = {}) {
+  const validated = validateAdminProductImage(dataUrl);
+  if (isProduction) return { value: validated, publicPath: '', written: false };
+
+  const mimeType = /^data:([^;]+);base64,/i.exec(validated)?.[1]?.toLowerCase() || '';
+  const target = adminProductImageTarget(product, mimeType);
+  if (!target) return { value: validated, publicPath: '', written: false };
+
+  try {
+    await fsImpl.mkdir(PRODUCT_IMAGE_DIRECTORY, { recursive: true });
+    const encoded = validated.slice(validated.indexOf(',') + 1);
+    await fsImpl.writeFile(target.filePath, Buffer.from(encoded, 'base64'));
+    return { value: target.publicPath, publicPath: target.publicPath, written: true };
+  } catch {
+    // Do not put an unusable local path in Mongo when the file could not be
+    // written. Mongo remains the source of truth for this uploaded image.
+    return { value: validated, publicPath: '', written: false };
+  }
+}
+
 function validateProductImageGallery(product, images) {
   if (images.length > 6) {
     const error = new Error('Mỗi sản phẩm chỉ có tối đa 6 ảnh bổ sung.');
@@ -218,6 +276,9 @@ module.exports = {
   exportProductsToCanonicalJson,
   buildCanonicalProducts,
   validateAdminProductImage,
+  productImageId,
+  adminProductImageTarget,
+  persistAdminProductImage,
   validateProductImageGallery,
   hasExpectedImageSignature,
   mergeCanonicalProducts,

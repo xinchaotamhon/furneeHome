@@ -5,6 +5,7 @@ const {
   exportProductsToCanonicalJson,
   validateAdminProductImage,
   validateProductImageGallery,
+  persistAdminProductImage,
   sourceUrlMetadata,
 } = require('../services/productCatalogService');
 const { importMetadataFromShopee } = require('../services/shopeeImportService');
@@ -183,13 +184,15 @@ async function addImage(req, res, next) {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm.', data: null });
     const uploadedImage = validateAdminProductImage(req.body?.dataUrl);
+    const persistedImage = await persistAdminProductImage(product, uploadedImage);
+    const imageValue = persistedImage.value;
     const priorImages = Array.isArray(product.images) ? [...product.images] : [];
-    product.images = [...new Set([...priorImages, uploadedImage])];
+    product.images = [...new Set([...priorImages, imageValue])];
     validateProductImageGallery(product, product.images);
     // The first uploaded image becomes the runtime reference, replacing a stale
     // local path when the file was never committed with the product metadata.
     if (!priorImages.length) {
-      product.image = uploadedImage;
+      product.image = imageValue;
       product.transparentImage = '';
       product.importStatus = 'complete';
     }
