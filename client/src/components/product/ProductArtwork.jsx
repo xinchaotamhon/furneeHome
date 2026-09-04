@@ -13,9 +13,16 @@ const shapes = {
   plant: <><path d="M50 56C30 49 26 34 31 23c13 3 20 14 19 33zm2 0c20-7 24-22 19-33-13 3-20 14-19 33zm-3 2c-15-8-25-4-31 3 8 11 19 14 31-3zm4 0c15-8 25-4 31 3-8 11-19 14-31-3z"/><path d="M50 50v22" fill="none" stroke="currentColor" strokeWidth="4"/><path d="M31 68h38l-6 24H37z" opacity=".72"/></>,
 };
 
-export default function ProductArtwork({ product, className = '' }) {
-  if (product.image) {
-    return <img className={`product-artwork ${className}`} src={product.image} alt={product.name} draggable="false" />;
+export default function ProductArtwork({ product, className = '', onImageError }) {
+  const imageSource = product.image || product.sourceImages?.[0] || '';
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => setImageFailed(false), [imageSource]);
+
+  if (imageSource && !imageFailed) {
+    return <img className={`product-artwork ${className}`} src={imageSource} alt={product.name} draggable="false" onError={() => {
+      setImageFailed(true);
+      onImageError?.();
+    }} />;
   }
 
   return (
@@ -30,3 +37,4 @@ export default function ProductArtwork({ product, className = '' }) {
     </svg>
   );
 }
+import { useEffect, useState } from 'react';

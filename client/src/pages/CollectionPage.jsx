@@ -1,52 +1,204 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import ProductArtwork from '../components/product/ProductArtwork';
+import { useAuth } from '../context/AuthContext';
 import { useCollection } from '../context/CollectionContext';
 import { formatPrice } from '../utils/formatPrice';
 
-export default function CollectionPage() {
-  const { items, removeItem } = useCollection();
-  const navigate = useNavigate();
+const HANDOFF_KEY = 'furneehome-room-design-to-open';
 
-  const getSavedTarget = (item) => {
-    const target = item.target || item.placement || { x: 50, y: 50 };
-    return {
+function targetText(item) {
+  const target = item.target || { x: 0.5, y: 0.72 };
+  const x = target.x <= 1 ? target.x * 100 : target.x;
+  const y = target.y <= 1 ? target.y * 100 : target.y;
+  return `${Math.round(x)}%, ${Math.round(y)}%`;
+}
+
+function savedSettingsText(item) {
+  if (item.designMode === 'inspiration') {
+    const count = (item.inspirationProducts || []).length;
+    return `Ý tưởng AI · ${count} sản phẩm ngẫu nhiên`;
+  }
+  const placementCount = (item.placements || item.sceneItems || item.items || []).length;
+  const cornerCount = (item.markedCorners || []).length;
+  if (!placementCount) return `${item.productName || 'Sản phẩm'} · vị trí ${targetText(item)}`;
+  return `${placementCount} sản phẩm · ${cornerCount} điểm phối cảnh`;
+}
+
+function restorePlacementSnapshot(placement = {}) {
+  const productFacts = placement.productFacts || {};
+  const existingProduct = placement.product || {};
+  return {
+    ...placement,
+    productFacts,
+    product: {
+      _id: existingProduct._id || placement.productId,
+      id: existingProduct.id || placement.productId,
+      name: existingProduct.name || placement.productName || 'Sản phẩm nội thất',
+      image: existingProduct.image || placement.image || '',
+      transparentImage: existingProduct.transparentImage || placement.transparentImage || '',
+      ...existingProduct,
+      ...productFacts,
+    },
+  };
+}
+
+function saveHandoff(item) {
+  const target = item.target || { x: 0.5, y: 0.72 };
+  sessionStorage.setItem(HANDOFF_KEY, JSON.stringify({
+    selectedId: item.productId || item.product?._id || '',
+    target: {
       x: target.x <= 1 ? target.x * 100 : target.x,
       y: target.y <= 1 ? target.y * 100 : target.y,
-    };
-  };
+    },
+    hasTarget: true,
+    resultImage: item.resultImage || '',
+    designMode: item.designMode || 'placement',
+    imageSize: item.imageSize,
+    resultInfo: { model: item.model || '', elapsedMs: item.elapsedMs },
+    elapsedMs: item.elapsedMs,
+    roomImage: item.roomImage || '',
+    roomFileName: item.roomFileName || '',
+    roomRequest: item.userPrompt || '',
+    designBrief: item.designBrief || {},
+    inspirationProducts: item.inspirationProducts || [],
+    markedCorners: item.markedCorners || [],
+    sceneItems: (item.placements || item.sceneItems || item.items || []).map(restorePlacementSnapshot),
+  }));
+}
 
-  const tryProduct = (product) => {
-    localStorage.setItem('furneehome-room-product', product._id);
+function copyText(text) {
+  if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(text);
+  const input = document.createElement('textarea');
+  input.value = text;
+  input.setAttribute('readonly', '');
+  input.style.position = 'fixed';
+  input.style.opacity = '0';
+  document.body.appendChild(input);
+  input.select();
+  document.execCommand('copy');
+  document.body.removeChild(input);
+  return Promise.resolve();
+}
+
+export default function CollectionPage() {
+  const {
+    items,
+    removeItem,
+    updateRoomTemplate,
+    isLoadingDesigns,
+    syncMessage,
+    syncError,
+  } = useCollection();
+  const { user, openLogin } = useAuth();
+  const navigate = useNavigate();
+  const [shareNotice, setShareNotice] = useState('');
+  const products = items.filter((item) => item.type === 'product');
+  const designs = items.filter((item) => item.type === 'room-template');
+
+  const openDesign = (item) => {
+    saveHandoff(item);
     navigate('/room-studio');
   };
 
-  return (
-    <main className="container page">
-      <div className="page-heading"><p className="eyebrow">KHÔNG PHẢI GIỎ HÀNG</p><h1>Bộ sưu tập của bạn</h1><p>Lưu những sản phẩm bạn thích và những mẫu phòng bạn đã tự sắp xếp.</p></div>
-      {!items.length ? (
-        <div className="empty-state collection-empty">
-          <span className="empty-icon">♡</span>
-          <h2>Bộ sưu tập đang trống</h2>
-          <p>Khi gặp một món đồ phù hợp, hãy bấm biểu tượng trái tim để xem lại sau.</p>
-          <Link className="button" to="/products">Khám phá sản phẩm</Link>
-        </div>
-      ) : (
-        <div className="collection-grid">
-          {items.map((item) => item.type === 'product' ? (
-            <article className="saved-card" key={item.id}>
-              <div className="saved-visual"><ProductArtwork product={item.product} /></div>
-              <div><span className="category-label">SẢN PHẨM ĐÃ LƯU</span><h2>{item.product.name}</h2><p>{item.product.dimensions}</p><strong>{formatPrice(item.product.price)}</strong></div>
-              <div className="saved-actions"><button className="button" type="button" onClick={() => tryProduct(item.product)}>Thử trong phòng</button><button className="text-button danger" type="button" onClick={() => removeItem(item.id)}>Bỏ lưu</button></div>
-            </article>
-          ) : (
-            <article className="saved-card room-saved-card" key={item.id}>
-              <div className="room-template-icon">{item.resultImage ? <img src={item.resultImage} alt={`Bản chân thực với ${item.productName}`} /> : '▦'}</div>
-              <div><span className="category-label">MẪU PHÒNG CỦA BẠN</span><h2>{item.name}</h2><p>{item.productName} · vị trí {Math.round(getSavedTarget(item).x)}%, {Math.round(getSavedTarget(item).y)}%</p>{item.model && <small className="muted">Model: {item.model}{Number.isFinite(item.elapsedMs) ? ` · ${item.elapsedMs} ms` : ''}</small>}{!item.resultImage && <small className="muted">Ảnh phòng không được lưu vào dữ liệu thử để tránh đầy bộ nhớ trình duyệt.</small>}</div>
-              <div className="saved-actions"><Link className="button" to="/room-studio">Mở Phòng thử</Link><button className="text-button danger" type="button" onClick={() => removeItem(item.id)}>Xóa mẫu</button></div>
-            </article>
-          ))}
-        </div>
-      )}
-    </main>
-  );
+  const shareDesign = async (item) => {
+    setShareNotice('');
+    if (!user) {
+      setShareNotice('Đăng nhập hoặc tạo tài khoản để đồng bộ mẫu này, rồi bạn mới có thể chọn công khai.');
+      openLogin('login');
+      return;
+    }
+
+    if (!item._id) {
+      setShareNotice('Mẫu này đang ở trên thiết bị. Hãy chờ đồng bộ vào tài khoản rồi thử chia sẻ lại.');
+      return;
+    }
+
+    if (item.visibility === 'public' && item.shareSlug) {
+      await copyText(`${window.location.origin}/collections/public/${item.shareSlug}`);
+      window.alert('Đã sao chép liên kết chia sẻ.');
+      return;
+    }
+
+    if (!window.confirm('Công khai mẫu này sẽ chia sẻ ảnh phòng, ảnh kết quả và cách sắp xếp để người khác có thể dùng lại. Bạn có muốn tiếp tục?')) return;
+
+    const updated = await updateRoomTemplate(item.id, { visibility: 'public' });
+    if (updated?.shareSlug) {
+      await copyText(`${window.location.origin}/collections/public/${updated.shareSlug}`);
+      window.alert('Đã công khai mẫu và sao chép liên kết.');
+    }
+  };
+
+  return <main className="container page">
+    <div className="page-heading split-heading">
+      <div>
+        <p className="eyebrow">KHÔNG PHẢI GIỎ HÀNG</p>
+        <h1>Bộ sưu tập của bạn</h1>
+        <p>Lưu món đồ yêu thích và những mẫu phòng bạn đã tự sắp xếp.</p>
+      </div>
+      <Link className="button button-secondary" to="/collections/public">Khám phá mẫu công khai</Link>
+    </div>
+
+    <div className="privacy-note">
+      <strong>Quyền riêng tư</strong>
+      <span>Mẫu mặc định là riêng tư. Khi bạn bấm “Chia sẻ”, ảnh phòng, kết quả và cách sắp xếp sẽ được người khác xem và dùng lại.</span>
+    </div>
+    {shareNotice && <p className="studio-message" aria-live="polite">{shareNotice}</p>}
+    {isLoadingDesigns && <p className="muted" aria-live="polite">Đang tải mẫu phòng từ tài khoản…</p>}
+    {syncMessage && <p className="studio-message" aria-live="polite">{syncMessage}</p>}
+    {syncError && <p className="error-message" role="alert">{syncError}</p>}
+
+    <section>
+      <div className="section-heading">
+        <div><span className="eyebrow">SẢN PHẨM</span><h2>Món đồ đã lưu ({products.length})</h2></div>
+      </div>
+      {products.length ? <div className="collection-grid">
+        {products.map((item) => <article className="saved-card" key={item.id}>
+          <div className="saved-visual"><ProductArtwork product={item.product} /></div>
+          <div>
+            <span className="category-label">SẢN PHẨM ĐÃ LƯU</span>
+            <h2>{item.product.name}</h2>
+            <p>{item.product.dimensions}</p>
+            <strong>{formatPrice(item.product.price)}</strong>
+          </div>
+          <div className="saved-actions">
+            <button className="button" type="button" onClick={() => {
+              navigate('/room-studio', { state: { product: item.product } });
+            }}>Thử trong phòng</button>
+            <button className="text-button danger" type="button" onClick={() => removeItem(item.id)}>Bỏ lưu</button>
+          </div>
+        </article>)}
+      </div> : <p className="muted">Chưa có sản phẩm yêu thích. <Link to="/products">Khám phá sản phẩm</Link></p>}
+    </section>
+
+    <section>
+      <div className="section-heading">
+        <div><span className="eyebrow">MẪU PHÒNG</span><h2>Thiết kế đã lưu ({designs.length})</h2></div>
+      </div>
+      {designs.length ? <div className="collection-grid">
+        {designs.map((item) => <article className="saved-card room-saved-card" key={item.id}>
+          <div className="room-template-icon">
+            {item.resultImage || item.roomImage
+              ? <img src={item.resultImage || item.roomImage} alt={`Mẫu phòng ${item.name}`} />
+              : '▦'}
+          </div>
+          <div>
+            <span className="category-label">{item.visibility === 'public' ? 'ĐANG CÔNG KHAI' : 'MẪU RIÊNG TƯ'}</span>
+            <h2>{item.name}</h2>
+            <p>{savedSettingsText(item)}</p>
+            {(item.placements || []).length > 0 && <small className="muted">Đã lưu vị trí, kích thước, góc xoay, lật ảnh và thứ tự lớp.</small>}
+            {item.syncStatus === 'local' && <small className="muted">Chỉ lưu trên thiết bị này vì chưa đồng bộ được tài khoản.</small>}
+          </div>
+          <div className="saved-actions">
+            <button className="button" type="button" onClick={() => openDesign(item)}>Mở Phòng thử</button>
+            <button className="button button-secondary" type="button" onClick={() => shareDesign(item)}>
+              {item.visibility === 'public' ? 'Sao chép link' : (user ? 'Chia sẻ công khai' : 'Đăng nhập để chia sẻ')}
+            </button>
+            {item.visibility === 'public' && <button className="text-button" type="button" onClick={() => updateRoomTemplate(item.id, { visibility: 'private' })}>Đặt riêng tư</button>}
+            <button className="text-button danger" type="button" onClick={() => removeItem(item.id)}>Xóa mẫu</button>
+          </div>
+        </article>)}
+      </div> : <p className="muted">Chưa có mẫu phòng. Hãy thử một sản phẩm trong <Link to="/room-studio">Phòng thử</Link>.</p>}
+    </section>
+  </main>;
 }

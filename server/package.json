@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "seed": "node src/utils/seedData.js"
+    "seed": "node src/utils/seedData.js",
+    "sync:to-mongo": "node ../tools/syncJsonToMongo.js",
+    "sync:to-json": "node ../tools/syncMongoToJson.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
