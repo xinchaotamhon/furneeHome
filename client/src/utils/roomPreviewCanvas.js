@@ -394,9 +394,34 @@ function applyFeather(cropCanvas, feather = 12) {
   return cropCanvas;
 }
 
-export async function compositeRoomPreview({ roomSource, resultSource, editRegion }) {
+function applyMaskAlpha(cropCanvas, maskImage, width, height) {
+  const maskCanvas = makeCanvas(width, height);
+  const maskContext = maskCanvas.getContext('2d', { willReadFrequently: true });
+  maskContext.drawImage(maskImage, 0, 0, width, height);
+  const pixels = maskContext.getImageData(0, 0, width, height);
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    const luminance = Math.round((pixels.data[index] * 0.299)
+      + (pixels.data[index + 1] * 0.587)
+      + (pixels.data[index + 2] * 0.114));
+    pixels.data[index] = 255;
+    pixels.data[index + 1] = 255;
+    pixels.data[index + 2] = 255;
+    pixels.data[index + 3] = luminance;
+  }
+  maskContext.putImageData(pixels, 0, 0);
+  const context = cropCanvas.getContext('2d');
+  context.globalCompositeOperation = 'destination-in';
+  context.drawImage(maskCanvas, 0, 0);
+  context.globalCompositeOperation = 'source-over';
+}
+
+export async function compositeRoomPreview({ roomSource, resultSource, maskSource, editRegion }) {
   if (!roomSource || !resultSource || !editRegion) throw new Error('Thiếu ảnh để ghép kết quả AI vào phòng.');
-  const [roomImage, resultImage] = await Promise.all([loadImage(roomSource), loadImage(resultSource)]);
+  const [roomImage, resultImage, maskImage] = await Promise.all([
+    loadImage(roomSource),
+    loadImage(resultSource),
+    maskSource ? loadImage(maskSource) : Promise.resolve(null),
+  ]);
   const canvas = makeCanvas(roomImage.naturalWidth, roomImage.naturalHeight);
   const context = canvas.getContext('2d');
   context.globalAlpha = 1;
@@ -410,7 +435,8 @@ export async function compositeRoomPreview({ roomSource, resultSource, editRegio
   const cropContext = cropCanvas.getContext('2d');
   cropContext.globalAlpha = 1;
   cropContext.drawImage(resultImage, 0, 0, width, height);
-  applyFeather(cropCanvas, CROP_PADDING_PX);
+  if (maskImage) applyMaskAlpha(cropCanvas, maskImage, width, height);
+  else applyFeather(cropCanvas, CROP_PADDING_PX);
   context.drawImage(cropCanvas, x, y, width, height);
 
   return canvas.toDataURL('image/jpeg', 0.9);

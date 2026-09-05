@@ -20,9 +20,8 @@ function savedSettingsText(item) {
     return `Ý tưởng AI · ${count} sản phẩm ngẫu nhiên`;
   }
   const placementCount = (item.placements || item.sceneItems || item.items || []).length;
-  const cornerCount = (item.markedCorners || []).length;
   if (!placementCount) return `${item.productName || 'Sản phẩm'} · vị trí ${targetText(item)}`;
-  return `${placementCount} sản phẩm · ${cornerCount} điểm phối cảnh`;
+  return `${placementCount} sản phẩm${item.scaleReference ? ` · mốc ${item.scaleReference.lengthCm} cm` : ''}`;
 }
 
 function restorePlacementSnapshot(placement = {}) {
@@ -62,6 +61,7 @@ function saveHandoff(item) {
     roomRequest: item.userPrompt || '',
     designBrief: item.designBrief || {},
     inspirationProducts: item.inspirationProducts || [],
+    scaleReference: item.scaleReference || null,
     markedCorners: item.markedCorners || [],
     sceneItems: (item.placements || item.sceneItems || item.items || []).map(restorePlacementSnapshot),
   }));

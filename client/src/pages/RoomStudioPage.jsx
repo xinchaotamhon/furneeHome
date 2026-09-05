@@ -94,6 +94,41 @@ function normalizeCorners(points = []) {
     label: point.label || `Điểm ${index + 1}`,
   }));
 }
+function normalizeScaleReference(reference) {
+  if (!reference || !Array.isArray(reference.points)) return null;
+  const points = reference.points.slice(0, 2).map((point) => toPercentTarget(point));
+  const lengthCm = Number(reference.lengthCm);
+  if (points.length !== 2 || !Number.isFinite(lengthCm) || lengthCm <= 0) return null;
+  return { points, lengthCm };
+}
+function serializeScaleReference(reference) {
+  const normalized = normalizeScaleReference(reference);
+  if (!normalized) return null;
+  return {
+    points: normalized.points.map((point) => ({ x: Number((point.x / 100).toFixed(4)), y: Number((point.y / 100).toFixed(4)) })),
+    lengthCm: normalized.lengthCm,
+  };
+}
+function productWidthCm(product = {}) {
+  return Number(product?.dimensionsCm?.width || product?.dimensionsCm?.widthCm || product?.widthCm || product?.width || 0);
+}
+function getReferencePixelLength(reference, roomSize = {}) {
+  const normalized = normalizeScaleReference(reference);
+  const width = Number(roomSize.width);
+  const height = Number(roomSize.height);
+  if (!normalized || width <= 0 || height <= 0) return 0;
+  const [first, second] = normalized.points;
+  return Math.hypot((second.x - first.x) * width / 100, (second.y - first.y) * height / 100);
+}
+function getScaleFromReference(product, target, reference, roomSize) {
+  const widthCm = productWidthCm(product);
+  const referencePixels = getReferencePixelLength(reference, roomSize);
+  const roomWidth = Number(roomSize.width);
+  if (!widthCm || !referencePixels || !roomWidth || !reference?.lengthCm) return null;
+  const baseWidth = roomWidth * (getProductPreviewStyle(product, target).width.replace('%', '') / 100);
+  if (!baseWidth) return null;
+  return Number(clamp((referencePixels * widthCm / reference.lengthCm) / baseWidth, 0.4, 1.8).toFixed(2));
+}
 function normalizeRotation(value) {
   return (((((value || 0) + 180) % 360) + 360) % 360) - 180;
 }
@@ -328,11 +363,17 @@ export default function RoomStudioPage() {
   const [markedCorners, setMarkedCorners] = useState(() =>
     normalizeCorners(savedInitial?.markedCorners),
   );
+  const [scaleReference, setScaleReference] = useState(() =>
+    normalizeScaleReference(savedInitial?.scaleReference),
+  );
+  const [scaleLengthInput, setScaleLengthInput] = useState(() =>
+    String(savedInitial?.scaleReference?.lengthCm || 80),
+  );
+  const [scaleProductWidthInput, setScaleProductWidthInput] = useState("");
   const [isMarkingMode, setIsMarkingMode] = useState(false);
-  // Chỉ thao tác chọn hiện tại mới cho phép đặt món; không tự chọn món đầu tiên.
+  // Chọn món trong danh sách sẽ tạo ngay một placement để người dùng chỉnh trực tiếp trên ảnh.
   const [selectedId, setSelectedId] = useState(() => location.state?.product?._id || location.state?.product?.id || '');
   const [unavailableProductIds, setUnavailableProductIds] = useState(() => new Set());
-  const [selectedScale, setSelectedScale] = useState(1);
   const [needsAccount, setNeedsAccount] = useState(false);
   const [placements, setPlacements] = useState(() =>
     migrateLegacyPlacement(savedInitial),
@@ -344,7 +385,6 @@ export default function RoomStudioPage() {
   const [category, setCategory] = useState("");
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState("products");
-  const [layoutPane, setLayoutPane] = useState("edit");
   const [isCompactScreen, setIsCompactScreen] = useState(
     () =>
       typeof window !== "undefined" &&
@@ -375,7 +415,6 @@ export default function RoomStudioPage() {
     () => (savedInitial?.inspirationProducts || []).slice(0, 3),
   );
   const [isGenerating, setIsGenerating] = useState(false);
-  const [lastFailedPlacementId, setLastFailedPlacementId] = useState(null);
   const [roomRequest, setRoomRequest] = useState(
     savedInitial?.userPrompt || savedInitial?.roomRequest || "",
   );
@@ -386,7 +425,7 @@ export default function RoomStudioPage() {
   const stageViewportRef = useRef(null);
   const stageRef = useRef(null);
   const dragRef = useRef(null);
-  const productDragRef = useRef(null);
+  const pendingProductRef = useRef(location.state?.product || null);
   const placementsRef = useRef(placements);
   const requestSequenceRef = useRef(0);
   const generationRef = useRef(false);
@@ -438,6 +477,7 @@ export default function RoomStudioPage() {
       roomFileName,
       imageSize,
       markedCorners,
+      scaleReference: serializeScaleReference(scaleReference),
       selectedId,
       placements,
       selectedPlacementId,
@@ -457,6 +497,7 @@ export default function RoomStudioPage() {
     roomFileName,
     imageSize,
     markedCorners,
+    scaleReference,
     selectedId,
     placements,
     selectedPlacementId,
@@ -471,10 +512,6 @@ export default function RoomStudioPage() {
     designBrief,
   ]);
 
-  const selectedProduct =
-    products.find(
-      (product) => product._id === selectedId || product.id === selectedId,
-    ) || null;
   const displayedInspirationProducts = useMemo(() => inspirationProducts.map((saved) => {
     const catalogProduct = products.find(
       (product) => product._id === saved.productId || product.id === saved.productId,
@@ -490,12 +527,31 @@ export default function RoomStudioPage() {
     };
   }), [inspirationProducts, products]);
   const chooseProduct = (product) => {
-    setSelectedId(product._id || product.id);
-    setSelectedScale(1);
+    const id = product._id || product.id;
+    setSelectedId(id);
     setIsMarkingMode(false);
-    setShowResult(false);
-    setMessage(`Đã chọn ${product.name}. Chỉnh tỷ lệ rồi kéo thẻ sản phẩm vào ảnh phòng.`);
+    if (!roomImage) {
+      pendingProductRef.current = product;
+      setMessage(`Đã chọn ${product.name}. Tải ảnh phòng để đặt món vào khung.`);
+      return;
+    }
+    pendingProductRef.current = null;
+    const productWithFacts = { ...product, ...inferProductFacts(product) };
+    const initialScale = getScaleFromReference(
+      productWithFacts,
+      INITIAL_TARGET,
+      scaleReference,
+      imageSize,
+    ) || 1;
+    addPlacement(INITIAL_TARGET, productWithFacts, initialScale);
+    setMessage(`Đã thêm ${product.name}. Kéo món, kéo nút góc để đổi kích thước hoặc dùng thanh công cụ cạnh món.`);
   };
+  useEffect(() => {
+    if (!roomImage || !pendingProductRef.current) return;
+    const product = pendingProductRef.current;
+    pendingProductRef.current = null;
+    chooseProduct(product);
+  }, [roomImage]);
   const markProductUnavailable = (product) => {
     const id = product._id || product.id;
     setUnavailableProductIds((current) => {
@@ -512,6 +568,60 @@ export default function RoomStudioPage() {
   const activePlacement =
     placements.find((placement) => placement.id === selectedPlacementId) ||
     null;
+  const activePlacementProduct = activePlacement
+    ? activePlacement.product || products.find(
+      (item) => item._id === activePlacement.productId || item.id === activePlacement.productId,
+    ) || null
+    : null;
+  const activeProductWidthCm = productWidthCm(activePlacementProduct);
+  useEffect(() => {
+    setScaleProductWidthInput(activeProductWidthCm ? String(activeProductWidthCm) : "");
+  }, [selectedPlacementId, activeProductWidthCm]);
+  const applyScaleReference = (
+    reference,
+    placement = activePlacement,
+    widthOverride = Number(scaleProductWidthInput),
+  ) => {
+    if (!placement) return false;
+    const product = placement.product || products.find(
+      (item) => item._id === placement.productId || item.id === placement.productId,
+    ) || {};
+    const widthCm = Number(widthOverride) > 0 ? Number(widthOverride) : productWidthCm(product);
+    const productWithWidth = widthCm > 0
+      ? { ...product, dimensionsCm: { ...(product.dimensionsCm || {}), width: widthCm } }
+      : product;
+    const nextScale = getScaleFromReference(productWithWidth, placement.target, reference, imageSize);
+    if (!nextScale) {
+      setMessage("Nhập chiều rộng thật của món để căn theo mốc.");
+      return false;
+    }
+    updatePlacement(placement.id, {
+      scale: nextScale,
+      product: productWithWidth,
+      productFacts: {
+        ...(placement.productFacts || {}),
+        dimensionsCm: productWithWidth.dimensionsCm,
+      },
+    });
+    setScaleProductWidthInput(String(widthCm));
+    setMessage(`Đã căn tỷ lệ theo mốc ${reference.lengthCm} cm. Bạn vẫn có thể chỉnh tay bằng nút góc.`);
+    return true;
+  };
+  const beginScaleReference = () => {
+    const lengthCm = Number(scaleLengthInput);
+    if (!Number.isFinite(lengthCm) || lengthCm <= 0 || lengthCm > 1000) {
+      setMessage("Nhập chiều dài mốc hợp lệ (1–1000 cm).");
+      return;
+    }
+    if (!roomImage) {
+      setMessage("Hãy tải ảnh phòng trước khi đặt mốc tỷ lệ.");
+      return;
+    }
+    setScaleReference({ points: [], lengthCm });
+    setIsMarkingMode(true);
+    setResultMatchesLayout(false);
+    stopResultView("Bấm 2 đầu của một cạnh có số đo thật gần sản phẩm.");
+  };
   const categories = useMemo(
     () => [...new Set(products.map(getProductCategory).filter(Boolean))],
     [products],
@@ -637,7 +747,6 @@ export default function RoomStudioPage() {
     const previousShowResult = showResult;
     generationRef.current = true;
     setIsGenerating(true);
-    setLastFailedPlacementId(null);
     setShowResult(false);
     setMessage(`Đang hoàn thiện bố cục ${scene.length} món bằng AI…`);
     try {
@@ -672,13 +781,12 @@ export default function RoomStudioPage() {
           anchor: "bottom-center",
         },
       });
-      const finalImage = result.imageDataUrl?.startsWith("data:image/")
-        ? result.imageDataUrl
-        : await compositeRoomPreview({
-            roomSource: roomImage,
-            resultSource: result.imageDataUrl,
-            editRegion: guideImages.editRegion,
-          });
+      const finalImage = await compositeRoomPreview({
+        roomSource: roomImage,
+        resultSource: result.imageDataUrl,
+        maskSource: guideImages.maskImageDataUrl,
+        editRegion: guideImages.editRegion,
+      });
       if (!finalImage?.startsWith("data:image/"))
         throw new Error("Ảnh AI không hợp lệ.");
       if (requestId !== requestSequenceRef.current) return;
@@ -695,7 +803,6 @@ export default function RoomStudioPage() {
       setMessage(`Đã tạo ảnh AI cho toàn bộ ${scene.length} sản phẩm.`);
     } catch (error) {
       if (requestId !== requestSequenceRef.current) return;
-      setLastFailedPlacementId(changedPlacementId);
       if (hadResult) setShowResult(previousShowResult);
       setNeedsAccount(error.code === 'GUEST_LIMIT_REACHED');
       setMessage(`${error.message || 'AI chưa tạo được ảnh.'} Bố cục vẫn được giữ.`);
@@ -731,7 +838,6 @@ export default function RoomStudioPage() {
     generationRef.current = true;
     setIsGenerating(true);
     setShowResult(false);
-    setLastFailedPlacementId(null);
     setMessage('Đang tạo gợi ý AI…');
     try {
       const [resizedRoom, smallRoomImage, references] = await Promise.all([
@@ -784,8 +890,8 @@ export default function RoomStudioPage() {
 
   const addPlacement = (
     target,
-    product = selectedProduct && { ...selectedProduct, ...inferProductFacts(selectedProduct) },
-    scale = selectedScale,
+    product,
+    scale = 1,
   ) => {
     if (!roomImage || !target) {
       setMessage("Hãy tải ảnh phòng trước khi đặt sản phẩm.");
@@ -810,9 +916,8 @@ export default function RoomStudioPage() {
     setPlacements(next);
     setSelectedPlacementId(placement.id);
     setIsMarkingMode(false);
-    setSelectedId('');
-    setSelectedScale(1);
-    void renderScene(next, placement.id);
+    setSelectedId(product._id || product.id);
+    setMessage("Đã thêm sản phẩm vào ảnh. Bạn có thể kéo, phóng/thu hoặc chỉnh bằng thanh công cụ cạnh món.");
   };
   const removePlacement = (id) => {
     setResultMatchesLayout(false);
@@ -836,95 +941,75 @@ export default function RoomStudioPage() {
     const target = getTarget(event);
     if (!target) return;
     if (isMarkingMode) {
-      if (markedCorners.length >= 4) return;
-      const index = markedCorners.length;
-      const corner = {
-        id: `corner-${Date.now()}-${index}`,
-        index: index + 1,
-        x: target.x,
-        y: target.y,
-        color: CORNER_COLORS[index],
-        label: `Điểm sàn ${index + 1}`,
-      };
-      setMarkedCorners((current) => [...current, corner]);
+      const currentPoints = scaleReference?.points || [];
+      if (currentPoints.length >= 2) return;
+      const points = [...currentPoints, target];
+      const nextReference = { points, lengthCm: Number(scaleLengthInput) };
+      setScaleReference(nextReference);
       setResultMatchesLayout(false);
-      if (index === 3) {
+      if (points.length === 2) {
         setIsMarkingMode(false);
-        setMessage(
-          "Đã có ô tham chiếu sàn. Bạn có thể đặt sản phẩm hoặc bỏ qua bước này.",
-        );
-      } else setMessage(`Đã chấm điểm ${index + 1}/4 trên vùng sàn.`);
+        if (activePlacement) applyScaleReference(nextReference, activePlacement);
+        else setMessage("Đã đặt mốc tỷ lệ. Chọn món có số đo để tự căn, hoặc chỉnh tay bằng nút góc.");
+      } else setMessage("Đã đặt điểm đầu. Bấm điểm thứ hai của cạnh có số đo thật.");
       return;
     }
     setMessage(
-      selectedProduct && activeTab === 'products'
-        ? 'Kéo thẻ sản phẩm đã chọn vào vị trí muốn đặt.'
-        : 'Chọn một sản phẩm trong tab Sản phẩm, rồi kéo thẻ đó vào ảnh phòng.',
+      selectedPlacementId
+        ? 'Kéo trực tiếp sản phẩm để di chuyển hoặc dùng nút góc để phóng/thu.'
+        : 'Bấm một sản phẩm trong danh sách để thêm món vào giữa/đáy ảnh.',
     );
-  };
-  const handleProductDragStart = (event) => {
-    if (!selectedProduct || activeResult || generationRef.current) return;
-    productDragRef.current = {
-      product: { ...selectedProduct, ...inferProductFacts(selectedProduct) },
-      scale: selectedScale,
-    };
-    event.dataTransfer.effectAllowed = 'copy';
-    event.dataTransfer.setData('text/plain', selectedProduct._id || selectedProduct.id);
-  };
-  const handleProductDragEnd = () => {
-    productDragRef.current = null;
-  };
-  const handleProductPointerDown = (event) => {
-    if (event.pointerType === 'mouse' || !selectedProduct || activeResult || generationRef.current) return;
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-    productDragRef.current = {
-      product: { ...selectedProduct, ...inferProductFacts(selectedProduct) },
-      scale: selectedScale,
-      pointerId: event.pointerId,
-    };
-    setMessage('Thả sản phẩm vào ảnh phòng để đặt.');
-  };
-  const handleProductPointerEnd = (event) => {
-    const draggedProduct = productDragRef.current;
-    if (draggedProduct?.pointerId !== event.pointerId) return;
-    productDragRef.current = null;
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
-    if (event.type === 'pointercancel') return;
-    const rect = stageRef.current?.getBoundingClientRect();
-    const isInsideRoom = rect
-      && event.clientX >= rect.left
-      && event.clientX <= rect.right
-      && event.clientY >= rect.top
-      && event.clientY <= rect.bottom;
-    if (!isInsideRoom) {
-      setMessage('Kéo thẻ vào trong ảnh phòng rồi thả để đặt.');
-      return;
-    }
-    const target = getTarget(event);
-    if (target) addPlacement(target, draggedProduct.product, draggedProduct.scale);
-  };
-  const handleStageDragOver = (event) => {
-    if (!productDragRef.current || activeResult || generationRef.current) return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'copy';
-  };
-  const handleStageDrop = (event) => {
-    const draggedProduct = productDragRef.current;
-    if (!draggedProduct || activeResult || generationRef.current) return;
-    event.preventDefault();
-    productDragRef.current = null;
-    const target = getTarget(event);
-    if (target) addPlacement(target, draggedProduct.product, draggedProduct.scale);
   };
   const handlePlacementPointerDown = (event, placement) => {
     if (activeResult || generationRef.current) return;
     event.stopPropagation();
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    dragRef.current = { id: placement.id, moved: false };
+    dragRef.current = { id: placement.id, mode: "move", moved: false };
+    setSelectedPlacementId(placement.id);
+  };
+  const handlePlacementResizeStart = (event, placement) => {
+    if (activeResult || generationRef.current || !stageRef.current) return;
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    const rect = stageRef.current.getBoundingClientRect();
+    const anchorX = rect.left + (placement.target.x / 100) * rect.width;
+    const anchorY = rect.top + (placement.target.y / 100) * rect.height;
+    const startDistance = Math.max(
+      12,
+      Math.hypot(event.clientX - anchorX, event.clientY - anchorY),
+    );
+    dragRef.current = {
+      id: placement.id,
+      mode: "resize",
+      moved: false,
+      anchorX,
+      anchorY,
+      startDistance,
+      startScale: placement.scale || 1,
+    };
     setSelectedPlacementId(placement.id);
   };
   const handleStagePointerMove = (event) => {
     if (!dragRef.current || generationRef.current) return;
+    if (dragRef.current.mode === "resize") {
+      const distance = Math.max(
+        12,
+        Math.hypot(
+          event.clientX - dragRef.current.anchorX,
+          event.clientY - dragRef.current.anchorY,
+        ),
+      );
+      const scale = clamp(
+        dragRef.current.startScale * (distance / dragRef.current.startDistance),
+        0.4,
+        1.8,
+      );
+      dragRef.current.moved = true;
+      updatePlacement(dragRef.current.id, {
+        scale: Number(scale.toFixed(2)),
+      });
+      return;
+    }
     const target = getTarget(event);
     if (!target) return;
     dragRef.current.moved = true;
@@ -938,9 +1023,11 @@ export default function RoomStudioPage() {
       return;
     }
     if (drag.moved) {
-      const next = placementsRef.current;
-      stopResultView("Đang tạo lại ảnh AI cho vị trí mới.");
-      void renderScene(next, drag.id);
+      stopResultView(
+        drag.mode === "resize"
+          ? "Đã cập nhật kích thước. Bấm Tạo ảnh khi bạn muốn AI hoàn thiện căn phòng."
+          : "Đã cập nhật vị trí. Bấm Tạo ảnh khi bạn muốn AI hoàn thiện căn phòng.",
+      );
     }
     window.setTimeout(() => {
       dragRef.current = null;
@@ -972,6 +1059,9 @@ export default function RoomStudioPage() {
       setRoomFileName(file.name);
       setImageSize({ width: 0, height: 0 });
       setMarkedCorners([]);
+      setScaleReference(null);
+      setScaleLengthInput('80');
+      setScaleProductWidthInput('');
       setPlacements([]);
       setSelectedPlacementId(null);
       setResultImage("");
@@ -981,7 +1071,6 @@ export default function RoomStudioPage() {
       setElapsedMs(null);
       setResultInfo(null);
       setIsMarkingMode(false);
-      setLastFailedPlacementId(null);
       setMessage(
         "Ảnh đã sẵn sàng. Bạn có thể đặt sản phẩm ngay hoặc tạo một gợi ý cả phòng.",
       );
@@ -1060,6 +1149,7 @@ export default function RoomStudioPage() {
         x: Number((corner.x / 100).toFixed(4)),
         y: Number((corner.y / 100).toFixed(4)),
       })),
+      scaleReference: serializeScaleReference(scaleReference),
       imageSize,
       resultImage: savedResultImage,
       resultMatchesLayout,
@@ -1079,7 +1169,6 @@ export default function RoomStudioPage() {
     setIsGenerating(false);
     setRoomImage("");
     setSelectedId('');
-    setSelectedFacts({});
     setNeedsAccount(false);
     setRoomRequest('');
     setDesignBrief({ purpose: '', style: '', keepClear: '', avoid: '' });
@@ -1087,6 +1176,9 @@ export default function RoomStudioPage() {
     setRoomFileName("");
     setImageSize({ width: 0, height: 0 });
     setMarkedCorners([]);
+    setScaleReference(null);
+    setScaleLengthInput('80');
+    setScaleProductWidthInput('');
     setPlacements([]);
     setSelectedPlacementId(null);
     setResultImage("");
@@ -1096,7 +1188,6 @@ export default function RoomStudioPage() {
     setElapsedMs(null);
     setResultInfo(null);
     setIsMarkingMode(false);
-    setLastFailedPlacementId(null);
     setMessage("Đã làm mới Phòng thử.");
   };
   const renderPlacementStyle = (placement) => {
@@ -1151,6 +1242,15 @@ export default function RoomStudioPage() {
                 Làm mới
               </button>
             )}
+            <button
+              type="button"
+              className="button button-small studio-generate-trigger"
+              disabled={!placements.length || isGenerating}
+              onClick={() => void renderScene(placementsRef.current, activePlacement?.id)}
+              title="Dùng AI để hoàn thiện bố cục hiện tại"
+            >
+              {isGenerating ? 'Đang tạo…' : 'Tạo ảnh'}
+            </button>
             {resultImage && (
               <button
                 type="button"
@@ -1208,8 +1308,6 @@ export default function RoomStudioPage() {
                 style={mediaStyle}
                 ref={stageRef}
                 onClick={handleStageClick}
-                onDragOver={handleStageDragOver}
-                onDrop={handleStageDrop}
                 onPointerMove={handleStagePointerMove}
                 onPointerUp={handleStagePointerUp}
                 onPointerCancel={handleStagePointerUp}
@@ -1229,43 +1327,28 @@ export default function RoomStudioPage() {
                       });
                   }}
                 />
-                {!activeResult && markedCorners.length > 1 && (
-                  <svg
-                    className="studio-floor-patch"
-                    viewBox="0 0 100 100"
-                    preserveAspectRatio="none"
-                    aria-hidden="true"
-                  >
-                    <polyline
-                      points={markedCorners
-                        .map((corner) => `${corner.x},${corner.y}`)
-                        .join(" ")}
-                    />
-                    {markedCorners.length === 4 && (
-                      <polygon
-                        points={markedCorners
-                          .map((corner) => `${corner.x},${corner.y}`)
-                          .join(" ")}
+                {!activeResult && scaleReference?.points?.length > 0 && (
+                  <>
+                    <svg className="studio-scale-reference" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                      <line
+                        x1={scaleReference.points[0].x}
+                        y1={scaleReference.points[0].y}
+                        x2={scaleReference.points[1]?.x ?? scaleReference.points[0].x}
+                        y2={scaleReference.points[1]?.y ?? scaleReference.points[0].y}
                       />
+                      {scaleReference.points.map((point, index) => <circle key={`${point.x}-${point.y}-${index}`} cx={point.x} cy={point.y} r="1.1" />)}
+                    </svg>
+                    {scaleReference.points.length === 2 && (
+                      <span
+                        className="studio-scale-label"
+                        style={{
+                          left: `${(scaleReference.points[0].x + scaleReference.points[1].x) / 2}%`,
+                          top: `${(scaleReference.points[0].y + scaleReference.points[1].y) / 2}%`,
+                        }}
+                      >{scaleReference.lengthCm} cm</span>
                     )}
-                  </svg>
+                  </>
                 )}
-                {!activeResult &&
-                  markedCorners.map((corner) => (
-                    <button
-                      key={corner.id}
-                      type="button"
-                      className="studio-corner"
-                      style={{
-                        left: `${corner.x}%`,
-                        top: `${corner.y}%`,
-                        "--corner-color": corner.color,
-                      }}
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      {corner.index}
-                    </button>
-                  ))}
                 {!activeResult &&
                   placements.map((placement) => {
                     const product =
@@ -1277,9 +1360,10 @@ export default function RoomStudioPage() {
                       );
                     const source = getProductImageSource(product);
                     return (
-                      <button
+                      <div
                         key={placement.id}
-                        type="button"
+                        role="button"
+                        tabIndex={0}
                         className={`studio-product-placement ${placement.id === selectedPlacementId ? "selected" : ""}`}
                         style={renderPlacementStyle(placement)}
                         onPointerDown={(event) =>
@@ -1288,8 +1372,12 @@ export default function RoomStudioPage() {
                         onClick={(event) => {
                           event.stopPropagation();
                           setSelectedPlacementId(placement.id);
-                          setActiveTab("layout");
-                          setLayoutPane("edit");
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setSelectedPlacementId(placement.id);
+                          }
                         }}
                         title={placement.productName}
                       >
@@ -1304,7 +1392,67 @@ export default function RoomStudioPage() {
                             product={product || { name: placement.productName }}
                           />
                         )}
-                      </button>
+                        {placement.id === selectedPlacementId && (
+                          <>
+                            <div
+                              className={`studio-placement-toolbar ${placement.target.y < 25 ? "below" : ""}`}
+                              role="toolbar"
+                              aria-label={`Công cụ ${placement.productName}`}
+                              onPointerDown={(event) => event.stopPropagation()}
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                aria-label="Xoay trái"
+                                title="Xoay trái"
+                                onClick={() => updatePlacement(placement.id, { rotation: normalizeRotation(placement.rotation - 15) })}
+                              >↺</button>
+                              <button
+                                type="button"
+                                aria-label="Xoay phải"
+                                title="Xoay phải"
+                                onClick={() => updatePlacement(placement.id, { rotation: normalizeRotation(placement.rotation + 15) })}
+                              >↻</button>
+                              <button
+                                type="button"
+                                aria-label="Đưa ra sau"
+                                title="Đưa ra sau"
+                                disabled={placements.length < 2}
+                                onClick={() => movePlacementLayer(placement.id, "back")}
+                              >⇣</button>
+                              <button
+                                type="button"
+                                aria-label="Đưa ra trước"
+                                title="Đưa ra trước"
+                                disabled={placements.length < 2}
+                                onClick={() => movePlacementLayer(placement.id, "front")}
+                              >⇡</button>
+                              <button
+                                type="button"
+                                aria-label="Lật ngang"
+                                title="Lật ngang"
+                                onClick={() => updatePlacement(placement.id, { isFlipped: !placement.isFlipped })}
+                              >⇋</button>
+                            </div>
+                            <button
+                              type="button"
+                              className="studio-placement-delete"
+                              aria-label={`Xóa ${placement.productName}`}
+                              title="Xóa sản phẩm"
+                              onPointerDown={(event) => event.stopPropagation()}
+                              onClick={() => removePlacement(placement.id)}
+                            >×</button>
+                            <button
+                              type="button"
+                              className="studio-placement-resize"
+                              aria-label="Kéo để đổi kích thước"
+                              title="Kéo để phóng/thu"
+                              onPointerDown={(event) => handlePlacementResizeStart(event, placement)}
+                              onClick={(event) => event.stopPropagation()}
+                            />
+                          </>
+                        )}
+                      </div>
                     );
                   })}
                 {isGenerating && (
@@ -1365,8 +1513,10 @@ export default function RoomStudioPage() {
                 {!activeResult && (
                   <div className="studio-stage-tip">
                     {isMarkingMode
-                      ? `${markedCorners.length}/4 · bấm trong vùng sàn`
-                      : selectedProduct ? 'Kéo thẻ sản phẩm vào ảnh để đặt' : 'Chọn sản phẩm rồi kéo thẻ vào ảnh'}
+                      ? `${scaleReference?.points?.length || 0}/2 · bấm hai đầu mốc`
+                      : selectedPlacementId
+                        ? 'Kéo món để di chuyển · kéo nút góc để phóng/thu'
+                        : 'Chọn sản phẩm ở danh sách để thêm vào ảnh'}
                   </div>
                 )}
               </div>
@@ -1401,7 +1551,7 @@ export default function RoomStudioPage() {
               className={activeTab === "layout" ? "active" : ""}
               onClick={() => setActiveTab("layout")}
             >
-              Bố cục
+              Tỷ lệ
             </button>
             <button
               type="button"
@@ -1437,33 +1587,13 @@ export default function RoomStudioPage() {
               <section className="studio-tab-panel studio-products-tab">
                 <div className="studio-panel-heading">
                   <div>
-                    <p className="studio-kicker">1. CHỌN MÓN → 2. KÉO VÀO ẢNH</p>
-                    <h1>{selectedProduct ? 'Kiểm tra món đã chọn' : 'Bạn muốn thử món nào?'}</h1>
+                    <p className="studio-kicker">CHỌN MÓN ĐỂ THÊM VÀO ẢNH</p>
+                    <h1>Chọn sản phẩm</h1>
                   </div>
                   <small>
                     {placements.length}/{MAX_PLACEMENTS}
                   </small>
                 </div>
-                {selectedProduct ? <div className="studio-selected-product">
-                  <div
-                    className="studio-selected-summary studio-drag-product"
-                    draggable={!isGenerating}
-                    onDragStart={handleProductDragStart}
-                    onDragEnd={handleProductDragEnd}
-                    onPointerDown={handleProductPointerDown}
-                    onPointerUp={handleProductPointerEnd}
-                    onPointerCancel={handleProductPointerEnd}
-                    title="Kéo vào ảnh phòng để đặt"
-                  ><ProductArtwork product={selectedProduct} onImageError={() => markProductUnavailable(selectedProduct)} /><strong>{selectedProduct.name}</strong></div>
-                  <div className="studio-control-row">
-                    <span>Kích thước trong phòng</span>
-                    <button type="button" onClick={() => setSelectedScale((current) => Number(clamp(current - 0.1, 0.4, 1.8).toFixed(1)))}>−</button>
-                    <b>{Math.round(selectedScale * 100)}%</b>
-                    <button type="button" onClick={() => setSelectedScale((current) => Number(clamp(current + 0.1, 0.4, 1.8).toFixed(1)))}>+</button>
-                  </div>
-                  <p>Kéo thẻ sản phẩm này vào ảnh phòng để đặt. Muốn thử nhiều món, chọn tiếp từng món sau đó.</p>
-                  <button type="button" className="button button-small button-secondary" onClick={() => { setSelectedId(''); setSelectedScale(1); setMessage('Đã bỏ chọn. Ảnh phòng sẽ không tự thêm món khi bấm.'); }}>Chọn món khác / hủy chọn</button>
-                </div> : <>
                 <div className="studio-product-filters">
                   <input
                     value={query}
@@ -1512,7 +1642,7 @@ export default function RoomStudioPage() {
                     );
                   })}
                 </div>
-                </>}
+                <p className="studio-selection-hint">Bấm một món để thêm vào giữa/đáy ảnh. Sau đó kéo trực tiếp trên ảnh để đặt lại.</p>
                 {!visibleProducts.length && (
                   <p className="studio-empty">
                     Không tìm thấy sản phẩm phù hợp.
@@ -1545,191 +1675,51 @@ export default function RoomStudioPage() {
               <section className="studio-tab-panel studio-layout-tab">
                 <div className="studio-panel-heading">
                   <div>
-                    <p className="studio-kicker">PHỐI CẢNH & CHỈNH SỬA</p>
-                    <h1>Bố cục của bạn</h1>
+                    <p className="studio-kicker">THÊM MỐC ĐO THẬT</p>
+                    <h1>Tỷ lệ thật <small>(tùy chọn)</small></h1>
                   </div>
                   <small>
-                    {markedCorners.length
-                      ? `${markedCorners.length}/4 điểm sàn`
-                      : "Tùy chọn"}
+                    {scaleReference?.points?.length === 2 ? `${scaleReference.lengthCm} cm` : "Chưa đặt mốc"}
                   </small>
                 </div>
-                <div
-                  className="studio-layout-switch"
-                  role="tablist"
-                  aria-label="Công cụ bố cục"
-                >
-                  <button
-                    type="button"
-                    className={layoutPane === "edit" ? "active" : ""}
-                    aria-selected={layoutPane === "edit"}
-                    onClick={() => setLayoutPane("edit")}
-                  >
-                    Chỉnh món
-                  </button>
-                  <button
-                    type="button"
-                    className={layoutPane === "floor" ? "active" : ""}
-                    aria-selected={layoutPane === "floor"}
-                    onClick={() => setLayoutPane("floor")}
-                  >
-                    Căn sàn (tùy chọn)
-                  </button>
-                </div>
-                {layoutPane === "floor" && (
-                  <div className="studio-floor-tools">
-                    <p>
-                      <strong>Ô tham chiếu sàn</strong> là tùy chọn. Nếu dùng,
-                      chấm bốn góc một hình chữ nhật có thật trên sàn (tấm thảm chữ nhật, mép ván hoặc đường gạch) theo
-                      thứ tự trước trái → sau trái → sau phải → trước phải.
-                      Không vẽ một ô tưởng tượng trên sàn trơn; không thấy mốc rõ thì bỏ qua. Bước này chỉ căn hướng, không đo chính xác kích thước phòng.
-                    </p>
-                    <div>
-                      <button
-                        type="button"
-                        className="button button-small button-secondary"
-                        disabled={!roomImage || isGenerating}
-                        onClick={() => {
-                          setMarkedCorners([]);
-                          setResultMatchesLayout(false);
-                          setIsMarkingMode(true);
-                          stopResultView(
-                            "Bấm 4 điểm trong vùng sàn nhìn thấy. Có thể bỏ qua nếu ảnh khó xác định.",
-                          );
-                        }}
-                      >
-                        Chấm ô sàn
-                      </button>
-                      <button
-                        type="button"
-                        className="button button-small button-secondary"
-                        disabled={!markedCorners.length}
-                        onClick={() => {
-                          setMarkedCorners((current) => current.slice(0, -1));
-                          setResultMatchesLayout(false);
-                        }}
-                      >
-                        Xóa điểm
-                      </button>
-                      <button
-                        type="button"
-                        className="button button-small button-secondary"
-                        disabled={!markedCorners.length && !isMarkingMode}
-                        onClick={() => {
-                          setMarkedCorners([]);
-                          setIsMarkingMode(false);
-                          setResultMatchesLayout(false);
-                          setMessage("Đã bỏ qua ô tham chiếu sàn.");
-                        }}
-                      >
-                        Bỏ qua
-                      </button>
-                    </div>
+                <div className="studio-scale-tools">
+                  <p>Chọn chiều dài của cạnh/vật có thật gần món rồi đặt đúng 2 đầu mốc trên ảnh.</p>
+                  <div className="studio-scale-presets" role="group" aria-label="Chiều dài mốc gợi ý">
+                    {[60, 80, 120].map((value) => (
+                      <button key={value} type="button" className={Number(scaleLengthInput) === value ? "active" : ""} onClick={() => setScaleLengthInput(String(value))}>{value} cm</button>
+                    ))}
+                    <label><span>Khác</span><input type="number" min="1" max="1000" value={scaleLengthInput} onChange={(event) => setScaleLengthInput(event.target.value)} aria-label="Chiều dài mốc theo centimet" /> <em>cm</em></label>
                   </div>
-                )}
-                {layoutPane === "edit" && (
-                  <>
-                    {activePlacement ? (
-                      <div className="studio-placement-tools">
-                        <strong>{activePlacement.productName}</strong>
-                        <div className="studio-control-row">
-                          <span>Xoay</span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updatePlacement(activePlacement.id, {
-                                rotation: normalizeRotation(
-                                  activePlacement.rotation - 15,
-                                ),
-                              })
-                            }
-                          >
-                            ↺
-                          </button>
-                          <b>{normalizeRotation(activePlacement.rotation)}°</b>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updatePlacement(activePlacement.id, {
-                                rotation: normalizeRotation(
-                                  activePlacement.rotation + 15,
-                                ),
-                              })
-                            }
-                          >
-                            ↻
-                          </button>
-                        </div>
-                        <div className="studio-layout-actions">
-                          <button
-                            type="button"
-                            className="button button-small button-secondary"
-                            disabled={placements.length < 2}
-                            onClick={() =>
-                              movePlacementLayer(activePlacement.id, "back")
-                            }
-                          >
-                            Đưa ra sau
-                          </button>
-                          <button
-                            type="button"
-                            className="button button-small button-secondary"
-                            disabled={placements.length < 2}
-                            onClick={() =>
-                              movePlacementLayer(activePlacement.id, "front")
-                            }
-                          >
-                            Đưa ra trước
-                          </button>
-                          <button
-                            type="button"
-                            className="button button-small button-secondary"
-                            onClick={() =>
-                              updatePlacement(activePlacement.id, {
-                                isFlipped: !activePlacement.isFlipped,
-                              })
-                            }
-                          >
-                            Lật ngang
-                          </button>
-                          <button
-                            type="button"
-                            className="button button-small button-danger"
-                            onClick={() => removePlacement(activePlacement.id)}
-                          >
-                            Xóa món
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="studio-empty">
-                        Chọn một sản phẩm trên ảnh để chỉnh kích thước, xoay
-                        hoặc lật.
-                      </div>
-                    )}
-                    <div className="studio-render-actions">
+                  <button type="button" className="button button-small button-secondary" disabled={!roomImage || isGenerating} onClick={beginScaleReference}>
+                    {isMarkingMode ? "Đang chờ 2 điểm trên ảnh…" : "Đặt 2 mốc trên ảnh"}
+                  </button>
+                  {scaleReference?.points?.length === 2 && <button type="button" className="text-button danger" onClick={() => { setScaleReference(null); setResultMatchesLayout(false); setMessage("Đã xóa mốc tỷ lệ. Sản phẩm vẫn có thể chỉnh tay."); }}>Xóa mốc</button>}
+                  {activePlacement && (
+                    <div className="studio-scale-product">
+                      <strong title={activePlacement.productName}>{activePlacement.productName}</strong>
+                      <label>
+                        <span>Rộng món</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max="1000"
+                          value={scaleProductWidthInput}
+                          onChange={(event) => setScaleProductWidthInput(event.target.value)}
+                          aria-label="Chiều rộng thật của sản phẩm theo centimet"
+                        />
+                        <em>cm</em>
+                      </label>
                       <button
                         type="button"
-                        className="button button-secondary"
-                        disabled={!placements.length || isGenerating}
-                        onClick={() =>
-                          void renderScene(
-                            placementsRef.current,
-                            activePlacement?.id,
-                          )
-                        }
+                        className="button button-small button-secondary"
+                        disabled={!scaleReference || scaleReference.points.length !== 2 || !(Number(scaleProductWidthInput) > 0)}
+                        onClick={() => applyScaleReference(scaleReference, activePlacement)}
                       >
-                        Tạo lại ảnh bố cục
+                        Căn tỷ lệ
                       </button>
-                      {lastFailedPlacementId && (
-                        <small>
-                          Ảnh trước chưa thành công; bạn có thể thử lại khi đã
-                          sẵn sàng.
-                        </small>
-                      )}
                     </div>
-                  </>
-                )}
+                  )}
+                </div>
               </section>
             )}
           </div>
