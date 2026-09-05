@@ -38,7 +38,7 @@ Dành cho Windows:
 | **Phòng thử (Room Studio)** | `/room-studio` | Tải ảnh → AI gợi ý cả phòng, hoặc chọn món rồi bấm vị trí để tự đặt. Khách có một lượt tạo ảnh thành công; chấm một ô sàn thật chỉ là tùy chọn |
 | **Bộ sưu tập** | `/collection` | Lưu ảnh gốc/kết quả, loại ý tưởng, vị trí/kích thước/xoay/lật/layer, điểm tham chiếu và mô tả; mở lại hoặc chủ động chia sẻ |
 | **Mẫu công khai** | `/collections/public` | Xem các mẫu được chủ sở hữu công khai; đăng nhập để công khai hoặc dùng lại thành bản sao riêng tư |
-| **Quản trị** | `/admin` | Dán URL Shopee, CRUD sản phẩm, thêm ảnh vào MongoDB và tải JSON fallback mới nhất (dành cho Admin) |
+| **Quản trị** | `/admin` | Dán URL Shopee trên localhost, CRUD sản phẩm, thêm ảnh và tải JSON fallback (dành cho Admin) |
 
 ---
 
@@ -103,7 +103,7 @@ git push
 
 Để thêm đồ nội thất Shopee mới vào trang web và phòng thử AI:
 
-- **Cách nhanh trên website deploy:** Admin mở `/admin`, dán URL Shopee hợp lệ, hoàn thiện tên/danh mục/giá rồi bấm thêm. Chọn lại sản phẩm để tải ảnh; trình duyệt nén WebP trước khi backend lưu vào MongoDB. Nút tải JSON tạo bản fallback **nhẹ, không nhúng ảnh base64** để nhóm kiểm tra và commit khi cần; ảnh upload đầy đủ vẫn nằm trong MongoDB.
+- **Cách nhanh trên localhost:** Admin mở `/admin`, dán URL Shopee hợp lệ rồi bấm thêm. Backend chỉ nhận import từ request local/non-production; dữ liệu được lưu vào MongoDB và đồng bộ sang JSON local. Chọn lại sản phẩm để tải ảnh; ảnh được lưu theo Item ID trong URL. Nút tải JSON tạo bản fallback **nhẹ, không nhúng ảnh base64** để nhóm kiểm tra và commit khi cần.
 - **Cách theo lô trong repo:** dùng ba bước dưới đây khi nhóm đã chuẩn bị nhiều ảnh PNG và muốn cập nhật MongoDB cùng JSON local.
 
 ### 🔹 Bước 1: Lưu ảnh tách nền (PNG)

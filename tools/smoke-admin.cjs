@@ -15,7 +15,13 @@ const {
 const {
   createAnonymousGenerationQuotaService, getClientAddress, hashAddress,
 } = require('../server/src/services/anonymousGenerationQuotaService');
-const { isLocalRequest, localOnlyAccountAllowed, requireAdmin } = require('../server/src/middleware/authMiddleware');
+const {
+  isLocalRequest,
+  localOnlyAccountAllowed,
+  localShopeeImportAllowed,
+  requireAdmin,
+  requireLocalShopeeImport,
+} = require('../server/src/middleware/authMiddleware');
 const { buildLoginLookup } = require('../server/src/controllers/authController');
 const {
   compactProductListItem,
@@ -355,6 +361,37 @@ test('local-only accounts are accepted solely from direct loopback outside produ
   assert.equal(localOnlyAccountAllowed({ socket: { remoteAddress: '127.0.0.1' } }, { localOnly: true }, true), false);
 });
 
+test('Shopee import is localhost-only in development and disabled in production', () => {
+  const local = { socket: { remoteAddress: '127.0.0.1' } };
+  const remote = { socket: { remoteAddress: '10.0.0.2' } };
+  const spoofedLocal = { socket: { remoteAddress: '10.0.0.2' }, headers: { 'x-forwarded-for': '127.0.0.1' } };
+  assert.equal(localShopeeImportAllowed(local, false), true);
+  assert.equal(localShopeeImportAllowed(remote, false), false);
+  assert.equal(localShopeeImportAllowed(spoofedLocal, false), false);
+  assert.equal(localShopeeImportAllowed(local, true), false);
+
+  const deniedRemote = response();
+  let nextCalled = false;
+  requireLocalShopeeImport(remote, deniedRemote, () => { nextCalled = true; });
+  assert.equal(nextCalled, false);
+  assert.equal(deniedRemote.statusCode, 403);
+  assert.equal(deniedRemote.body.message, 'Thao tác này chỉ được phép trên localhost.');
+
+  const allowedLocal = response();
+  requireLocalShopeeImport(local, allowedLocal, () => { nextCalled = true; });
+  assert.equal(nextCalled, true);
+
+  const productRoutes = require('../server/src/routes/productRoutes');
+  const importRoute = productRoutes.stack.find((layer) => layer.route?.path === '/import-shopee');
+  assert.deepEqual(importRoute.route.stack.map((layer) => layer.name), [
+    'authenticate', 'requireAdmin', 'requireLocalShopeeImport', 'importShopee',
+  ]);
+  for (const path of ['/metadata', '/export-json', '/:id/images']) {
+    const route = productRoutes.stack.find((layer) => layer.route?.path === path);
+    assert.equal(route.route.stack.some((layer) => layer.name === 'requireLocalShopeeImport'), false);
+  }
+});
+
 test('login lookup supports a username and legacy email through the same safe query', () => {
   assert.deepEqual(buildLoginLookup('admin'), {
     isActive: true,
@@ -463,7 +500,7 @@ test('preview and deployed Admin routes keep authentication middleware in front 
     assert.deepEqual(names.slice(0, 2), ['authenticate', 'requireAdmin']);
   });
   const shopeeImport = productRoutes.stack.find((layer) => layer.route?.path === '/import-shopee');
-  assert.deepEqual(shopeeImport.route.stack.map((handler) => handler.name), ['authenticate', 'requireAdmin', 'importShopee']);
+  assert.deepEqual(shopeeImport.route.stack.map((handler) => handler.name), ['authenticate', 'requireAdmin', 'requireLocalShopeeImport', 'importShopee']);
 });
 
 test('trust proxy parser supports local off, one Render hop and explicit allowlists', () => {
@@ -483,4 +520,24 @@ test('production seed explicitly converts a matching local-only admin into a dep
   assert.match(source, /localOnly:\s*false/);
   assert.match(source, /env\.isProduction/);
   assert.match(source, /ADMIN_PASSWORD production phải có tối thiểu 12 ký tự/);
+});
+
+test('Admin deployed hides Shopee import form but keeps product management actions', () => {
+  const source = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '../client/src/pages/AdminPage.jsx'),
+    'utf8',
+  );
+  assert.match(source, /export function isLocalBrowserHost\(hostname = ''\)/);
+  assert.match(source, /host === 'localhost' \|\| host === '127\.0\.0\.1' \|\| host === '::1'/);
+  assert.match(source, /isLocalBrowserHost\(window\.location\.hostname\)/);
+  assert.match(source, /\{isLocalBrowser && \(/);
+  assert.match(source, /admin-layout\$\{isLocalBrowser \? '' : ' single'\}/);
+  assert.match(source, /downloadProductJson/);
+  assert.match(source, /addProductImage/);
+  assert.match(source, /removeProduct/);
+  const css = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '../client/src/styles/global.css'),
+    'utf8',
+  );
+  assert.match(css, /\.admin-layout\.single \{ grid-template-columns: minmax\(0, 1fr\); \}/);
 });

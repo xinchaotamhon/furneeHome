@@ -226,6 +226,7 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
 .admin-stats strong { color: var(--color-primary); font-family: var(--font-heading); font-size: 2rem; }
 .admin-stats span { color: var(--color-muted); font-size: .8rem; }
 .admin-layout { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 20px; align-items: start; }
+.admin-layout.single { grid-template-columns: minmax(0, 1fr); }
 .panel-card { border: 1px solid var(--color-border); border-radius: var(--radius-medium); background: white; box-shadow: var(--shadow-card); }
 .admin-form { display: grid; gap: 13px; padding: 22px; }
 .admin-form .button { width: 100%; }

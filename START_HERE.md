@@ -35,14 +35,14 @@ Khách chưa đăng nhập được **một lần tạo ảnh thành công** the
 - Frontend lưu token ở khóa `accessToken`; [apiClient.js](client/src/services/apiClient.js) tự gắn Bearer token.
 - Các API tạo/sửa/xóa sản phẩm ở [productRoutes.js](server/src/routes/productRoutes.js) bắt buộc JWT và role Admin. Route backend mới là lớp bảo vệ thật; kiểm tra role ở router chỉ là phản hồi UX.
 - Tài khoản Admin phải là user thật trong MongoDB. Script `bootstrapLocalAdmin.js` chỉ tạo tài khoản `localOnly`, từ chối production và không tự chạy khi khởi động. Trên bản deploy, dùng `ADMIN_USERNAME`, `ADMIN_EMAIL`, mật khẩu mạnh trong secret rồi chạy seed; không dùng mật khẩu demo ngắn cho production.
-- Admin trên website deploy ghi sản phẩm và ảnh đã nén vào MongoDB. JSON đóng gói trong frontend không thể tự commit ngược từ Render; route export cho phép tải bản JSON mới để nhóm kiểm tra và commit khi muốn cập nhật fallback.
+- Import URL Shopee chỉ chạy trên máy local: backend kiểm tra request loopback và không cho import khi chạy production. Dữ liệu import local được lưu vào MongoDB và đồng bộ sang JSON local; các thao tác Admin khác vẫn theo quyền của route hiện tại.
 - Local giữ nguyên startup contract hiện có: `JWT_SECRET` không bắt buộc để chạy bằng `.env` hiện tại. Render phải có `NODE_ENV=production` và `JWT_SECRET`; backend cũng coi `RENDER=true` là production để không dùng fallback local nếu cấu hình thiếu. Không đọc, in hoặc commit giá trị thật của `.env`.
 
 ## 4. Dữ liệu sản phẩm và giá
 
 - Dataset hiện tại có **68 sản phẩm**, 68 URL Shopee và 68 ID/slug riêng; toàn bộ `price` vẫn là `0`. Có 57 ảnh PNG local và 11 sản phẩm mới đang chờ Admin thêm ảnh. Giao diện phải hiện placeholder rõ ràng, đưa món có ảnh lên trước và không cho gửi món thiếu ảnh tham chiếu sang AI.
 - [ProductContext.jsx](client/src/context/ProductContext.jsx) ưu tiên API, chỉ dùng `client/public/data_import/data_import.json` làm dữ liệu dự phòng khi backend chưa trả dữ liệu.
-- Admin dùng [AdminPage.jsx](client/src/pages/AdminPage.jsx) để CRUD qua API, đọc shop ID/item ID từ URL Shopee, thêm tối đa 6 ảnh và tải JSON mới nhất. Với URL `...i.<shopId>.<itemId>`, ảnh thêm ở local tự lưu đúng định dạng quản trị viên chọn: PNG lưu `/images/products/<itemId>.png` (ưu tiên ảnh tách nền trong suốt), JPG lưu `/images/products/<itemId>.jpg`, WebP lưu `/images/products/<itemId>.webp` và JSON dùng đúng path này; trên deploy, ảnh vẫn lưu bền trong MongoDB vì filesystem Render không phải nguồn dữ liệu lâu dài.
+- Admin dùng [AdminPage.jsx](client/src/pages/AdminPage.jsx) để CRUD qua API, đọc shop ID/item ID từ URL Shopee, thêm tối đa 6 ảnh và tải JSON mới nhất. Riêng import URL Shopee chỉ chạy trên local và được lưu vào MongoDB cùng JSON local. Với URL `...i.<shopId>.<itemId>`, ảnh thêm ở local tự lưu đúng định dạng quản trị viên chọn: PNG lưu `/images/products/<itemId>.png` (ưu tiên ảnh tách nền trong suốt), JPG lưu `/images/products/<itemId>.jpg`, WebP lưu `/images/products/<itemId>.webp`; cần commit ảnh và JSON này khi cập nhật repo.
 - Giá cào từ Shopee có thể thay đổi. Hiện `price` chỉ là giá tham khảo/affiliate và `sourceUrl` là link mở sang nguồn. Chưa thêm cập nhật giá tự động cho đến khi có tool đáng tin cậy để Admin chạy hằng ngày hoặc bấm cập nhật và kiểm tra được kết quả.
 
 ## 5. Nguyên tắc code đơn giản

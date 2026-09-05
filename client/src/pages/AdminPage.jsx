@@ -71,6 +71,11 @@ function getErrorMessage(error) {
   return error.response?.data?.message || error.message || 'Không thể lưu dữ liệu.';
 }
 
+export function isLocalBrowserHost(hostname = '') {
+  const host = String(hostname).trim().toLowerCase().replace(/^\[|\]$/g, '');
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+}
+
 export default function AdminPage() {
   const {
     products, importShopeeProduct, removeProduct, refreshProducts, addProductImage, downloadProductJson,
@@ -80,6 +85,8 @@ export default function AdminPage() {
   const [notice, setNotice] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingProductId, setUploadingProductId] = useState('');
+  const isLocalBrowser = typeof window !== 'undefined'
+    && isLocalBrowserHost(window.location.hostname);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -150,30 +157,30 @@ export default function AdminPage() {
         <h1>Quản trị sản phẩm</h1>
       </div>
 
-      <div className="admin-layout">
-        <form className="admin-form panel-card admin-enter" onSubmit={submit}>
-          <div className="section-title">
-            <div><span className="step-label">SẢN PHẨM</span><h2>Thêm sản phẩm</h2></div>
-          </div>
+      <div className={`admin-layout${isLocalBrowser ? '' : ' single'}`}>
+        {isLocalBrowser && (
+          <form className="admin-form panel-card admin-enter" onSubmit={submit}>
+            <div className="section-title">
+              <div><span className="step-label">SẢN PHẨM</span><h2>Thêm sản phẩm</h2></div>
+            </div>
 
-          <label>URL Shopee
-            <input
-              type="url"
-              inputMode="url"
-              placeholder="https://shopee.vn/..."
-              value={sourceUrl}
-              onChange={(event) => setSourceUrl(event.target.value)}
-              autoComplete="url"
-              required
-            />
-          </label>
+            <label>URL Shopee
+              <input
+                type="url"
+                inputMode="url"
+                placeholder="https://shopee.vn/..."
+                value={sourceUrl}
+                onChange={(event) => setSourceUrl(event.target.value)}
+                autoComplete="url"
+                required
+              />
+            </label>
 
-          <button className="button" type="submit" disabled={isSaving}>
-            {isSaving ? 'Đang thêm…' : 'Thêm sản phẩm'}
-          </button>
-          {error && <p className="form-error" role="alert">{error}</p>}
-          {notice && <p className="form-success" role="status">{notice}</p>}
-        </form>
+            <button className="button" type="submit" disabled={isSaving}>
+              {isSaving ? 'Đang thêm…' : 'Thêm sản phẩm'}
+            </button>
+          </form>
+        )}
 
         <section className="admin-products panel-card admin-enter">
           <div className="section-title">
@@ -221,6 +228,8 @@ export default function AdminPage() {
               </article>
             ))}
           </div>
+          {error && <p className="form-error" role="alert">{error}</p>}
+          {notice && <p className="form-success" role="status">{notice}</p>}
         </section>
       </div>
     </main>
