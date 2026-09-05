@@ -94,8 +94,12 @@ export default function AdminPage() {
     try {
       const result = await importShopeeProduct(sourceUrl.trim());
       const product = result?.product || result;
+      const needsImage = product?.importStatus === 'needs-image-processing'
+        && !product?.sourceImages?.length;
       setSourceUrl('');
-      setNotice(result?.alreadyExists ? 'Sản phẩm đã có.' : `Đã thêm: ${product?.name || 'sản phẩm'}`);
+      setNotice(result?.alreadyExists
+        ? 'Sản phẩm đã có.'
+        : needsImage ? 'Đã thêm sản phẩm. Hãy thêm ảnh.' : `Đã thêm: ${product?.name || 'sản phẩm'}`);
     } catch (submitError) {
       setError(getErrorMessage(submitError));
     } finally {
@@ -183,10 +187,30 @@ export default function AdminPage() {
           <div className="admin-product-list">
             {products.map((product) => (
               <article key={product._id}>
-                <div className="admin-thumb"><ProductArtwork product={product} /></div>
+                <a
+                  className="admin-thumb"
+                  href={product.sourceUrl || product.shopeeSearchUrl || `https://shopee.vn/search?keyword=${encodeURIComponent(product.name)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Mở trên Shopee"
+                >
+                  <ProductArtwork product={product} />
+                </a>
                 <div>
-                  <strong>{product.name}</strong>
-                  <span>{getCategoryName(product)} · {formatPrice(product.price)}</span>
+                  <a
+                    className="admin-product-link"
+                    href={product.sourceUrl || product.shopeeSearchUrl || `https://shopee.vn/search?keyword=${encodeURIComponent(product.name)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Mở trên Shopee"
+                  >
+                    <strong>{product.name}</strong>
+                  </a>
+                  <span>{getCategoryName(product)} · {(
+                    product.importStatus === 'needs-image-processing' && !product.sourceImages?.length
+                      ? 'Chưa có giá'
+                      : formatPrice(product.price)
+                  )}</span>
                 </div>
                 <div className="row-actions">
                   <label className="text-button">{uploadingProductId === product._id ? 'Đang lưu…' : 'Thêm ảnh'}

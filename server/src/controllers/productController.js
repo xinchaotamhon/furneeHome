@@ -22,6 +22,38 @@ function compactProductListItem(product) {
   return value;
 }
 
+// A normal import must contain real scraped data. The URL-only path is only
+// used when Shopee blocks the request; it stores the URL identity and waits
+// for the administrator to add the product image.
+function validateImportedShopeeMetadata(imported, { allowUrlOnly = false } = {}) {
+  if (
+    !imported
+    || !String(imported.name || '').trim()
+    || !String(imported.shopeeShopId || '').trim()
+    || !String(imported.shopeeItemId || '').trim()
+  ) {
+    throw createError('Shopee chưa trả đủ tên, giá và ảnh sản phẩm. Hãy thử lại sau.', 422);
+  }
+  if (allowUrlOnly) return imported;
+  if (
+    typeof imported.price !== 'number'
+    || !Number.isFinite(imported.price)
+    || imported.price <= 0
+    || !Array.isArray(imported.sourceImages)
+    || imported.sourceImages.length === 0
+  ) {
+    throw createError('Shopee chưa trả đủ tên, giá và ảnh sản phẩm. Hãy thử lại sau.', 422);
+  }
+  return imported;
+}
+
+function buildUrlOnlyShopeeFallback(sourceUrl) {
+  return validateImportedShopeeMetadata(
+    sourceUrlMetadata(sourceUrl),
+    { allowUrlOnly: true },
+  );
+}
+
 async function mirrorProductJson(ProductModel, options = {}) {
   try {
     return await exportProductsToCanonicalJson(ProductModel, options);
@@ -133,11 +165,11 @@ async function metadataFromSourceUrl(req, res, next) {
 
 async function importShopee(req, res, next) {
   try {
-    const imported = await importMetadataFromShopee(req.body?.sourceUrl);
+    const urlIdentity = buildUrlOnlyShopeeFallback(req.body?.sourceUrl);
     const exists = await Product.findOne({
       sourcePlatform: 'shopee',
-      shopeeShopId: imported.shopeeShopId,
-      shopeeItemId: imported.shopeeItemId,
+      shopeeShopId: urlIdentity.shopeeShopId,
+      shopeeItemId: urlIdentity.shopeeItemId,
     });
     if (exists) {
       await exists.populate('category', 'name slug');
@@ -148,14 +180,28 @@ async function importShopee(req, res, next) {
       });
     }
 
+    let imported;
+    let urlOnlyFallback = false;
+    try {
+      imported = validateImportedShopeeMetadata(await importMetadataFromShopee(req.body?.sourceUrl));
+    } catch (scrapeError) {
+      if (![422, 503].includes(scrapeError.status)) throw scrapeError;
+      // Keep the import useful under Shopee anti-bot responses without
+      // pretending that unavailable fields were scraped.
+      imported = urlIdentity;
+      urlOnlyFallback = true;
+    }
+
     const category = await findCategory(imported.category || 'Nội thất');
     const slugSuffix = `-${imported.shopeeItemId}`;
     const productSlug = `${toSlug(imported.name).slice(0, Math.max(1, 100 - slugSuffix.length)).replace(/-+$/g, '')}${slugSuffix}`;
-    const product = await Product.create({
+    const productData = {
       name: imported.name,
       slug: productSlug,
       description: imported.description,
-      price: imported.price,
+      // Product.price is required by the existing schema. Zero here means
+      // "not scraped yet" and is never presented as a real Shopee price.
+      price: urlOnlyFallback ? 0 : imported.price,
       category: category._id,
       categoryName: category.name,
       sellerName: imported.sellerName,
@@ -172,10 +218,38 @@ async function importShopee(req, res, next) {
       // them into Room Studio until a separate image-processing step succeeds.
       importStatus: 'needs-image-processing',
       isActive: true,
-    });
+    };
+    if (urlOnlyFallback) {
+      // Do not write empty or invented scraped fields into the fallback row.
+      delete productData.description;
+      delete productData.sellerName;
+      delete productData.isOfficial;
+      delete productData.rating;
+      delete productData.sourceImages;
+      delete productData.sourceFetchedAt;
+    }
+    let product;
+    try {
+      product = await Product.create(productData);
+    } catch (createProductError) {
+      if (createProductError?.code !== 11000) throw createProductError;
+      const duplicate = await Product.findOne({
+        sourcePlatform: 'shopee',
+        shopeeShopId: imported.shopeeShopId,
+        shopeeItemId: imported.shopeeItemId,
+      });
+      if (!duplicate) throw createProductError;
+      await duplicate.populate('category', 'name slug');
+      return res.json({
+        success: true,
+        message: 'Sản phẩm đã có.',
+        data: { product: duplicate, alreadyExists: true },
+      });
+    }
     const mirror = await mirrorProductJson(Product);
     await product.populate('category', 'name slug');
-    res.status(201).json({ success: true, message: mirror.warning || `Đã thêm: ${product.name}`, data: product });
+    const message = urlOnlyFallback ? 'Đã thêm sản phẩm. Hãy thêm ảnh.' : (mirror.warning || `Đã thêm: ${product.name}`);
+    res.status(201).json({ success: true, message, data: product });
   } catch (error) { next(error); }
 }
 
@@ -216,4 +290,16 @@ async function exportJson(req, res, next) {
   } catch (error) { next(error); }
 }
 
-module.exports = { compactProductListItem, list, create, update, remove, metadataFromSourceUrl, importShopee, addImage, exportJson };
+module.exports = {
+  compactProductListItem,
+  validateImportedShopeeMetadata,
+  buildUrlOnlyShopeeFallback,
+  list,
+  create,
+  update,
+  remove,
+  metadataFromSourceUrl,
+  importShopee,
+  addImage,
+  exportJson,
+};

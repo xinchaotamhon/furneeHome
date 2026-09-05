@@ -17,7 +17,11 @@ const {
 } = require('../server/src/services/anonymousGenerationQuotaService');
 const { isLocalRequest, localOnlyAccountAllowed, requireAdmin } = require('../server/src/middleware/authMiddleware');
 const { buildLoginLookup } = require('../server/src/controllers/authController');
-const { compactProductListItem } = require('../server/src/controllers/productController');
+const {
+  compactProductListItem,
+  validateImportedShopeeMetadata,
+  buildUrlOnlyShopeeFallback,
+} = require('../server/src/controllers/productController');
 const { readProductionMode, readTrustProxy } = require('../server/src/config/env');
 const { importMetadataFromShopee } = require('../server/src/services/shopeeImportService');
 
@@ -196,6 +200,48 @@ test('Shopee import refuses anti-bot pages instead of creating URL-slug or zero-
       fetchImpl: async () => fetchResponse('<html><body>blocked</body></html>', { contentType: 'text/html' }),
     }),
     (error) => error.status === 422 && /chưa trả đủ/.test(error.message),
+  );
+});
+
+test('admin import guard rejects incomplete scraped metadata', () => {
+  assert.throws(
+    () => validateImportedShopeeMetadata({
+      name: 'Bàn gấp', price: 0, sourceImages: [], shopeeShopId: '123', shopeeItemId: '456',
+    }),
+    (error) => error.status === 422 && /chưa trả đủ/.test(error.message),
+  );
+  assert.throws(
+    () => validateImportedShopeeMetadata({
+      name: 'Bàn gấp', price: 0,
+      sourceImages: ['https://down-vn.img.susercontent.com/file/image'],
+      shopeeShopId: '123', shopeeItemId: '456',
+    }),
+    (error) => error.status === 422 && /chưa trả đủ/.test(error.message),
+  );
+  const imported = validateImportedShopeeMetadata({
+    name: 'Bàn gấp', price: 259000, sourceImages: ['https://down-vn.img.susercontent.com/file/image'],
+    shopeeShopId: '123', shopeeItemId: '456', description: '', sellerName: '', rating: null,
+  });
+  assert.equal(imported.name, 'Bàn gấp');
+});
+
+test('URL-only Shopee fallback keeps only URL identity and never invents product fields', () => {
+  const fallback = buildUrlOnlyShopeeFallback('https://shopee.vn/ban-gap-thap-i.691586816.58014018417?tracking=1');
+  assert.deepEqual(fallback, {
+    sourceUrl: 'https://shopee.vn/ban-gap-thap-i.691586816.58014018417',
+    name: 'ban gap thap',
+    shopeeShopId: '691586816',
+    shopeeItemId: '58014018417',
+    metadataSource: 'url-slug',
+  });
+  assert.equal(Object.hasOwn(fallback, 'price'), false);
+  assert.equal(Object.hasOwn(fallback, 'description'), false);
+  assert.equal(Object.hasOwn(fallback, 'sellerName'), false);
+  assert.equal(Object.hasOwn(fallback, 'rating'), false);
+  assert.equal(Object.hasOwn(fallback, 'sourceImages'), false);
+  assert.throws(
+    () => buildUrlOnlyShopeeFallback('https://shopee.vn/ban-gap-thap'),
+    (error) => error.status === 422,
   );
 });
 

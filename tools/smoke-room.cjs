@@ -2,6 +2,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const fs = require('node:fs');
 
 const envPath = require.resolve('../server/src/config/env');
 const config = {
@@ -44,6 +45,36 @@ test('Bàn ngồi bệt giữ công năng, số đo thật và mô tả có cấ
     sceneProducts: [{ name: 'Bàn thấp', usageType: 'floor-seating', placementSurface: 'floor', dimensionsCm: { width: 60, depth: 40, height: 28 }, aiDescription: 'chân ngắn màu trắng', target: { x: .5, y: .75 } }],
   });
   assert.equal(response.status, 200);
+});
+
+test('Prompt giữ nguyên khung đỡ của bàn và không tự suy ra gắn tường từ vị trí', async (t) => {
+  let prompt = '';
+  mockFetch(t, async (url, options) => {
+    prompt = options.body.get('prompt');
+    return success();
+  });
+  const response = await callController(controller.create, {
+    ...placement,
+    productName: 'Interior scene: bàn gấp',
+    sceneProducts: [{
+      name: 'Bàn gấp chân kim loại', placementSurface: 'floor',
+      aiDescription: 'Hai khung chân kim loại tam giác, không thêm hoặc bẻ cong khung đỡ.',
+      target: { x: .2, y: .52 },
+    }],
+  });
+  assert.equal(response.status, 200);
+  assert.match(prompt, /Do not infer wall mounting only from a product being on the left, center or right side/i);
+  assert.match(prompt, /preserve the number, position and geometry of legs, brackets, hinges, frames and mounting points/i);
+  assert.match(prompt, /do not add, remove, merge, bend or duplicate supports/i);
+});
+
+test('Bản hướng dẫn giữ đúng tọa độ người dùng đặt, không tự đẩy món theo đường sàn đoán', () => {
+  const roomPage = fs.readFileSync(path.join(__dirname, '../client/src/pages/RoomStudioPage.jsx'), 'utf8');
+  const canvas = fs.readFileSync(path.join(__dirname, '../client/src/utils/roomPreviewCanvas.js'), 'utf8');
+  assert.doesNotMatch(roomPage, /getGroundedFloorAnchorY/);
+  assert.doesNotMatch(canvas, /getGroundedFloorAnchorY/);
+  assert.match(roomPage, /target: \{ x: item\.target\.x \/ 100, y: item\.target\.y \/ 100 \}/);
+  assert.match(canvas, /const anchorY = roomSize\.height \* \(target\.y \/ 100\);/);
 });
 
 test('Không tự bịa số đo; dữ liệu mô tả/vị trí sai bị chặn trước provider', async (t) => {
