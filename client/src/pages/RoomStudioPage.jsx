@@ -215,14 +215,14 @@ function inspirationProductSnapshot(product) {
     sourceUrl: product?.sourceUrl || product?.shopeeSearchUrl || '',
   };
 }
-function createPlacement(product, target, zIndex) {
+function createPlacement(product, target, zIndex, scale = 1) {
   return {
     id: `placement-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     productId: product._id || product.id,
     productName: product.name,
     product: productSnapshot(product),
     target,
-    scale: 1,
+    scale,
     rotation: 0,
     isFlipped: false,
     zIndex,
@@ -297,31 +297,6 @@ function resizeImageForAi(source, maxEdge = 1280, quality = 0.9) {
   });
 }
 
-function ProductFactsFields({ facts, onChange }) {
-  return <div className="studio-facts">
-    <label>Cách sử dụng
-      <select value={facts.usageType || 'unknown'} onChange={(event) => onChange({ ...facts, usageType: event.target.value })}>
-        <option value="unknown">Chưa xác định — giữ đúng ảnh mẫu</option>
-        <option value="floor-seating">Đồ thấp, dùng khi ngồi bệt</option>
-        <option value="standard">Đồ cao/thông thường</option>
-      </select>
-    </label>
-    <details>
-      <summary>Kích thước & đặc điểm cần giữ</summary>
-      <p>Chỉ nhập số đo thật từ người bán; không biết thì để trống. Ảnh AI không thay thế việc đo phòng.</p>
-      <div className="studio-dimensions">
-        {[['width', 'Rộng'], ['depth', 'Sâu'], ['height', 'Cao']].map(([key, label]) =>
-          <label key={key}>{label} (cm)<input type="number" min="1" max="1000" step="0.1" value={facts.dimensionsCm?.[key] || ''}
-            onChange={(event) => onChange({ ...facts, dimensionsCm: { ...facts.dimensionsCm, [key]: event.target.value ? Number(event.target.value) : undefined } })} /></label>)}
-      </div>
-      <label>Đặt ở đâu?<select value={facts.placementSurface || 'unknown'} onChange={(event) => onChange({ ...facts, placementSurface: event.target.value })}>
-        <option value="unknown">Theo ảnh mẫu</option><option value="floor">Trên sàn</option><option value="wall">Treo tường</option><option value="tabletop">Trên mặt bàn/kệ</option>
-      </select></label>
-      <label>Đặc điểm không được đổi<textarea maxLength="300" value={facts.aiDescription || ''} placeholder="Ví dụ: bàn chân ngắn, ngồi bệt; không thêm ghế cao" onChange={(event) => onChange({ ...facts, aiDescription: event.target.value })} /></label>
-    </details>
-  </div>;
-}
-
 function DesignBriefFields({ value, onChange }) {
   const presets = [
     ['Góc học ngồi bệt', { purpose: 'Học tập, ngồi bệt với bàn thấp', style: 'Gỗ sáng, gọn gàng', keepClear: 'Cửa ra vào, lối đi và cửa nhà vệ sinh', avoid: 'Bàn cao, ghế cao; đồ chắn lối đi' }],
@@ -357,7 +332,7 @@ export default function RoomStudioPage() {
   // Chỉ thao tác chọn hiện tại mới cho phép đặt món; không tự chọn món đầu tiên.
   const [selectedId, setSelectedId] = useState(() => location.state?.product?._id || location.state?.product?.id || '');
   const [unavailableProductIds, setUnavailableProductIds] = useState(() => new Set());
-  const [selectedFacts, setSelectedFacts] = useState(() => (location.state?.product ? productSnapshot(location.state.product) : {}));
+  const [selectedScale, setSelectedScale] = useState(1);
   const [needsAccount, setNeedsAccount] = useState(false);
   const [placements, setPlacements] = useState(() =>
     migrateLegacyPlacement(savedInitial),
@@ -411,6 +386,7 @@ export default function RoomStudioPage() {
   const stageViewportRef = useRef(null);
   const stageRef = useRef(null);
   const dragRef = useRef(null);
+  const productDragRef = useRef(null);
   const placementsRef = useRef(placements);
   const requestSequenceRef = useRef(0);
   const generationRef = useRef(false);
@@ -515,11 +491,10 @@ export default function RoomStudioPage() {
   }), [inspirationProducts, products]);
   const chooseProduct = (product) => {
     setSelectedId(product._id || product.id);
-    const facts = { ...productSnapshot(product), ...inferProductFacts(product) };
-    setSelectedFacts(facts);
+    setSelectedScale(1);
     setIsMarkingMode(false);
     setShowResult(false);
-    setMessage(`Đã chọn ${product.name}. Kiểm tra công năng, rồi bấm vị trí trong ảnh để tạo.`);
+    setMessage(`Đã chọn ${product.name}. Chỉnh tỷ lệ rồi kéo thẻ sản phẩm vào ảnh phòng.`);
   };
   const markProductUnavailable = (product) => {
     const id = product._id || product.id;
@@ -807,7 +782,11 @@ export default function RoomStudioPage() {
     }
   };
 
-  const addPlacement = (target, product = selectedProduct && { ...selectedProduct, ...selectedFacts }) => {
+  const addPlacement = (
+    target,
+    product = selectedProduct && { ...selectedProduct, ...inferProductFacts(selectedProduct) },
+    scale = selectedScale,
+  ) => {
     if (!roomImage || !target) {
       setMessage("Hãy tải ảnh phòng trước khi đặt sản phẩm.");
       return;
@@ -823,6 +802,7 @@ export default function RoomStudioPage() {
       product,
       target,
       Math.max(0, ...placementsRef.current.map((item) => item.zIndex || 0)) + 1,
+      scale,
     );
     const next = [...placementsRef.current, placement];
     setResultMatchesLayout(false);
@@ -831,6 +811,7 @@ export default function RoomStudioPage() {
     setSelectedPlacementId(placement.id);
     setIsMarkingMode(false);
     setSelectedId('');
+    setSelectedScale(1);
     void renderScene(next, placement.id);
   };
   const removePlacement = (id) => {
@@ -875,11 +856,65 @@ export default function RoomStudioPage() {
       } else setMessage(`Đã chấm điểm ${index + 1}/4 trên vùng sàn.`);
       return;
     }
-    if (!selectedProduct || activeTab !== 'products') {
-      setMessage('Chọn một sản phẩm trong tab Sản phẩm trước, rồi bấm vị trí muốn đặt.');
+    setMessage(
+      selectedProduct && activeTab === 'products'
+        ? 'Kéo thẻ sản phẩm đã chọn vào vị trí muốn đặt.'
+        : 'Chọn một sản phẩm trong tab Sản phẩm, rồi kéo thẻ đó vào ảnh phòng.',
+    );
+  };
+  const handleProductDragStart = (event) => {
+    if (!selectedProduct || activeResult || generationRef.current) return;
+    productDragRef.current = {
+      product: { ...selectedProduct, ...inferProductFacts(selectedProduct) },
+      scale: selectedScale,
+    };
+    event.dataTransfer.effectAllowed = 'copy';
+    event.dataTransfer.setData('text/plain', selectedProduct._id || selectedProduct.id);
+  };
+  const handleProductDragEnd = () => {
+    productDragRef.current = null;
+  };
+  const handleProductPointerDown = (event) => {
+    if (event.pointerType === 'mouse' || !selectedProduct || activeResult || generationRef.current) return;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    productDragRef.current = {
+      product: { ...selectedProduct, ...inferProductFacts(selectedProduct) },
+      scale: selectedScale,
+      pointerId: event.pointerId,
+    };
+    setMessage('Thả sản phẩm vào ảnh phòng để đặt.');
+  };
+  const handleProductPointerEnd = (event) => {
+    const draggedProduct = productDragRef.current;
+    if (draggedProduct?.pointerId !== event.pointerId) return;
+    productDragRef.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    if (event.type === 'pointercancel') return;
+    const rect = stageRef.current?.getBoundingClientRect();
+    const isInsideRoom = rect
+      && event.clientX >= rect.left
+      && event.clientX <= rect.right
+      && event.clientY >= rect.top
+      && event.clientY <= rect.bottom;
+    if (!isInsideRoom) {
+      setMessage('Kéo thẻ vào trong ảnh phòng rồi thả để đặt.');
       return;
     }
-    addPlacement(target);
+    const target = getTarget(event);
+    if (target) addPlacement(target, draggedProduct.product, draggedProduct.scale);
+  };
+  const handleStageDragOver = (event) => {
+    if (!productDragRef.current || activeResult || generationRef.current) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  };
+  const handleStageDrop = (event) => {
+    const draggedProduct = productDragRef.current;
+    if (!draggedProduct || activeResult || generationRef.current) return;
+    event.preventDefault();
+    productDragRef.current = null;
+    const target = getTarget(event);
+    if (target) addPlacement(target, draggedProduct.product, draggedProduct.scale);
   };
   const handlePlacementPointerDown = (event, placement) => {
     if (activeResult || generationRef.current) return;
@@ -895,9 +930,13 @@ export default function RoomStudioPage() {
     dragRef.current.moved = true;
     updatePlacement(dragRef.current.id, { target });
   };
-  const handleStagePointerUp = () => {
+  const handleStagePointerUp = (event) => {
     const drag = dragRef.current;
     if (!drag) return;
+    if (event.type === 'pointercancel') {
+      dragRef.current = null;
+      return;
+    }
     if (drag.moved) {
       const next = placementsRef.current;
       stopResultView("Đang tạo lại ảnh AI cho vị trí mới.");
@@ -926,7 +965,6 @@ export default function RoomStudioPage() {
       setIsGenerating(false);
       setRoomImage(optimizedImage);
       setSelectedId('');
-      setSelectedFacts({});
       setNeedsAccount(false);
       setRoomRequest('');
       setDesignBrief({ purpose: '', style: '', keepClear: '', avoid: '' });
@@ -1170,6 +1208,8 @@ export default function RoomStudioPage() {
                 style={mediaStyle}
                 ref={stageRef}
                 onClick={handleStageClick}
+                onDragOver={handleStageDragOver}
+                onDrop={handleStageDrop}
                 onPointerMove={handleStagePointerMove}
                 onPointerUp={handleStagePointerUp}
                 onPointerCancel={handleStagePointerUp}
@@ -1326,7 +1366,7 @@ export default function RoomStudioPage() {
                   <div className="studio-stage-tip">
                     {isMarkingMode
                       ? `${markedCorners.length}/4 · bấm trong vùng sàn`
-                      : selectedProduct ? 'Đã chọn món · bấm vị trí để đặt và tạo ảnh' : 'Chọn sản phẩm trước · không tự đặt khi bấm ảnh'}
+                      : selectedProduct ? 'Kéo thẻ sản phẩm vào ảnh để đặt' : 'Chọn sản phẩm rồi kéo thẻ vào ảnh'}
                   </div>
                 )}
               </div>
@@ -1397,7 +1437,7 @@ export default function RoomStudioPage() {
               <section className="studio-tab-panel studio-products-tab">
                 <div className="studio-panel-heading">
                   <div>
-                    <p className="studio-kicker">1. CHỌN MÓN → 2. BẤM VỊ TRÍ</p>
+                    <p className="studio-kicker">1. CHỌN MÓN → 2. KÉO VÀO ẢNH</p>
                     <h1>{selectedProduct ? 'Kiểm tra món đã chọn' : 'Bạn muốn thử món nào?'}</h1>
                   </div>
                   <small>
@@ -1405,10 +1445,24 @@ export default function RoomStudioPage() {
                   </small>
                 </div>
                 {selectedProduct ? <div className="studio-selected-product">
-                  <div className="studio-selected-summary"><ProductArtwork product={selectedProduct} onImageError={() => markProductUnavailable(selectedProduct)} /><strong>{selectedProduct.name}</strong></div>
-                  <ProductFactsFields facts={selectedFacts} onChange={setSelectedFacts} />
-                  <p>Bấm trong ảnh phòng để đặt món và tạo ảnh. Muốn thử nhiều món, chọn tiếp từng món sau đó.</p>
-                  <button type="button" className="button button-small button-secondary" onClick={() => { setSelectedId(''); setMessage('Đã bỏ chọn. Bấm ảnh sẽ không thêm món.'); }}>Chọn món khác / hủy chọn</button>
+                  <div
+                    className="studio-selected-summary studio-drag-product"
+                    draggable={!isGenerating}
+                    onDragStart={handleProductDragStart}
+                    onDragEnd={handleProductDragEnd}
+                    onPointerDown={handleProductPointerDown}
+                    onPointerUp={handleProductPointerEnd}
+                    onPointerCancel={handleProductPointerEnd}
+                    title="Kéo vào ảnh phòng để đặt"
+                  ><ProductArtwork product={selectedProduct} onImageError={() => markProductUnavailable(selectedProduct)} /><strong>{selectedProduct.name}</strong></div>
+                  <div className="studio-control-row">
+                    <span>Kích thước trong phòng</span>
+                    <button type="button" onClick={() => setSelectedScale((current) => Number(clamp(current - 0.1, 0.4, 1.8).toFixed(1)))}>−</button>
+                    <b>{Math.round(selectedScale * 100)}%</b>
+                    <button type="button" onClick={() => setSelectedScale((current) => Number(clamp(current + 0.1, 0.4, 1.8).toFixed(1)))}>+</button>
+                  </div>
+                  <p>Kéo thẻ sản phẩm này vào ảnh phòng để đặt. Muốn thử nhiều món, chọn tiếp từng món sau đó.</p>
+                  <button type="button" className="button button-small button-secondary" onClick={() => { setSelectedId(''); setSelectedScale(1); setMessage('Đã bỏ chọn. Ảnh phòng sẽ không tự thêm món khi bấm.'); }}>Chọn món khác / hủy chọn</button>
                 </div> : <>
                 <div className="studio-product-filters">
                   <input
@@ -1578,43 +1632,6 @@ export default function RoomStudioPage() {
                     {activePlacement ? (
                       <div className="studio-placement-tools">
                         <strong>{activePlacement.productName}</strong>
-                        <ProductFactsFields facts={activePlacement.product || activePlacement.productFacts || {}} onChange={(facts) => updatePlacement(activePlacement.id, { product: { ...activePlacement.product, ...facts } })} />
-                        <div className="studio-control-row">
-                          <span>Kích thước</span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updatePlacement(activePlacement.id, {
-                                scale: Number(
-                                  clamp(
-                                    activePlacement.scale - 0.1,
-                                    0.4,
-                                    1.8,
-                                  ).toFixed(1),
-                                ),
-                              })
-                            }
-                          >
-                            −
-                          </button>
-                          <b>{Math.round(activePlacement.scale * 100)}%</b>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updatePlacement(activePlacement.id, {
-                                scale: Number(
-                                  clamp(
-                                    activePlacement.scale + 0.1,
-                                    0.4,
-                                    1.8,
-                                  ).toFixed(1),
-                                ),
-                              })
-                            }
-                          >
-                            +
-                          </button>
-                        </div>
                         <div className="studio-control-row">
                           <span>Xoay</span>
                           <button

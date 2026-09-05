@@ -1,5 +1,34 @@
 [
   {
+    "_id": "6a9c303144f31fe6eb93aeab",
+    "name": "Bộ 3 Tranh Canvas Hiện Đại Trang Trí Cầu Thang Nhà Cửa Phòng Khách",
+    "slug": "bo-3-tranh-canvas-hien-dai-trang-tri-cau-thang-nha-cua-phong-khach-41668122135",
+    "category": "Nội thất",
+    "categoryName": "Nội thất",
+    "price": 0,
+    "stock": 0,
+    "image": "",
+    "images": [],
+    "transparentImage": "",
+    "sourceUrl": "https://shopee.vn/B%E1%BB%99-3-Tranh-Canvas-Hi%E1%BB%87n-%C4%90%E1%BA%A1i-Trang-Tr%C3%AD-C%E1%BA%A7u-Thang-Nh%C3%A0-C%E1%BB%ADa-Ph%C3%B2ng-Kh%C3%A1ch-i.1626524458.41668122135",
+    "shopeeSearchUrl": "https://shopee.vn/B%E1%BB%99-3-Tranh-Canvas-Hi%E1%BB%87n-%C4%90%E1%BA%A1i-Trang-Tr%C3%AD-C%E1%BA%A7u-Thang-Nh%C3%A0-C%E1%BB%ADa-Ph%C3%B2ng-Kh%C3%A1ch-i.1626524458.41668122135",
+    "sourcePlatform": "shopee",
+    "shopeeShopId": "1626524458",
+    "shopeeItemId": "41668122135",
+    "sourceImages": [],
+    "importStatus": "needs-image-processing",
+    "sellerName": "",
+    "isOfficial": false,
+    "rating": 0,
+    "description": "",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": [],
+    "isActive": true
+  },
+  {
     "_id": "6a9956db5870b02eb8f5a70a",
     "name": "Đèn LED Kẹp Bàn Kim Loại 3 Chế Độ Màu Đèn Bàn Học Chống Cận Xoay Gập Dễ Dàng USB Cánh Tay Dài",
     "slug": "den-led-kep-ban-kim-loai-3-che-do-mau-den-ban-hoc-chong-can-xoay-gap-de-dang-1326728118-29671358277",
@@ -15,7 +44,20 @@
     "rating": 5,
     "description": "Đèn LED Kẹp Bàn Kim Loại 3 Chế Độ Màu Đèn Bàn Học Chống Cận Xoay Gập Dễ Dàng USB Cánh Tay Dài",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/29671358277.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a99562cbf06cef130e9ea90",
@@ -33,7 +75,20 @@
     "rating": 5,
     "description": "Đèn cây đứng trang trí decor phòng ngủ khách làm việc phong cách châu âu sang trọng hiện đại đèn trang trí nhà cửa xinh",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/29209060775.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a9955b4100c2dfc252919bc",
@@ -51,7 +106,20 @@
     "rating": 5,
     "description": "Thảm trải sàn phòng ngủ kiểu mới năm 2026 thảm phòng khách thảm lót bàn sofa thảm dài chống mài mòn chống trượt",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/55111414184.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a9954bc678ad5692e05154c",
@@ -69,7 +137,20 @@
     "rating": 5,
     "description": "Gương Toàn Thân Khung Viền Gỗ Kiểu Dáng Bo Góc Và Vuông Góc Trang Trí Treo Tường Hoặc Để Sàn Hàng Cao Cấp",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/21925877282.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a99543a1fb426d8a63ee2eb",
@@ -87,7 +168,20 @@
     "rating": 5,
     "description": "CONOCO Giường gấp gọn gỗ tự nhiên 100 không cần lắp đặt giường đơn cao cấp chắc chắn",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/44758080727.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a9952ffd87d9af345eafec9",
@@ -105,7 +199,20 @@
     "rating": 5,
     "description": "Bàn Camping Hợp Kim Carbon Phủ Sơn Tĩnh Điện Kết Cấu Gấp Dùng Cho Picnic Và Du Lịch Ngoài Trời",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/42632399037.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a99522c633750762fef22d6",
@@ -123,7 +230,20 @@
     "rating": 5,
     "description": "Ghế hộp đa năng 2 trong 1 vừa ngồi vừa chứa đồ tiện lợi",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/19284280027.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a99517342f388b4a11a9200",
@@ -141,7 +261,20 @@
     "rating": 5,
     "description": "Bàn trang điểm mini ngồi bệt gương gập ngăn kéo đồ thông minh thương hiệu IGA Gp143",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/7431980699.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a9950700b984932f0736af3",
@@ -159,7 +292,20 @@
     "rating": 5,
     "description": "tủ đầu giường óc chó 2 ngăn kéo có ngăn bí mật ngăn giấu tiền",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/28826405498.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a994ff2c86a0e0f3fe7c24c",
@@ -177,7 +323,20 @@
     "rating": 5,
     "description": "❤️SẢN PHẨM LẮP SẴN❤️ TỦ GIÀY THÔNG MINH SMHOME GD01",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/1667840988.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a994eac5075a0baa3a6b903",
@@ -195,7 +354,20 @@
     "rating": 5,
     "description": "Chậu Cây Giả Decor Phòng Khách Cây Xanh Trang Trí Trong Nhà",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/27084579133.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a915782d70c7e0e515e7abf",
@@ -213,7 +385,20 @@
     "rating": 5,
     "description": "BRTHORY Ghế văn phòng Ghế máy tính có tay tựa Ghế tiện dụng chơi game lưng cao Nâng xoay có thể điều chỉnh tại nhà Văn phòng Tiết kiệm không gian học",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/26137523086.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a915782d70c7e0e515e7abe",
@@ -231,7 +416,20 @@
     "rating": 5,
     "description": "Ghế văn phòng AetheraHome thiết kế ghế lưới cao cấp xoay 360 độ ghế thích hợp học tập và làm việc",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/55713400615.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a915781d70c7e0e515e7abd",
@@ -249,7 +447,20 @@
     "rating": 5,
     "description": "Ghế công thái học NOVA có tựa đầu xoay nâng hạ đệm mút cao cấp lưng rộng chân thép chắc chắn",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/53714915626.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a915781d70c7e0e515e7abc",
@@ -267,7 +478,20 @@
     "rating": 5,
     "description": "Ghế văn phòng công thái học NOVA ghế lưới cao cấp đệm dày êm ái xoay 360° chân chắc chắn",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/51614911654.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a915781d70c7e0e515e7abb",
@@ -285,7 +509,20 @@
     "rating": 5,
     "description": "SALE SỐC Bàn làm việc chữ U K Z VX07 bàn văn phòng chân sắt sơn tĩnh điện thiết kế chắc chắn Nội Thất Bàn Ghế.",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/27173869776.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a915781d70c7e0e515e7aba",
@@ -303,7 +540,20 @@
     "rating": 5,
     "description": "Bàn Làm Việc Bàn Gaming Khung chân chữ U K Z nhiều phiên bản mặt gỗ MDF chân sắt sơn tĩnh điện",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/54950710347.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a915781d70c7e0e515e7ab9",
@@ -321,7 +571,20 @@
     "rating": 5,
     "description": "Bàn gaming ngồi bệt chân sắt chữ K U Y Z gấp gọn đa năng bàn học tập làm việc BBG K",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/19644951874.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a89511b182750bcc75f8665",
@@ -339,7 +602,20 @@
     "rating": 5,
     "description": "Bàn Gấp Vân Gỗ Cao Cấp Dài 60cm Rộng 40cm – Bàn Học Bàn Làm Việc Gấp Gọn – Chân Bóp",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/15566712421.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a89511b182750bcc75f8664",
@@ -357,7 +633,20 @@
     "rating": 5,
     "description": "Bàn học gấp gọn để giường 60x40cm bàn laptop mini chân thép chống trượt bàn làm việc sinh viên văn phòng",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/41952168413.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a89511b182750bcc75f8663",
@@ -375,7 +664,20 @@
     "rating": 5,
     "description": "Bàn Làm Việc Học Tập Gấp Gọn 5 Mức Điều Chỉnh Khay Đựng Ly Thiết Kế Đa Năng Cho Laptop sáchvo",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/49414447284.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a89511b182750bcc75f8662",
@@ -393,7 +695,20 @@
     "rating": 5,
     "description": "Bàn gấp chân cao 73cm siêu bền tiết kiệm không gian Gỗ MDF phủ melamine chân sơn tĩnh điện nhiều màu sắc và kích thước",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/16487457547.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a89511b182750bcc75f8661",
@@ -411,7 +726,20 @@
     "rating": 5,
     "description": "Bàn làm việc chân xếp gấp gọn khung sắt dày liên kết chắc chắn mặt bàn mdf phủ melamin",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/25358769682.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a89511b182750bcc75f8660",
@@ -429,7 +757,20 @@
     "rating": 5,
     "description": "Bàn làm việc chân xếp gấp gọn Ngồi bệt khung sắt dày liên kết chắc chắn mặt bàn mdf phủ melamin chống xước 100",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/24285327019.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a89511b182750bcc75f865f",
@@ -447,7 +788,20 @@
     "rating": 5,
     "description": "Bàn gấp Bàn máy tính để trên giường Bàn học để ký túc xá sinh viên đa năng phong cách hiện đại tiện dụng",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/17895577868.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a89511a182750bcc75f865e",
@@ -465,7 +819,20 @@
     "rating": 5,
     "description": "Bàn Học Gấp Gọn Mini PTLUXURY Ngồi Bệt Đa Năng Tiện Lợi HÀNG TỐT",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/53761424161.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a89511a182750bcc75f865d",
@@ -483,7 +850,20 @@
     "rating": 5,
     "description": "FURNI HOME Bàn học gấp gọn ngồi bệt bàn học làm việc tiện ích chân nhựa cứng 40x60cm GP148",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/53912347710.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87eee9e6bc754fbb5bd1d6",
@@ -501,7 +881,20 @@
     "rating": 5,
     "description": "Tủ nhựa đa năng nhiều tầng có bánh xe di chuyển dễ dàng",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/48101948699.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87ee8ce6bc754fbb5bd1c0",
@@ -519,7 +912,20 @@
     "rating": 5,
     "description": "HÀNG VN XUẤT ÚC Kệ treo tủ quần áo 3 tầng tiện gọn dễ tìm chất vải oxford 300d",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/6071441890.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87ee04e6bc754fbb5bd1a4",
@@ -537,7 +943,20 @@
     "rating": 5,
     "description": "Tủ HOMI 3–4–5 ngăn MATSU – Nhựa PP cao cấp – Thiết kế tối giản phù hợp mọi không gian",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/54552573437.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87ed31e6bc754fbb5bd18e",
@@ -555,7 +974,20 @@
     "rating": 5,
     "description": "Vỏ( áo chụp ngoài) tủ vải quần áo kt 160cmx120cmx42cm loại 3 buồng 8 ngăn( Vải không dệt)",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/7705851301.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87ecf0e6bc754fbb5bd186",
@@ -573,7 +1005,20 @@
     "rating": 5,
     "description": "Tủ vải đa năng nhiều ngăn chứa thiết kế gọn đẹp phù hợp căn hộ nhỏ phòng trọ",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/49962623668.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87ebe6e6bc754fbb5bd150",
@@ -591,7 +1036,20 @@
     "rating": 5,
     "description": "𝐅𝐔𝐑𝐍𝐈𝐒𝐇 𝐅𝐈𝐄𝐒𝐓𝐀 Tủ Vải Đựng Quần Áo Tủ Vải Khung Thép Titan Tủ Đựng Quần Áo Lắp Ráp Đa Năng Tủ Quần Áo Tiện Lợi",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/26841582509.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87eb60e6bc754fbb5bd135",
@@ -609,7 +1067,20 @@
     "rating": 5,
     "description": "SPACEMADER Tủ Đựng Quần Aó Đa Năng Khung Tủ quần áo Tủ Vải Thép Chịu Lực Tốt Chống Bụi Thiết Kế Hiện Đại",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/41727212305.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87eab9e6bc754fbb5bd11e",
@@ -627,7 +1098,20 @@
     "rating": 5,
     "description": "SPACEMADER Tủ Quần Áo Tủ Vải đựng quần áo Khung Thép 3D Nhỏ Gọn 3 Buồng Tủ Đựng Quần Aó Đa Năng Khung",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/28143798429.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87ea4ee6bc754fbb5bd10c",
@@ -645,7 +1129,20 @@
     "rating": 5,
     "description": "Tủ Quần Áo Vải Khung Thép Chắc Chắn Cỡ Lớn 5 6 Buồng Dễ Lắp Đặt",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/42653335713.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87e9f8e6bc754fbb5bd100",
@@ -663,7 +1160,20 @@
     "rating": 5,
     "description": "𝐌𝐚𝐫𝐬 Tủ Quần Áo Lắp Ghép Tủ Vải Chống Bụi Tủ Vải Quần Áo Inox Tủ Quần Áo Ổn Định Và Bền Bỉ",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/28381692568.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87e953e6bc754fbb5bd0e7",
@@ -681,7 +1191,20 @@
     "rating": 5,
     "description": "Kho sào kệ cho shop Giá kê treo quần áo 2 tầng xào 3 tầng kệ. Khung xào sắt treo quần áo sơn tĩnh điện VNS 024",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/22527725326.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87e878e6bc754fbb5bd0a8",
@@ -699,7 +1222,20 @@
     "rating": 5,
     "description": "Giá treo đồ nhà bếp 2 3 tầng gắn cửa giá đựng đồ nhà bếp chắc chắn với 3 giỏ và 4 móc giỏ lưới kim loại gắn phía sau cửa thích hợp cho nhà bếp phòng tắm văn phòng.",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/40157342856.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87e7dde6bc754fbb5bd091",
@@ -717,7 +1253,20 @@
     "rating": 5,
     "description": "Giá Treo Quần Áo Kệ Treo Quần Áo Kim Loại Đơn Giản Chắc Chắn Tiện Lợi 2 Giàn Phơi 2 Tầng",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/28133508963.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87e750e6bc754fbb5bd07e",
@@ -735,7 +1284,20 @@
     "rating": 5,
     "description": "Vòm Decor – Kệ Treo Quần Áo Chữ A Gỗ Thông Mỹ Cao Cấp Có Tầng Để Túi Giày Decor Shop – Mã AT12 1",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/20915993479.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87e6e8e6bc754fbb5bd06d",
@@ -753,7 +1315,20 @@
     "rating": 5,
     "description": "Kệ treo quần áo hình chữ A nhỏ gọn tiết kiêm không gian chất liệu kim loại",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/5064994184.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87e620e6bc754fbb5bd045",
@@ -771,7 +1346,20 @@
     "rating": 5,
     "description": "Giàn Phơi Quần Áo Chữ A Chất Liệu Inox Không Gỉ Thiết Kế Hiện Đại Mang Kiểu Dáng Hàn Quốc",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/23882337125.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87e5cbe6bc754fbb5bd034",
@@ -789,7 +1377,20 @@
     "rating": 5,
     "description": "GIÁ TREO QUẦN ÁO CHỮ A Gía chữ A đẹp sang trọng tinh tế tiện lợi hai loại có bánh xe và không bánh xe",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/4009122432.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87e54ae6bc754fbb5bd014",
@@ -807,7 +1408,20 @@
     "rating": 5,
     "description": "Kệ Treo Quần Áo Kết Hợp Để Giày Kệ Chữ V Kệ Chữ A Giá Treo Đồ Góc Tường Thiết Kế Thông Minh Bền Bỉ Lớp Sơn Tĩnh Điện",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/23172018448.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87e4b4e6bc754fbb5bcffa",
@@ -825,7 +1439,20 @@
     "rating": 5,
     "description": "Kệ treo quần áo đa năng nhiều tầng 8821 8822 móc treo quần áo kèm hộp đựng tiện ích 2 màu trắng đen Sh Gốm sứ",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/25567772515.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87e45ce6bc754fbb5bcfeb",
@@ -843,7 +1470,20 @@
     "rating": 5,
     "description": "Giá Treo Quần Áo Gỗ Thông Chữ A 2 Tầng 85x35x140CM Treo Được Đồ Dài HOÀN TIỀN 100",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/6841998004.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87db9be6bc754fbb5bce19",
@@ -861,7 +1501,20 @@
     "rating": 5,
     "description": "KỆ SÁCH ĐỂ BÀN FUUFUTECH SEBO – NHỎ GỌN TIỆN ÍCH TĂNG GẤP ĐÔI KHÔNG GIAN",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/43872636502.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87db1fe6bc754fbb5bcdeb",
@@ -879,7 +1532,20 @@
     "rating": 5,
     "description": "Kệ sách mini xương rồng kệ sách để bàn đa năng kích thước 40cm x 17cm x 40cm",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/20481035634.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87dad2e6bc754fbb5bcdcc",
@@ -897,7 +1563,20 @@
     "rating": 5,
     "description": "Kệ lưu trữ 2 3 tầng Giá lưu trữ để bàn Kệ đa năng Giá để đồ phân tầng Kệ để mỹ phẩm",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/42731730338.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87da4ce6bc754fbb5bcd9c",
@@ -915,7 +1594,20 @@
     "rating": 5,
     "description": "Kệ Để Bàn Tiện Lợi A2L DS 02 Kệ Trang Trí Bàn Làm Việc Phòng Học Kệ Đựng Sách Gỗ Nhỏ Gọn",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/28255005274.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87d9e5e6bc754fbb5bcd89",
@@ -933,7 +1625,20 @@
     "rating": 5,
     "description": "Kệ để bàn Nhiều tầng lưu trữ Kệ sách mini Cho bàn học làm việc Sắp xếp gọn gàng 𝙃𝙊𝙁",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/45453346170.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87d967e6bc754fbb5bcd50",
@@ -951,7 +1656,20 @@
     "rating": 5,
     "description": "Kệ Sách Gỗ Mini Để Bàn FIVO FB27 Đa Năng Dễ Lắp Ráp Tiết Kiệm Không Gian Gọn Gàng Góc Học Tập Và Làm Việc",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/28153980758.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87d6bbe6bc754fbb5bcc4e",
@@ -969,7 +1687,20 @@
     "rating": 5,
     "description": "Kệ Nhựa Hai Tầng Sắp Xếp Gọn Gàng Để Bàn 2 Tầng Kệ Nhựa Mini để bàn Giá sách và kệ để phụ kiện",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/56157327451.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87d64de6bc754fbb5bcc24",
@@ -987,7 +1718,20 @@
     "rating": 5,
     "description": "Kệ Sách Micofi Đựng Sách Để Bàn Giá Sách Kệ Để Bàn Làm Việc Hộp Đựng Bút Để Bàn Đa Năng Mini Có Thể Điều Chỉnh",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/52153995513.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87d5bae6bc754fbb5bcbfa",
@@ -1005,7 +1749,20 @@
     "rating": 5,
     "description": "Kệ sách basic 4 ngăn Giá đựng sách vở giấy ... màu sắc đơn giản nhỏ gọn",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/43151209066.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87d4f4e6bc754fbb5bcbc3",
@@ -1023,7 +1780,20 @@
     "rating": 5,
     "description": "Kệ để bàn kệ sách nhỏ giá đựng cốc nước mặt bàn ăn nhiều tầng bằng gỗ nguyên khối giá đựng và trưng bày bộ ấm trà.",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/54104895809.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87d184e6bc754fbb5bca9d",
@@ -1041,7 +1811,20 @@
     "rating": 5,
     "description": "MIST Kệ Sắt 3 Tầng Đa Năng Xe Đẩy Xe đẩy 100 thép carbon Ổn định Công suất lớn",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/48564464018.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87d10be6bc754fbb5bca84",
@@ -1059,7 +1842,20 @@
     "rating": 5,
     "description": "STON kệ sách kệ đa năng Có bánh Kệ đồ nhà bếp đa năng tiện lợi kệ sách đựng đồ phòng khách",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/44160065167.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87cfa1e6bc754fbb5bca20",
@@ -1077,7 +1873,20 @@
     "rating": 5,
     "description": "Kệ lò vi sóng 70 80 90cm Kệ bếp có ngăn tủ mặt gỗ MDF Kệ nhà bếp với bánh xe",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/27740929586.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87cf1be6bc754fbb5bc9fe",
@@ -1095,7 +1904,20 @@
     "rating": 5,
     "description": "Kệ Sắt V Lỗ JIROSHI 3 4 5 Tầng Chất lượng loại 1 Kệ Để Đồ Đa Năng",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/57804331669.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87cea2e6bc754fbb5bc9e6",
@@ -1113,7 +1935,20 @@
     "rating": 5,
     "description": "BMZAR Kệ Gấp Gọn kệ bếp để lò vi sóng kệ Để Đồ Đa Năng 3 4 5 tầng sơn tĩnh điện cao cấp (71 81 101cm)",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/23786743187.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87ce0be6bc754fbb5bc9c8",
@@ -1131,7 +1966,20 @@
     "rating": 5,
     "description": "HỎA TỐC Kệ Để Đồ Đa Năng PTLUXURY 3 Tầng Mặt Gỗ Sơn Tĩnh Điện Bánh Xe Di Chuyển Linh Hoạt",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/43629275462.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87cd5be6bc754fbb5bc969",
@@ -1149,7 +1997,20 @@
     "rating": 5,
     "description": "Xe Đẩy Đa Năng 3 4 Tầng Thép Cacbon Chống Gỉ",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/41063788419.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87cca8e6bc754fbb5bc91c",
@@ -1167,7 +2028,20 @@
     "rating": 5,
     "description": "STA Kệ Sắt V Lỗ Đa Năng Dài Kệ Hàng Thép Đa Năng Đựng đồ🔥Hàng sẵn số lượng lớn🔥Kệ để đồ Giao hàng trong ngày",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/22546908695.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87cba6e6bc754fbb5bc8b1",
@@ -1185,7 +2059,20 @@
     "rating": 5,
     "description": "BOENIN Kệ gấp gọn Có Bánh Xe sơn tĩnh điện Kệ Gấp Gọn Để Đồ Tiện Lợi",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/53805234383.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a87ca26e6bc754fbb5bc87c",
@@ -1203,7 +2090,20 @@
     "rating": 5,
     "description": "Luxe Kệ sắt gỗ 3 4 5 6 tầng thiết kế có lỗ lắp đặt dễ dàng không cần bắt vít (chịu được 500kg)",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/25921373060.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   },
   {
     "_id": "6a871650e6bc754fbb5b8fe1",
@@ -1221,6 +2121,19 @@
     "rating": 5,
     "description": "Bàn Học Gấp Gọn AIODIY Bàn Làm Việc Mini Để Giường Có Khay Đựng Cốc Khe Cắm iPad Đa Năng Cho Học Sinh",
     "stock": 100,
-    "isActive": true
+    "isActive": true,
+    "images": [
+      "/images/products/52663854319.png"
+    ],
+    "sourcePlatform": "",
+    "shopeeShopId": "",
+    "shopeeItemId": "",
+    "sourceImages": [],
+    "importStatus": "complete",
+    "usageType": "unknown",
+    "placementSurface": "unknown",
+    "aiDescription": "",
+    "colors": [],
+    "searchKeywords": []
   }
 ]

@@ -376,6 +376,41 @@ test('Gợi ý AI là nút tạo ngay và dùng ảnh tham chiếu sản phẩm 
   assert.match(canvas, /makeCanvas\(MAX_REFERENCE_EDGE, MAX_REFERENCE_EDGE\)/);
 });
 
+test('Tự đặt sản phẩm chỉ tạo khi thả, với tỷ lệ chọn trước và không tự tạo khi bấm ảnh', () => {
+  const studio = require('node:fs').readFileSync(path.join(__dirname, '../client/src/pages/RoomStudioPage.jsx'), 'utf8');
+  const clickHandler = studio.slice(
+    studio.indexOf('const handleStageClick'),
+    studio.indexOf('const handleProductDragStart'),
+  );
+  assert.match(studio, /function createPlacement\(product, target, zIndex, scale = 1\)/);
+  assert.match(studio, /const \[selectedScale, setSelectedScale\] = useState\(1\)/);
+  assert.match(studio, /onDragStart=\{handleProductDragStart\}/);
+  assert.match(studio, /onDragOver=\{handleStageDragOver\}/);
+  assert.match(studio, /onDrop=\{handleStageDrop\}/);
+  assert.match(studio, /addPlacement\(target, draggedProduct\.product, draggedProduct\.scale\)/);
+  assert.match(studio, /<span>Kích thước trong phòng<\/span>/);
+  assert.match(studio, /KÉO VÀO ẢNH/);
+  assert.doesNotMatch(clickHandler, /addPlacement\(/);
+  assert.doesNotMatch(studio, /<span>Kích thước<\/span>/);
+});
+
+test('Thông tin sản phẩm tự lấy từ catalog; kéo thả có fallback Pointer Events cho điện thoại', () => {
+  const studio = require('node:fs').readFileSync(path.join(__dirname, '../client/src/pages/RoomStudioPage.jsx'), 'utf8');
+  assert.doesNotMatch(studio, /function ProductFactsFields/);
+  assert.doesNotMatch(studio, /Cách sử dụng|Đặt ở đâu\?|Đặc điểm không được đổi/);
+  assert.match(studio, /inferProductFacts\(selectedProduct\)/);
+  assert.match(studio, /const handleProductPointerDown/);
+  assert.match(studio, /event\.pointerType === 'mouse'/);
+  assert.match(studio, /setPointerCapture\?\.\(event\.pointerId\)/);
+  assert.match(studio, /pointerId: event\.pointerId/);
+  assert.match(studio, /const handleProductPointerEnd/);
+  assert.match(studio, /event\.clientX >= rect\.left/);
+  assert.match(studio, /event\.clientY <= rect\.bottom/);
+  assert.match(studio, /if \(event\.type === 'pointercancel'\) return/);
+  assert.match(studio, /onPointerDown=\{handleProductPointerDown\}/);
+  assert.match(studio, /onPointerUp=\{handleProductPointerEnd\}/);
+});
+
 test('Tên sản phẩm dài trong dataset vẫn lưu được đầy đủ bố cục', async (t) => {
   const original = RoomDesign.create;
   t.after(() => { RoomDesign.create = original; });

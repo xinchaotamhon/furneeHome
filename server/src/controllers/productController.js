@@ -48,10 +48,11 @@ function validateImportedShopeeMetadata(imported, { allowUrlOnly = false } = {})
 }
 
 function buildUrlOnlyShopeeFallback(sourceUrl) {
-  return validateImportedShopeeMetadata(
-    sourceUrlMetadata(sourceUrl),
-    { allowUrlOnly: true },
-  );
+  const source = sourceUrlMetadata(sourceUrl);
+  if (!source.shopeeShopId || !source.shopeeItemId) {
+    throw createError('URL Shopee phải chứa mã cửa hàng và mã sản phẩm.', 400);
+  }
+  return validateImportedShopeeMetadata(source, { allowUrlOnly: true });
 }
 
 async function mirrorProductJson(ProductModel, options = {}) {
@@ -214,6 +215,11 @@ async function importShopee(req, res, next) {
       shopeeItemId: imported.shopeeItemId,
       sourceImages: imported.sourceImages,
       sourceFetchedAt: new Date(),
+      dimensions: imported.dimensions,
+      dimensionsCm: imported.dimensionsCm,
+      usageType: imported.usageType,
+      placementSurface: imported.placementSurface,
+      aiDescription: imported.aiDescription,
       // Shopee listing images are not transparent product cut-outs. Do not send
       // them into Room Studio until a separate image-processing step succeeds.
       importStatus: 'needs-image-processing',

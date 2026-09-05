@@ -179,6 +179,8 @@ export default function AdminPage() {
             <button className="button" type="submit" disabled={isSaving}>
               {isSaving ? 'Đang thêm…' : 'Thêm sản phẩm'}
             </button>
+            {error && <p className="form-error" role="alert" aria-live="polite">{error}</p>}
+            {notice && <p className="form-success" role="status" aria-live="polite">{notice}</p>}
           </form>
         )}
 
@@ -228,8 +230,6 @@ export default function AdminPage() {
               </article>
             ))}
           </div>
-          {error && <p className="form-error" role="alert">{error}</p>}
-          {notice && <p className="form-success" role="status">{notice}</p>}
         </section>
       </div>
     </main>

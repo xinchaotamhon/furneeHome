@@ -950,15 +950,13 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
 .studio-tabs button.studio-ai-trigger { color: #fff; background: #216249; box-shadow: 0 5px 12px rgb(24 76 55 / 22%); }
 .studio-tabs button.studio-ai-trigger:hover:not(:disabled) { background: #174c38; transform: translateY(-1px); }
 .studio-tabs button.studio-ai-trigger:disabled { color: #eef5f1; background: #688a7a; box-shadow: none; cursor: wait; }
-.studio-facts, .studio-brief-form, .studio-selected-product { display: grid; gap: 10px; min-width: 0; }
-.studio-facts label, .studio-brief-form label { display: grid; gap: 5px; color: #425149; font-size: .75rem; font-weight: 650; }
-.studio-facts input, .studio-facts select, .studio-facts textarea, .studio-brief-form input { width: 100%; min-width: 0; padding: 8px; border: 1px solid #cdd7ce; border-radius: 7px; background: white; color: #253d2f; font: inherit; }
-.studio-facts textarea { min-height: 65px; resize: vertical; }
-.studio-facts details { padding: 9px; border: 1px solid #dedfd7; border-radius: 8px; background: #f7f6ee; }
-.studio-facts summary { color: #3b5946; font-size: .75rem; cursor: pointer; }
-.studio-facts p, .studio-selected-product p { margin: 6px 0; color: #647166; font-size: .73rem; line-height: 1.45; }
-.studio-dimensions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin: 8px 0; }
+.studio-brief-form, .studio-selected-product { display: grid; gap: 10px; min-width: 0; }
+.studio-brief-form label { display: grid; gap: 5px; color: #425149; font-size: .75rem; font-weight: 650; }
+.studio-brief-form input { width: 100%; min-width: 0; padding: 8px; border: 1px solid #cdd7ce; border-radius: 7px; background: white; color: #253d2f; font: inherit; }
+.studio-selected-product p { margin: 6px 0; color: #647166; font-size: .73rem; line-height: 1.45; }
 .studio-selected-summary { display: flex; gap: 10px; align-items: center; font-size: .8rem; }
+.studio-drag-product { padding: 7px; border: 1px dashed #7fa58a; border-radius: 8px; background: #f3f8f1; cursor: grab; user-select: none; touch-action: none; }
+.studio-drag-product:active { cursor: grabbing; }
 .studio-selected-summary .product-artwork { flex: 0 0 66px; width: 66px; height: 62px; }
 .studio-selected-summary strong { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .studio-presets { display: flex; flex-wrap: wrap; gap: 5px; }

@@ -29,7 +29,10 @@ const {
   buildUrlOnlyShopeeFallback,
 } = require('../server/src/controllers/productController');
 const { readProductionMode, readTrustProxy } = require('../server/src/config/env');
-const { importMetadataFromShopee } = require('../server/src/services/shopeeImportService');
+const {
+  importMetadataFromShopee,
+  enrichProductMetadata,
+} = require('../server/src/services/shopeeImportService');
 
 function createQuotaModel() {
   const records = new Map();
@@ -200,6 +203,55 @@ test('Shopee import reads current PDP BFF data split across item, price and imag
   assert.equal(imported.sourceImages.length, 2);
 });
 
+test('Shopee metadata enrichment extracts centimetre dimensions and deterministic placement facts', () => {
+  const enriched = enrichProductMetadata({
+    name: 'Bàn gấp thấp ngồi bệt',
+    category: 'Bàn học',
+    description: 'Kích thước: 80 x 40 x 35 cm. Thiết kế dùng khi ngồi bệt.',
+  });
+  assert.deepEqual(enriched.dimensionsCm, { width: 80, depth: 40, height: 35 });
+  assert.deepEqual(enriched.dimensions, { widthCm: 80, depthCm: 40, heightCm: 35 });
+  assert.equal(enriched.usageType, 'floor-seating');
+  assert.equal(enriched.placementSurface, 'floor');
+  assert.match(enriched.aiDescription, /Bàn gấp thấp ngồi bệt/);
+  assert.match(enriched.aiDescription, /80 cm x 40 cm x 35 cm/);
+});
+
+test('Shopee metadata enrichment normalizes Vietnamese đ when classifying placement', () => {
+  const tabletop = enrichProductMetadata({
+    name: 'Đèn để bàn', category: 'Đèn', description: 'Dùng để đặt trên bàn học.',
+  });
+  const floor = enrichProductMetadata({
+    name: 'Đèn cây', category: 'Đèn', description: 'Đặt sàn cạnh ghế sofa.',
+  });
+  assert.equal(tabletop.placementSurface, 'tabletop');
+  assert.equal(floor.placementSurface, 'floor');
+});
+
+test('Shopee dimensions accept units after every value and dimensions written in the title', () => {
+  const shelf = enrichProductMetadata({
+    name: 'Kệ sách mini kích thước 40cm x 17cm x 40cm',
+    category: 'Kệ sách',
+  });
+  const wardrobe = enrichProductMetadata({
+    name: 'Vỏ tủ quần áo KT 160cmx120cmx42cm',
+    category: 'Tủ',
+  });
+  assert.deepEqual(shelf.dimensionsCm, { width: 40, depth: 17, height: 40 });
+  assert.deepEqual(wardrobe.dimensionsCm, { width: 160, depth: 120, height: 42 });
+});
+
+test('Shopee metadata enrichment leaves dimensions empty when the description has no explicit unit', () => {
+  const enriched = enrichProductMetadata({
+    name: 'Kệ sách nhỏ', category: 'Kệ', description: 'Kích thước 80 x 30 x 120; màu trắng.',
+  });
+  assert.equal(Object.hasOwn(enriched, 'dimensionsCm'), false);
+  assert.equal(Object.hasOwn(enriched, 'dimensions'), false);
+  assert.equal(enriched.usageType, 'standard');
+  assert.equal(enriched.placementSurface, 'unknown');
+  assert.doesNotMatch(enriched.aiDescription, /kích thước/);
+});
+
 test('Shopee import refuses anti-bot pages instead of creating URL-slug or zero-price data', async () => {
   await assert.rejects(
     importMetadataFromShopee('https://shopee.vn/ban-gap-i.123.456', {
@@ -247,7 +299,7 @@ test('URL-only Shopee fallback keeps only URL identity and never invents product
   assert.equal(Object.hasOwn(fallback, 'sourceImages'), false);
   assert.throws(
     () => buildUrlOnlyShopeeFallback('https://shopee.vn/ban-gap-thap'),
-    (error) => error.status === 422,
+    (error) => error.status === 400 && /mã cửa hàng và mã sản phẩm/.test(error.message),
   );
 });
 
@@ -540,4 +592,19 @@ test('Admin deployed hides Shopee import form but keeps product management actio
     'utf8',
   );
   assert.match(css, /\.admin-layout\.single \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+});
+
+test('Admin import feedback stays beside the URL form instead of below the full product list', () => {
+  const source = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '../client/src/pages/AdminPage.jsx'),
+    'utf8',
+  );
+  const formStart = source.indexOf('<form className="admin-form');
+  const formEnd = source.indexOf('</form>', formStart);
+  const listStart = source.indexOf('<section className="admin-products');
+  assert.ok(formStart >= 0 && formEnd > formStart && listStart > formEnd);
+  const form = source.slice(formStart, formEnd);
+  assert.match(form, /role="alert"/);
+  assert.match(form, /role="status"/);
+  assert.doesNotMatch(source.slice(listStart), /role="alert"|role="status"/);
 });

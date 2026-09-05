@@ -15,6 +15,116 @@ function normalizeText(value) {
   return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
 }
 
+function normalizedFacts(value) {
+  return normalizeText(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/đ/g, 'd');
+}
+
+function numberFromText(value) {
+  const number = Number(String(value).replace(',', '.'));
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function toCentimetres(value, unit) {
+  const number = numberFromText(value);
+  if (number === null) return null;
+  const normalizedUnit = String(unit).toLowerCase();
+  const converted = normalizedUnit === 'mm' ? number / 10 : normalizedUnit === 'm' ? number * 100 : number;
+  return converted > 0 && converted <= 1000 ? Math.round(converted * 100) / 100 : null;
+}
+
+function readDimensionValues(text, pattern, field) {
+  const result = {};
+  for (const match of text.matchAll(pattern)) {
+    const value = toCentimetres(match[2], match[3]);
+    if (value !== null) result[field] = value;
+  }
+  return result;
+}
+
+function extractDimensionsCm(description = '') {
+  const text = normalizeText(description);
+  if (!text) return undefined;
+
+  const dimensions = {
+    ...readDimensionValues(text, /\b(width|w|ngang|rong|rộng)\s*[:=\-]?\s*([\d]+(?:[.,]\d+)?)\s*(mm|cm|m)\b/gi, 'width'),
+    ...readDimensionValues(text, /\b(depth|d|sâu)\s*[:=\-]?\s*([\d]+(?:[.,]\d+)?)\s*(mm|cm|m)\b/gi, 'depth'),
+    ...readDimensionValues(text, /\b(length|dài)\s*[:=\-]?\s*([\d]+(?:[.,]\d+)?)\s*(mm|cm|m)\b/gi, 'depth'),
+    ...readDimensionValues(text, /\b(height|h|cao)\s*[:=\-]?\s*([\d]+(?:[.,]\d+)?)\s*(mm|cm|m)\b/gi, 'height'),
+  };
+
+  const tuple = text.match(/(?:kích\s*thước|size|dimensions?|thông\s*số|kt)?\s*[:=\-]?\s*([\d]+(?:[.,]\d+)?)\s*(mm|cm|m)?\s*(?:x|×|\*)\s*([\d]+(?:[.,]\d+)?)\s*(mm|cm|m)?\s*(?:(?:x|×|\*)\s*([\d]+(?:[.,]\d+)?)\s*(mm|cm|m)?)?/i);
+  const sharedUnit = tuple && (tuple[2] || tuple[4] || tuple[6]);
+  if (tuple && sharedUnit) {
+    const values = [
+      toCentimetres(tuple[1], tuple[2] || sharedUnit),
+      toCentimetres(tuple[3], tuple[4] || sharedUnit),
+      tuple[5] ? toCentimetres(tuple[5], tuple[6] || sharedUnit) : null,
+    ];
+    if (values[0] !== null) dimensions.width = values[0];
+    if (values[1] !== null) dimensions.depth = values[1];
+    if (values[2] !== null) dimensions.height = values[2];
+  }
+
+  const mapped = {
+    width: dimensions.width,
+    depth: dimensions.depth || dimensions.length,
+    height: dimensions.height,
+  };
+  const clean = Object.fromEntries(Object.entries(mapped).filter(([, value]) => value !== undefined));
+  return Object.keys(clean).length ? clean : undefined;
+}
+
+function classifyProductFacts({ name = '', category = '', description = '' } = {}) {
+  const facts = normalizedFacts([name, category, description].join(' '));
+  const usageType = /ngoi\s*bet|ban\s*(thap|bet)|low\s*table|floor\s*seating|lap\s*desk/.test(facts)
+    ? 'floor-seating'
+    : /ban|ghe|sofa|tu|ke|giuong|desk|chair|cabinet|shelf|bed|table/.test(facts)
+      ? 'standard'
+      : 'unknown';
+  const placementSurface = /treo\s*tuong|gan\s*tuong|dan\s*tuong|wall[ -]?mounted|wall\s*hanging/.test(facts)
+    ? 'wall'
+    : /de\s*ban|tren\s*ban|tabletop|desktop|de\s*tren\s*ke/.test(facts)
+      ? 'tabletop'
+      : /dat\s*san|tren\s*san|de\s*san|floor|ngoi\s*bet|ban\s*(thap|bet)|ghe|sofa|tu|giuong/.test(facts)
+        ? 'floor'
+        : 'unknown';
+  return { usageType, placementSurface };
+}
+
+function enrichProductMetadata(product = {}) {
+  const dimensionsCm = extractDimensionsCm([product.name, product.description].filter(Boolean).join(' '));
+  const { usageType, placementSurface } = classifyProductFacts(product);
+  const descriptionParts = [normalizeText(product.name)];
+  if (dimensionsCm) {
+    descriptionParts.push(`kích thước ${['width', 'depth', 'height'].filter((key) => dimensionsCm[key] !== undefined).map((key) => `${dimensionsCm[key]} cm`).join(' x ')}`);
+  }
+  if (usageType === 'floor-seating') descriptionParts.push('dùng khi ngồi bệt');
+  if (placementSurface !== 'unknown') descriptionParts.push(`đặt trên ${placementSurface === 'floor' ? 'sàn' : placementSurface === 'wall' ? 'tường' : 'bàn'}`);
+  const aiDescription = descriptionParts.filter(Boolean).join('; ').slice(0, 300);
+  return {
+    ...(dimensionsCm ? {
+      dimensionsCm,
+      dimensions: {
+        ...(dimensionsCm.width !== undefined ? { widthCm: dimensionsCm.width } : {}),
+        ...(dimensionsCm.depth !== undefined ? { depthCm: dimensionsCm.depth } : {}),
+        ...(dimensionsCm.height !== undefined ? { heightCm: dimensionsCm.height } : {}),
+      },
+    } : {}),
+    usageType,
+    placementSurface,
+    aiDescription,
+  };
+}
+
+function withEnrichedMetadata(source, product, metadataSource) {
+  const merged = { ...source, ...product };
+  return { ...merged, ...enrichProductMetadata(merged), metadataSource };
+}
+
 function numberValue(value) {
   if (typeof value === 'string') {
     let cleaned = value.trim().replace(/[^\d,.-]/g, '');
@@ -321,7 +431,7 @@ async function importMetadataFromShopee(sourceUrl, options = {}) {
   if (apiText) {
     try {
       const product = findStructuredProduct(JSON.parse(apiText), source);
-      if (product) return { ...source, ...product, metadataSource: 'shopee-api' };
+      if (product) return withEnrichedMetadata(source, product, 'shopee-api');
     } catch { /* API did not return product JSON */ }
   }
 
@@ -329,14 +439,14 @@ async function importMetadataFromShopee(sourceUrl, options = {}) {
   if (html) {
     for (const value of extractJsonScripts(html)) {
       const product = jsonLdProduct(value) || findStructuredProduct(value, source);
-      if (product) return { ...source, ...product, metadataSource: 'html-structured-data' };
+      if (product) return withEnrichedMetadata(source, product, 'html-structured-data');
     }
     for (const value of extractMfePayloads(html)) {
       const product = findStructuredProduct(value, source);
-      if (product) return { ...source, ...product, metadataSource: 'html-mfe-data' };
+      if (product) return withEnrichedMetadata(source, product, 'html-mfe-data');
     }
     const product = metaProduct(html);
-    if (product) return { ...source, ...product, metadataSource: 'html-meta' };
+    if (product) return withEnrichedMetadata(source, product, 'html-meta');
   }
 
   throw createError('Shopee chưa trả đủ tên, giá và ảnh sản phẩm. Hãy thử lại sau.', 422);
@@ -351,4 +461,7 @@ module.exports = {
   metaProduct,
   sourceImageUrl,
   structuredProduct,
+  extractDimensionsCm,
+  classifyProductFacts,
+  enrichProductMetadata,
 };
