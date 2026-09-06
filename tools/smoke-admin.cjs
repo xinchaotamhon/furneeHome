@@ -15,11 +15,24 @@ const {
 const {
   createAnonymousGenerationQuotaService, getClientAddress, hashAddress,
 } = require('../server/src/services/anonymousGenerationQuotaService');
-const { isLocalRequest, localOnlyAccountAllowed, requireAdmin } = require('../server/src/middleware/authMiddleware');
+const {
+  isLocalRequest,
+  localOnlyAccountAllowed,
+  localShopeeImportAllowed,
+  requireAdmin,
+  requireLocalShopeeImport,
+} = require('../server/src/middleware/authMiddleware');
 const { buildLoginLookup } = require('../server/src/controllers/authController');
-const { compactProductListItem } = require('../server/src/controllers/productController');
+const {
+  compactProductListItem,
+  validateImportedShopeeMetadata,
+  buildUrlOnlyShopeeFallback,
+} = require('../server/src/controllers/productController');
 const { readProductionMode, readTrustProxy } = require('../server/src/config/env');
-const { importMetadataFromShopee } = require('../server/src/services/shopeeImportService');
+const {
+  importMetadataFromShopee,
+  enrichProductMetadata,
+} = require('../server/src/services/shopeeImportService');
 
 function createQuotaModel() {
   const records = new Map();
@@ -190,12 +203,103 @@ test('Shopee import reads current PDP BFF data split across item, price and imag
   assert.equal(imported.sourceImages.length, 2);
 });
 
+test('Shopee metadata enrichment extracts centimetre dimensions and deterministic placement facts', () => {
+  const enriched = enrichProductMetadata({
+    name: 'Bàn gấp thấp ngồi bệt',
+    category: 'Bàn học',
+    description: 'Kích thước: 80 x 40 x 35 cm. Thiết kế dùng khi ngồi bệt.',
+  });
+  assert.deepEqual(enriched.dimensionsCm, { width: 80, depth: 40, height: 35 });
+  assert.deepEqual(enriched.dimensions, { widthCm: 80, depthCm: 40, heightCm: 35 });
+  assert.equal(enriched.usageType, 'floor-seating');
+  assert.equal(enriched.placementSurface, 'floor');
+  assert.match(enriched.aiDescription, /Bàn gấp thấp ngồi bệt/);
+  assert.match(enriched.aiDescription, /80 cm x 40 cm x 35 cm/);
+});
+
+test('Shopee metadata enrichment normalizes Vietnamese đ when classifying placement', () => {
+  const tabletop = enrichProductMetadata({
+    name: 'Đèn để bàn', category: 'Đèn', description: 'Dùng để đặt trên bàn học.',
+  });
+  const floor = enrichProductMetadata({
+    name: 'Đèn cây', category: 'Đèn', description: 'Đặt sàn cạnh ghế sofa.',
+  });
+  assert.equal(tabletop.placementSurface, 'tabletop');
+  assert.equal(floor.placementSurface, 'floor');
+});
+
+test('Shopee dimensions accept units after every value and dimensions written in the title', () => {
+  const shelf = enrichProductMetadata({
+    name: 'Kệ sách mini kích thước 40cm x 17cm x 40cm',
+    category: 'Kệ sách',
+  });
+  const wardrobe = enrichProductMetadata({
+    name: 'Vỏ tủ quần áo KT 160cmx120cmx42cm',
+    category: 'Tủ',
+  });
+  assert.deepEqual(shelf.dimensionsCm, { width: 40, depth: 17, height: 40 });
+  assert.deepEqual(wardrobe.dimensionsCm, { width: 160, depth: 120, height: 42 });
+});
+
+test('Shopee metadata enrichment leaves dimensions empty when the description has no explicit unit', () => {
+  const enriched = enrichProductMetadata({
+    name: 'Kệ sách nhỏ', category: 'Kệ', description: 'Kích thước 80 x 30 x 120; màu trắng.',
+  });
+  assert.equal(Object.hasOwn(enriched, 'dimensionsCm'), false);
+  assert.equal(Object.hasOwn(enriched, 'dimensions'), false);
+  assert.equal(enriched.usageType, 'standard');
+  assert.equal(enriched.placementSurface, 'unknown');
+  assert.doesNotMatch(enriched.aiDescription, /kích thước/);
+});
+
 test('Shopee import refuses anti-bot pages instead of creating URL-slug or zero-price data', async () => {
   await assert.rejects(
     importMetadataFromShopee('https://shopee.vn/ban-gap-i.123.456', {
       fetchImpl: async () => fetchResponse('<html><body>blocked</body></html>', { contentType: 'text/html' }),
     }),
     (error) => error.status === 422 && /chưa trả đủ/.test(error.message),
+  );
+});
+
+test('admin import guard rejects incomplete scraped metadata', () => {
+  assert.throws(
+    () => validateImportedShopeeMetadata({
+      name: 'Bàn gấp', price: 0, sourceImages: [], shopeeShopId: '123', shopeeItemId: '456',
+    }),
+    (error) => error.status === 422 && /chưa trả đủ/.test(error.message),
+  );
+  assert.throws(
+    () => validateImportedShopeeMetadata({
+      name: 'Bàn gấp', price: 0,
+      sourceImages: ['https://down-vn.img.susercontent.com/file/image'],
+      shopeeShopId: '123', shopeeItemId: '456',
+    }),
+    (error) => error.status === 422 && /chưa trả đủ/.test(error.message),
+  );
+  const imported = validateImportedShopeeMetadata({
+    name: 'Bàn gấp', price: 259000, sourceImages: ['https://down-vn.img.susercontent.com/file/image'],
+    shopeeShopId: '123', shopeeItemId: '456', description: '', sellerName: '', rating: null,
+  });
+  assert.equal(imported.name, 'Bàn gấp');
+});
+
+test('URL-only Shopee fallback keeps only URL identity and never invents product fields', () => {
+  const fallback = buildUrlOnlyShopeeFallback('https://shopee.vn/ban-gap-thap-i.691586816.58014018417?tracking=1');
+  assert.deepEqual(fallback, {
+    sourceUrl: 'https://shopee.vn/ban-gap-thap-i.691586816.58014018417',
+    name: 'ban gap thap',
+    shopeeShopId: '691586816',
+    shopeeItemId: '58014018417',
+    metadataSource: 'url-slug',
+  });
+  assert.equal(Object.hasOwn(fallback, 'price'), false);
+  assert.equal(Object.hasOwn(fallback, 'description'), false);
+  assert.equal(Object.hasOwn(fallback, 'sellerName'), false);
+  assert.equal(Object.hasOwn(fallback, 'rating'), false);
+  assert.equal(Object.hasOwn(fallback, 'sourceImages'), false);
+  assert.throws(
+    () => buildUrlOnlyShopeeFallback('https://shopee.vn/ban-gap-thap'),
+    (error) => error.status === 400 && /mã cửa hàng và mã sản phẩm/.test(error.message),
   );
 });
 
@@ -309,6 +413,37 @@ test('local-only accounts are accepted solely from direct loopback outside produ
   assert.equal(localOnlyAccountAllowed({ socket: { remoteAddress: '127.0.0.1' } }, { localOnly: true }, true), false);
 });
 
+test('Shopee import is localhost-only in development and disabled in production', () => {
+  const local = { socket: { remoteAddress: '127.0.0.1' } };
+  const remote = { socket: { remoteAddress: '10.0.0.2' } };
+  const spoofedLocal = { socket: { remoteAddress: '10.0.0.2' }, headers: { 'x-forwarded-for': '127.0.0.1' } };
+  assert.equal(localShopeeImportAllowed(local, false), true);
+  assert.equal(localShopeeImportAllowed(remote, false), false);
+  assert.equal(localShopeeImportAllowed(spoofedLocal, false), false);
+  assert.equal(localShopeeImportAllowed(local, true), false);
+
+  const deniedRemote = response();
+  let nextCalled = false;
+  requireLocalShopeeImport(remote, deniedRemote, () => { nextCalled = true; });
+  assert.equal(nextCalled, false);
+  assert.equal(deniedRemote.statusCode, 403);
+  assert.equal(deniedRemote.body.message, 'Thao tác này chỉ được phép trên localhost.');
+
+  const allowedLocal = response();
+  requireLocalShopeeImport(local, allowedLocal, () => { nextCalled = true; });
+  assert.equal(nextCalled, true);
+
+  const productRoutes = require('../server/src/routes/productRoutes');
+  const importRoute = productRoutes.stack.find((layer) => layer.route?.path === '/import-shopee');
+  assert.deepEqual(importRoute.route.stack.map((layer) => layer.name), [
+    'authenticate', 'requireAdmin', 'requireLocalShopeeImport', 'importShopee',
+  ]);
+  for (const path of ['/metadata', '/export-json', '/:id/images']) {
+    const route = productRoutes.stack.find((layer) => layer.route?.path === path);
+    assert.equal(route.route.stack.some((layer) => layer.name === 'requireLocalShopeeImport'), false);
+  }
+});
+
 test('login lookup supports a username and legacy email through the same safe query', () => {
   assert.deepEqual(buildLoginLookup('admin'), {
     isActive: true,
@@ -417,7 +552,7 @@ test('preview and deployed Admin routes keep authentication middleware in front 
     assert.deepEqual(names.slice(0, 2), ['authenticate', 'requireAdmin']);
   });
   const shopeeImport = productRoutes.stack.find((layer) => layer.route?.path === '/import-shopee');
-  assert.deepEqual(shopeeImport.route.stack.map((handler) => handler.name), ['authenticate', 'requireAdmin', 'importShopee']);
+  assert.deepEqual(shopeeImport.route.stack.map((handler) => handler.name), ['authenticate', 'requireAdmin', 'requireLocalShopeeImport', 'importShopee']);
 });
 
 test('trust proxy parser supports local off, one Render hop and explicit allowlists', () => {
@@ -437,4 +572,39 @@ test('production seed explicitly converts a matching local-only admin into a dep
   assert.match(source, /localOnly:\s*false/);
   assert.match(source, /env\.isProduction/);
   assert.match(source, /ADMIN_PASSWORD production phải có tối thiểu 12 ký tự/);
+});
+
+test('Admin deployed hides Shopee import form but keeps product management actions', () => {
+  const source = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '../client/src/pages/AdminPage.jsx'),
+    'utf8',
+  );
+  assert.match(source, /export function isLocalBrowserHost\(hostname = ''\)/);
+  assert.match(source, /host === 'localhost' \|\| host === '127\.0\.0\.1' \|\| host === '::1'/);
+  assert.match(source, /isLocalBrowserHost\(window\.location\.hostname\)/);
+  assert.match(source, /\{isLocalBrowser && \(/);
+  assert.match(source, /admin-layout\$\{isLocalBrowser \? '' : ' single'\}/);
+  assert.match(source, /downloadProductJson/);
+  assert.match(source, /addProductImage/);
+  assert.match(source, /removeProduct/);
+  const css = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '../client/src/styles/global.css'),
+    'utf8',
+  );
+  assert.match(css, /\.admin-layout\.single \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+});
+
+test('Admin import feedback stays beside the URL form instead of below the full product list', () => {
+  const source = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '../client/src/pages/AdminPage.jsx'),
+    'utf8',
+  );
+  const formStart = source.indexOf('<form className="admin-form');
+  const formEnd = source.indexOf('</form>', formStart);
+  const listStart = source.indexOf('<section className="admin-products');
+  assert.ok(formStart >= 0 && formEnd > formStart && listStart > formEnd);
+  const form = source.slice(formStart, formEnd);
+  assert.match(form, /role="alert"/);
+  assert.match(form, /role="status"/);
+  assert.doesNotMatch(source.slice(listStart), /role="alert"|role="status"/);
 });

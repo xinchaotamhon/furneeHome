@@ -39,6 +39,7 @@ function saveHandoff(item) {
     roomRequest: item.userPrompt || '',
     designBrief: item.designBrief || {},
     inspirationProducts: item.inspirationProducts || [],
+    scaleReference: item.scaleReference || null,
     markedCorners: item.markedCorners || [],
     sceneItems: (item.placements || item.sceneItems || item.items || []).map(restorePlacementSnapshot),
   }));
@@ -82,7 +83,7 @@ export default function PublicCollectionDetailPage() {
     <div className="privacy-note"><strong>Thông tin công khai</strong><span>Chủ mẫu đã chọn chia sẻ ảnh phòng, ảnh kết quả và cách sắp xếp. Bạn có thể tạo một bản sao riêng mà không làm thay đổi mẫu gốc.</span></div>
     {(design.resultImage || design.roomImage) && <div className="room-template-preview"><img src={design.resultImage || design.roomImage} alt={`Bản xem trước ${design.name}`} /></div>}
     {design.designMode === 'inspiration' && <p className="privacy-note">Ý tưởng AI từ {products.length} sản phẩm ngẫu nhiên.</p>}
-    <section className="saved-card"><div><span className="category-label">NỘI THẤT TRONG MẪU</span><h2>{design.productName || 'Danh sách sản phẩm'}</h2>{products.length > 0 && <ul>{products.map((product, index) => <li key={product._id || product.id || index}>{product.name || product.productName || product.title || 'Sản phẩm nội thất'}</li>)}</ul>}<p className="muted">Đã lưu {products.length} sản phẩm, {(design.markedCorners || []).length} điểm phối cảnh{design.userPrompt ? ' và mô tả mong muốn' : ''}.</p></div><div className="saved-actions"><button className="button" type="button" onClick={useTemplate}>Dùng mẫu này</button>{!user && <><button className="button button-secondary" type="button" onClick={() => openLogin('login')}>Đăng nhập để lưu bản sao</button><button className="text-button" type="button" onClick={openRegister}>Chưa có tài khoản? Tạo miễn phí</button></>}<Link className="text-button" to="/collections/public">← Xem mẫu khác</Link></div></section>
+    <section className="saved-card"><div><span className="category-label">NỘI THẤT TRONG MẪU</span><h2>{design.productName || 'Danh sách sản phẩm'}</h2>{products.length > 0 && <ul>{products.map((product, index) => <li key={product._id || product.id || index}>{product.name || product.productName || product.title || 'Sản phẩm nội thất'}</li>)}</ul>}<p className="muted">Đã lưu {products.length} sản phẩm{design.scaleReference ? `, mốc tỷ lệ ${design.scaleReference.lengthCm} cm` : ''}{design.userPrompt ? ' và mô tả mong muốn' : ''}.</p></div><div className="saved-actions"><button className="button" type="button" onClick={useTemplate}>Dùng mẫu này</button>{!user && <><button className="button button-secondary" type="button" onClick={() => openLogin('login')}>Đăng nhập để lưu bản sao</button><button className="text-button" type="button" onClick={openRegister}>Chưa có tài khoản? Tạo miễn phí</button></>}<Link className="text-button" to="/collections/public">← Xem mẫu khác</Link></div></section>
     {message && <p className="studio-message" aria-live="polite">{message}</p>}
   </main>;
 }

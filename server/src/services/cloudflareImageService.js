@@ -60,7 +60,8 @@ function buildPrompt(productName, placement, usesReferenceImages = true, userPro
       `Keep every product visible in the guide: ${productName.replace(/^interior scene:\s*/i, '')}.`,
       'Preserve their positions, relative sizes, rotations, colors and layer order.',
       'Replace pasted-looking cutouts with naturally integrated furniture while keeping each product recognizable.',
-      'All floor furniture must touch the floor; wall decor must stay on the wall. Match room perspective, light, contact shadows and occlusion.',
+      'Do not infer wall mounting only from a product being on the left, center or right side of the image; follow its stated support surface and guide instead.',
+      'Keep each product support construction exactly recognizable: do not add, remove, merge, bend or duplicate legs, brackets, hinges, frames or mounting points. Keep freestanding items supported by the visible floor and wall-mounted items attached only to the wall. Match room perspective, light, contact shadows and occlusion.',
       'Preserve the original room framing and every existing room element. Do not crop the room or add text, logos, watermarks, extra furniture or duplicate products.',
       userDirection,
     ].filter(Boolean).join(' ');
@@ -78,17 +79,11 @@ function buildPrompt(productName, placement, usesReferenceImages = true, userPro
     ].filter(Boolean).join(' ');
   }
 
-  const wallPlacementRule = isLeft
-    ? 'Place it on the left side at the exact guided position, facing naturally into the room.'
-    : isRight
-      ? 'Place it on the right side at the exact guided position, facing naturally into the room.'
-      : 'Place it at the exact center position shown by the guide.';
-
   return [
     'Create one photorealistic interior edit.',
     inputDescription,
-    `Keep the exact shape, material and colors of "${productName}". ${wallPlacementRule}`,
-    'All feet or the base must touch the floor. Use only a small soft contact shadow directly beneath the product.',
+    `Keep the exact shape, material and colors of "${productName}" at the exact guided position. Do not infer wall mounting only from its left, center or right image position.`,
+    'Keep the reference support construction intact: preserve the exact number and geometry of legs, brackets, hinges, frames and mounting points. Do not add, remove, merge, bend or duplicate supports. Use only a small soft contact shadow where the reference item physically touches the visible support surface.',
     'Follow the room floor perspective and existing light direction.',
     'Preserve every room element outside the guided product area.',
     'Do not add text, logos, watermarks, extra furniture, duplicate products or oversized shadows.',
@@ -108,11 +103,17 @@ function buildRoomPrompt(input, usesReferenceImages) {
     const facts = (input.sceneProducts || []).map((product, index) => {
       const dimensions = Object.entries(product.dimensionsCm || {}).map(([key, value]) => `${key} ${value} cm`).join(', ');
       const lowTable = product.usageType === 'floor-seating' || /bàn\s*(bệt|ngồi bệt)|floor.seating|low table|lap desk/i.test(product.name);
+      const supportRule = product.placementSurface === 'wall'
+        ? 'This item is wall-mounted. Preserve its mounting hardware and do not add floor legs.'
+        : product.placementSurface === 'tabletop'
+          ? 'This item sits on an existing tabletop or shelf. Do not add floor legs or wall brackets.'
+          : 'Keep the visible support construction from the reference exactly: preserve the number, position and geometry of legs, brackets, hinges, frames and mounting points. Do not add, remove, merge, bend or duplicate supports.';
       return [
         `Product ${index + 1}: ${JSON.stringify(product.name)} at normalized floor/contact anchor x=${product.target.x}, y=${product.target.y}.`,
         dimensions ? `Real product dimensions: ${dimensions}. Preserve these proportions; never stretch its legs or height to match generic furniture.` : 'Exact dimensions are unknown. Preserve the proportions in its reference photo; do not invent measurements.',
         lowTable ? 'This is LOW furniture for FLOOR SEATING, used while sitting on the floor. Keep its short legs and low top. Never turn it into a tall desk or dining table. Do not add a chair unless a chair is explicitly among the selected products.' : '',
         product.placementSurface !== 'unknown' ? `Support surface: ${product.placementSurface}.` : '',
+        supportRule,
         product.aiDescription ? `Identity details to retain: ${JSON.stringify(product.aiDescription)}.` : '',
       ].filter(Boolean).join(' ');
     }).join('\n');

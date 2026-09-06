@@ -11,6 +11,10 @@ function localOnlyAccountAllowed(req, user, isProduction = env.isProduction) {
   return !user?.localOnly || (!isProduction && isLocalRequest(req));
 }
 
+function localShopeeImportAllowed(req, isProduction = env.isProduction) {
+  return !isProduction && isLocalRequest(req);
+}
+
 async function authenticate(req, res, next) {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
@@ -46,4 +50,23 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
-module.exports = { authenticate, optionalAuthenticate, requireAdmin, isLocalRequest, localOnlyAccountAllowed };
+function requireLocalShopeeImport(req, res, next) {
+  if (!localShopeeImportAllowed(req)) {
+    return res.status(403).json({
+      success: false,
+      message: 'Thao tác này chỉ được phép trên localhost.',
+      data: null,
+    });
+  }
+  return next();
+}
+
+module.exports = {
+  authenticate,
+  optionalAuthenticate,
+  requireAdmin,
+  requireLocalShopeeImport,
+  isLocalRequest,
+  localOnlyAccountAllowed,
+  localShopeeImportAllowed,
+};

@@ -4,6 +4,7 @@ const { cleanDesignBrief, cleanProductFacts } = require('../utils/roomSceneInput
 
 const MAX_PLACEMENTS = 12;
 const MAX_MARKED_CORNERS = 16;
+const MAX_SCALE_REFERENCE_POINTS = 2;
 const MAX_INSPIRATION_PRODUCTS = 3;
 const MAX_IMAGE_LENGTH = 4_000_000;
 const MAX_PLACEMENT_IMAGE_LENGTH = 350_000;
@@ -127,6 +128,21 @@ function cleanMarkedCorners(value) {
   return value.map((point, index) => cleanTarget(point, `Điểm đánh dấu ${index + 1}`));
 }
 
+function cleanScaleReference(value) {
+  if (value === undefined || value === null) return value;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw createError('Mốc tỷ lệ không hợp lệ');
+  }
+  if (!Array.isArray(value.points) || value.points.length !== MAX_SCALE_REFERENCE_POINTS) {
+    throw createError('Mốc tỷ lệ cần đúng 2 điểm');
+  }
+  const lengthCm = cleanNumber(value.lengthCm, 'Chiều dài mốc', 1, 1000);
+  return {
+    points: value.points.map((point, index) => cleanTarget(point, `Mốc tỷ lệ ${index + 1}`)),
+    lengthCm,
+  };
+}
+
 function cleanImageSize(value) {
   if (value === undefined) return undefined;
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -167,6 +183,7 @@ function cleanDesignInput(body = {}) {
     placements: cleanPlacements(body.placements),
     inspirationProducts: cleanInspirationProducts(body.inspirationProducts),
     markedCorners: cleanMarkedCorners(body.markedCorners),
+    scaleReference: cleanScaleReference(body.scaleReference),
     visibility: body.visibility,
   };
 
@@ -316,6 +333,7 @@ async function reuse(req, res, next) {
       placements: source.placements,
       inspirationProducts: source.inspirationProducts,
       markedCorners: source.markedCorners,
+      scaleReference: source.scaleReference,
       visibility: 'private',
       creatorName: getCreatorName(req.user),
       reusedFrom: source._id,

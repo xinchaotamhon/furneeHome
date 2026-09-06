@@ -2,6 +2,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const fs = require('node:fs');
 
 const envPath = require.resolve('../server/src/config/env');
 const config = {
@@ -46,6 +47,46 @@ test('Bàn ngồi bệt giữ công năng, số đo thật và mô tả có cấ
   assert.equal(response.status, 200);
 });
 
+test('Prompt giữ nguyên khung đỡ của bàn và không tự suy ra gắn tường từ vị trí', async (t) => {
+  let prompt = '';
+  mockFetch(t, async (url, options) => {
+    prompt = options.body.get('prompt');
+    return success();
+  });
+  const response = await callController(controller.create, {
+    ...placement,
+    productName: 'Interior scene: bàn gấp',
+    sceneProducts: [{
+      name: 'Bàn gấp chân kim loại', placementSurface: 'floor',
+      aiDescription: 'Hai khung chân kim loại tam giác, không thêm hoặc bẻ cong khung đỡ.',
+      target: { x: .2, y: .52 },
+    }],
+  });
+  assert.equal(response.status, 200);
+  assert.match(prompt, /Do not infer wall mounting only from a product being on the left, center or right side/i);
+  assert.match(prompt, /preserve the number, position and geometry of legs, brackets, hinges, frames and mounting points/i);
+  assert.match(prompt, /do not add, remove, merge, bend or duplicate supports/i);
+});
+
+test('Bản hướng dẫn giữ đúng tọa độ người dùng đặt, không tự đẩy món theo đường sàn đoán', () => {
+  const roomPage = fs.readFileSync(path.join(__dirname, '../client/src/pages/RoomStudioPage.jsx'), 'utf8');
+  const canvas = fs.readFileSync(path.join(__dirname, '../client/src/utils/roomPreviewCanvas.js'), 'utf8');
+  assert.doesNotMatch(roomPage, /getGroundedFloorAnchorY/);
+  assert.doesNotMatch(canvas, /getGroundedFloorAnchorY/);
+  assert.match(roomPage, /target: \{ x: item\.target\.x \/ 100, y: item\.target\.y \/ 100 \}/);
+  assert.match(canvas, /const anchorY = roomSize\.height \* \(target\.y \/ 100\);/);
+});
+
+test('Placement luôn ghép kết quả AI qua mask, kể cả data URL', () => {
+  const roomPage = fs.readFileSync(path.join(__dirname, '../client/src/pages/RoomStudioPage.jsx'), 'utf8');
+  const canvas = fs.readFileSync(path.join(__dirname, '../client/src/utils/roomPreviewCanvas.js'), 'utf8');
+  assert.match(roomPage, /maskSource: guideImages\.maskImageDataUrl/);
+  assert.match(roomPage, /const finalImage = await compositeRoomPreview/);
+  assert.match(canvas, /function applyMaskAlpha/);
+  assert.match(canvas, /destination-in/);
+  assert.match(canvas, /maskSource \? loadImage\(maskSource\)/);
+});
+
 test('Không tự bịa số đo; dữ liệu mô tả/vị trí sai bị chặn trước provider', async (t) => {
   mockFetch(t, async () => assert.fail('Không được gửi request sai tới provider'));
   for (const extra of [
@@ -56,13 +97,22 @@ test('Không tự bịa số đo; dữ liệu mô tả/vị trí sai bị chặn
   ]) assert.equal((await callController(controller.create, { ...placement, ...extra })).status, 400);
 });
 
+test('Mốc tỷ lệ lưu đúng 2 điểm và chặn dữ liệu thiếu/sai', async (t) => {
+  const originalCreate = RoomDesign.create;
+  t.after(() => { RoomDesign.create = originalCreate; });
+  RoomDesign.create = async (data) => data;
+  const user = { user: { _id: '507f1f77bcf86cd799439011' } };
+  assert.equal((await callController(designs.create, { name: 'Bad scale', scaleReference: { points: [{ x: .2, y: .7 }], lengthCm: 80 } }, user)).status, 400);
+  assert.equal((await callController(designs.create, { name: 'Bad scale', scaleReference: { points: [{ x: .2, y: .7 }, { x: .5, y: .7 }], lengthCm: 0 } }, user)).status, 400);
+});
+
 test('Lưu collection giữ brief, đặc tính bàn thấp, vị trí 0 và trạng thái ảnh cũ', async (t) => {
   const originalCreate = RoomDesign.create;
   t.after(() => { RoomDesign.create = originalCreate; });
   RoomDesign.create = async (data) => data;
   const productFacts = { usageType: 'floor-seating', placementSurface: 'floor', dimensionsCm: { height: 28 }, aiDescription: 'không thêm ghế' };
   const saved = await callController(designs.create, { name: 'Smoke metadata', resultImage: image, resultMatchesLayout: false,
-    designBrief: { purpose: 'Học ngồi bệt' }, placements: [{ productName: 'Bàn thấp', target: { x: 0, y: 0 }, productFacts }],
+    designBrief: { purpose: 'Học ngồi bệt' }, scaleReference: { points: [{ x: .2, y: .7 }, { x: .5, y: .7 }], lengthCm: 80 }, placements: [{ productName: 'Bàn thấp', target: { x: 0, y: 0 }, productFacts }],
   }, { user: { _id: '507f1f77bcf86cd799439011' } });
   assert.equal(saved.status, 201);
   assert.deepEqual(saved.result.data.placements[0].productFacts, productFacts);
@@ -70,6 +120,8 @@ test('Lưu collection giữ brief, đặc tính bàn thấp, vị trí 0 và tr�
   assert.equal(saved.result.data.designBrief.purpose, 'Học ngồi bệt');
   assert.equal(saved.result.data.resultMatchesLayout, false);
   assert.equal(saved.result.data.resultImage, image);
+  assert.equal(saved.result.data.scaleReference.lengthCm, 80);
+  assert.equal(saved.result.data.scaleReference.points[1].x, .5);
 });
 
 function mockFetch(t, handler) {
@@ -309,7 +361,7 @@ test('Lưu/dùng lại ý tưởng AI giữ prompt, loại ảnh và không thê
 test('Collection gửi các trường phục hồi và product references của ý tưởng lên tài khoản', () => {
   const source = require('node:fs').readFileSync(path.join(__dirname, '../client/src/context/CollectionContext.jsx'), 'utf8');
   const payload = source.slice(source.indexOf('const payload ='), source.indexOf('return roomDesignService.create'));
-  for (const field of ['designMode', 'userPrompt', 'model', 'elapsedMs', 'placements', 'inspirationProducts', 'markedCorners']) assert.match(payload, new RegExp(`${field}:`));
+  for (const field of ['designMode', 'userPrompt', 'model', 'elapsedMs', 'placements', 'inspirationProducts', 'markedCorners', 'scaleReference']) assert.match(payload, new RegExp(`${field}:`));
 });
 
 test('Phiên phòng thử dùng session; cache trình duyệt không giữ ảnh base64', () => {
@@ -324,6 +376,8 @@ test('Phiên phòng thử dùng session; cache trình duyệt không giữ ảnh
   assert.match(collection, /placements: .*\.map\(lightweightPlacement\)/);
   assert.match(collection, /inspirationProducts: \(item\.inspirationProducts \|\| \[\]\)\.map\(lightweightInspirationProduct\)/);
   assert.match(studio, /inspirationProducts,/);
+  assert.match(studio, /scaleReference: serializeScaleReference\(scaleReference\)/);
+  assert.match(collection, /scaleReference: localItem\.scaleReference \|\| null/);
   assert.match(products, /function lightweightProducts/);
 });
 
@@ -343,6 +397,43 @@ test('Gợi ý AI là nút tạo ngay và dùng ảnh tham chiếu sản phẩm 
   assert.match(canvas, /export async function createProductReferenceImages/);
   assert.doesNotMatch(canvas, /createProductReferenceSheet/);
   assert.match(canvas, /makeCanvas\(MAX_REFERENCE_EDGE, MAX_REFERENCE_EDGE\)/);
+});
+
+test('Chọn sản phẩm tạo placement ngay; AI chỉ chạy khi người dùng bấm Tạo ảnh', () => {
+  const studio = require('node:fs').readFileSync(path.join(__dirname, '../client/src/pages/RoomStudioPage.jsx'), 'utf8');
+  assert.match(studio, /function createPlacement\(product, target, zIndex, scale = 1\)/);
+  assert.match(studio, /addPlacement\(INITIAL_TARGET, productWithFacts, initialScale\)/);
+  assert.match(studio, /pendingProductRef\.current/);
+  assert.match(studio, /className="button button-small studio-generate-trigger"/);
+  assert.match(studio, /onClick=\{\(\) => void renderScene\(placementsRef\.current, activePlacement\?\.id\)\}/);
+  assert.match(studio, /studio-placement-toolbar/);
+  assert.match(studio, /studio-placement-resize/);
+  assert.match(studio, /studio-placement-delete/);
+  assert.match(studio, /handlePlacementResizeStart/);
+  assert.doesNotMatch(studio, /className="studio-selected-product"/);
+  assert.doesNotMatch(studio, /Kiểm tra món đã chọn/);
+  assert.doesNotMatch(studio.slice(studio.indexOf('const addPlacement'), studio.indexOf('const removePlacement')), /renderScene\(/);
+  assert.match(studio, /scaleReference: serializeScaleReference\(scaleReference\)/);
+  assert.match(studio, /Tỷ lệ thật <small>\(tùy chọn\)<\/small>/);
+  assert.match(studio, /\[60, 80, 120\]/);
+  assert.match(studio, /Bấm 2 đầu của một cạnh có số đo thật gần sản phẩm/);
+  assert.match(studio, />Rộng món</);
+  assert.match(studio, /Căn tỷ lệ/);
+  assert.doesNotMatch(studio, /Căn sàn \(tùy chọn\)/);
+  assert.doesNotMatch(studio, /setLayoutPane|layoutPane/);
+});
+
+test('Thông tin sản phẩm tự lấy từ catalog; placement hỗ trợ kéo và resize bằng Pointer Events', () => {
+  const studio = require('node:fs').readFileSync(path.join(__dirname, '../client/src/pages/RoomStudioPage.jsx'), 'utf8');
+  assert.doesNotMatch(studio, /function ProductFactsFields/);
+  assert.doesNotMatch(studio, /Cách sử dụng|Đặt ở đâu\?|Đặc điểm không được đổi/);
+  assert.match(studio, /inferProductFacts\(product\)/);
+  assert.match(studio, /const handlePlacementPointerDown/);
+  assert.match(studio, /const handlePlacementResizeStart/);
+  assert.match(studio, /setPointerCapture\?\.\(event\.pointerId\)/);
+  assert.match(studio, /mode: "resize"/);
+  assert.match(studio, /scale: Number\(scale\.toFixed\(2\)\)/);
+  assert.match(studio, /onPointerDown=\{\(event\) => handlePlacementResizeStart\(event, placement\)\}/);
 });
 
 test('Tên sản phẩm dài trong dataset vẫn lưu được đầy đủ bố cục', async (t) => {

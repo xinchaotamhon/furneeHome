@@ -11,6 +11,16 @@ function normalizeRoomDesign(item) {
   const id = item.id || item._id || `room-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   const target = item.target || item.placement || { x: 0.5, y: 0.72 };
   const placements = item.placements || item.sceneItems || item.items || [];
+  const rawScaleReference = item.scaleReference;
+  const scaleReference = rawScaleReference && Array.isArray(rawScaleReference.points)
+    ? {
+      points: rawScaleReference.points.slice(0, 2).map((point) => ({
+        x: Number(point.x) > 1 ? Number(point.x) / 100 : Number(point.x ?? 0.5),
+        y: Number(point.y) > 1 ? Number(point.y) / 100 : Number(point.y ?? 0.72),
+      })),
+      lengthCm: Number(rawScaleReference.lengthCm),
+    }
+    : null;
 
   return {
     ...item,
@@ -21,6 +31,7 @@ function normalizeRoomDesign(item) {
       y: Number(target.y) > 1 ? Number(target.y) / 100 : Number(target.y ?? 0.72),
     },
     placements,
+    scaleReference: scaleReference?.points.length === 2 && scaleReference.lengthCm > 0 ? scaleReference : null,
     inspirationProducts: (Array.isArray(item.inspirationProducts) ? item.inspirationProducts : [])
       .slice(0, 3)
       .map(lightweightInspirationProduct)
@@ -104,6 +115,7 @@ function lightweightCollectionItem(item) {
     productImage: nonDataUrl(item.productImage),
     placements: (item.placements || item.sceneItems || item.items || []).map(lightweightPlacement),
     inspirationProducts: (item.inspirationProducts || []).map(lightweightInspirationProduct),
+    scaleReference: item.scaleReference || null,
   };
 }
 
@@ -225,6 +237,7 @@ export function CollectionProvider({ children }) {
         placements: localItem.placements || [],
         inspirationProducts: localItem.inspirationProducts || [],
         markedCorners: localItem.markedCorners || [],
+        scaleReference: localItem.scaleReference || null,
         visibility: 'private',
       };
 
