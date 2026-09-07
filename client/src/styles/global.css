@@ -122,16 +122,16 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
 .collection-page section + section { margin-top: 42px; }
 .collection-privacy-note { width: fit-content; margin: -18px 0 28px; color: var(--color-muted); font-size: .84rem; }
 .collection-page .collection-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; align-items: stretch; }
-.collection-page .saved-card { display: flex; flex-direction: column; height: 100%; gap: 0; padding: 0; border-color: #d8e1d7; border-radius: 16px; background: #fffdf9; box-shadow: 0 10px 26px rgb(38 53 42 / 8%); transition: transform .18s ease, box-shadow .18s ease; }
+.collection-page .saved-card { display: flex; flex-direction: column; height: 100%; gap: 0; padding: 0; border-color: #d8e1d7; border-radius: 16px; background: #fffdf9; box-shadow: 0 10px 26px rgb(38 53 42 / 8%); transition: transform .18s ease, box-shadow .18s ease; align-items: stretch; }
 .collection-page .saved-card:hover { box-shadow: 0 16px 32px rgb(38 53 42 / 14%); transform: translateY(-2px); }
 .collection-page .saved-visual, .collection-page .room-template-icon { width: 100%; height: 210px; border-radius: 0; }
 .collection-page .saved-visual { padding: 18px; background: linear-gradient(145deg, #f7f3ea, #e9eee9); }
 .collection-page .room-template-icon img { border-radius: 0; }
-.collection-page .saved-card-body { display: flex; flex: 1; flex-direction: column; padding: 14px 14px 10px; }
-.collection-page .saved-card h2 { display: -webkit-box; overflow: hidden; min-height: 2.4em; margin: 6px 0; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 1.05rem; line-height: 1.2; }
-.collection-page .saved-card p { overflow: hidden; margin: 0; color: var(--color-muted); font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
-.collection-page .saved-card small { display: block; margin-top: 7px; font-size: .72rem; }
-.collection-page .saved-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; width: 100%; margin-top: auto; padding: 0 14px 14px; justify-items: stretch; }
+.collection-page .saved-card-body { display: flex; flex: 1; flex-direction: column; width: 100%; max-width: 100%; min-width: 0; padding: 14px 14px 10px; box-sizing: border-box; }
+.collection-page .saved-card h2 { display: -webkit-box; overflow: hidden; min-height: 2.4em; margin: 6px 0; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 1.05rem; line-height: 1.2; word-break: break-word; overflow-wrap: anywhere; }
+.collection-page .saved-card p { overflow: hidden; margin: 0; color: var(--color-muted); font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.collection-page .saved-card small { display: block; margin-top: 7px; font-size: .72rem; word-break: break-word; }
+.collection-page .saved-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; width: 100%; margin-top: auto; padding: 0 14px 14px; justify-items: stretch; box-sizing: border-box; }
 .collection-page .saved-actions .button, .collection-page .saved-actions .text-button { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 7px; font-size: .76rem; line-height: 1.2; text-align: center; }
 .collection-page .saved-actions .text-button { background: #fff; }
 
