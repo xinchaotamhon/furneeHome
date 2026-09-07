@@ -22,7 +22,10 @@ const {
   requireAdmin,
   requireLocalShopeeImport,
 } = require('../server/src/middleware/authMiddleware');
-const { buildLoginLookup } = require('../server/src/controllers/authController');
+const {
+  buildLoginLookup, generateOtp, hashValue, OTP_TTL_MS, OTP_MAX_ATTEMPTS, OTP_MAX_SENDS,
+  OTP_MAX_SENDS_PER_IP,
+} = require('../server/src/controllers/authController');
 const {
   compactProductListItem,
   validateImportedShopeeMetadata,
@@ -228,6 +231,20 @@ test('Shopee metadata enrichment normalizes Vietnamese đ when classifying place
   assert.equal(floor.placementSurface, 'floor');
 });
 
+test('common room products receive a useful surface without inventing dimensions', () => {
+  const artwork = enrichProductMetadata({ name: 'Bộ 3 tranh canvas trang trí cầu thang' });
+  const rug = enrichProductMetadata({ name: 'Thảm trải phòng chống trượt' });
+  const shelf = enrichProductMetadata({ name: 'Kệ sách basic 4 ngăn', category: 'Kệ sách' });
+  const clipLamp = enrichProductMetadata({ name: 'Đèn LED kẹp bàn học' });
+  assert.equal(artwork.placementSurface, 'wall');
+  assert.equal(rug.placementSurface, 'floor');
+  assert.equal(shelf.placementSurface, 'floor');
+  assert.equal(clipLamp.placementSurface, 'tabletop');
+  for (const product of [artwork, rug, shelf, clipLamp]) {
+    assert.equal(Object.hasOwn(product, 'dimensionsCm'), false);
+  }
+});
+
 test('Shopee dimensions accept units after every value and dimensions written in the title', () => {
   const shelf = enrichProductMetadata({
     name: 'Kệ sách mini kích thước 40cm x 17cm x 40cm',
@@ -248,7 +265,7 @@ test('Shopee metadata enrichment leaves dimensions empty when the description ha
   assert.equal(Object.hasOwn(enriched, 'dimensionsCm'), false);
   assert.equal(Object.hasOwn(enriched, 'dimensions'), false);
   assert.equal(enriched.usageType, 'standard');
-  assert.equal(enriched.placementSurface, 'unknown');
+  assert.equal(enriched.placementSurface, 'floor');
   assert.doesNotMatch(enriched.aiDescription, /kích thước/);
 });
 
@@ -328,6 +345,12 @@ test('downloadable fallback JSON stays light while MongoDB keeps uploaded base64
   assert.equal(product.image, '/images/products/chair.webp');
   assert.equal(product.transparentImage, '/images/products/chair.webp');
   assert.deepEqual(product.images, ['/images/products/chair.webp']);
+  const missingLocalFile = toPlainProduct({
+    _id: 'product-missing', name: 'Thiếu ảnh', image: '/images/products/definitely-missing-export.png',
+  }, { includeDataUrls: false, validateLocalFiles: true });
+  assert.equal(missingLocalFile.image, '');
+  assert.equal(missingLocalFile.transparentImage, '');
+  assert.equal(missingLocalFile.importStatus, 'needs-image-processing');
 });
 
 test('public product list does not send the same uploaded image twice', () => {
@@ -335,6 +358,14 @@ test('public product list does not send the same uploaded image twice', () => {
   const product = compactProductListItem({ _id: 'product-3', image: dataImage, transparentImage: dataImage });
   assert.equal(product.image, dataImage);
   assert.equal(product.transparentImage, '');
+  assert.equal(product.imageReady, true);
+  const missing = compactProductListItem({ _id: 'product-4', image: '/images/products/definitely-missing-smoke.png' });
+  assert.equal(missing.image, '');
+  assert.equal(missing.imageReady, false);
+  assert.equal(missing.importStatus, 'needs-image-processing');
+  const controllerSource = require('node:fs').readFileSync(require.resolve('../server/src/controllers/productController.js'), 'utf8');
+  assert.match(controllerSource, /product\.images\.filter\(runtimeImageSourceAvailable\)/);
+  assert.match(controllerSource, /if \(!hadUsablePrimary\) \{/);
 });
 
 test('canonical JSON merge preserves unknown fields and JSON-only rows, but removes an explicit deletion', () => {
@@ -352,6 +383,23 @@ test('canonical JSON merge preserves unknown fields and JSON-only rows, but remo
   assert.equal(merged[0].customLegacyField, 'must-survive');
   assert.equal(merged[1]._id, 'json-only');
   assert.equal(merged.some((item) => item._id === 'deleted'), false);
+});
+
+test('product maintenance tools never invent product facts', () => {
+  const fs = require('node:fs');
+  const canonicalSync = fs.readFileSync(require.resolve('../tools/syncMongoToJson.js'), 'utf8');
+  assert.match(canonicalSync, /exportProductsToCanonicalJson/);
+
+  const sources = [
+    '../tools/syncMongoToJson.js',
+    '../tools/syncJsonToMongo.js',
+    '../tools/fixProductCategories.js',
+    '../tools/importProducts.js',
+  ].map((file) => fs.readFileSync(require.resolve(file), 'utf8')).join('\n');
+  assert.doesNotMatch(sources, /rating:\s*p\.rating\s*\|\|\s*5/);
+  assert.doesNotMatch(sources, /stock:\s*p\.stock\s*\|\|\s*100/);
+  assert.doesNotMatch(sources, /desk-4060\.png/);
+  assert.doesNotMatch(sources, /Shopee Seller/);
 });
 
 test('anonymous generation quota only derives a deterministic one-way address key', () => {
@@ -449,6 +497,33 @@ test('login lookup supports a username and legacy email through the same safe qu
     isActive: true,
     $or: [{ email: 'admin' }, { username: 'admin' }],
   });
+});
+
+test('email registration keeps OTP opaque, bounded and split into three API steps', () => {
+  const first = generateOtp();
+  assert.match(first, /^\d{6}$/);
+  assert.notEqual(hashValue(`demo@example.com:${first}`), first);
+  assert.equal(OTP_TTL_MS, 10 * 60 * 1000);
+  assert.equal(OTP_MAX_ATTEMPTS, 5);
+  assert.equal(OTP_MAX_SENDS, 5);
+  assert.equal(OTP_MAX_SENDS_PER_IP, 10);
+  const controller = require('node:fs').readFileSync(require.resolve('../server/src/controllers/authController.js'), 'utf8');
+  assert.match(controller, /hashAddress\(getClientAddress\(req\)\)/);
+  assert.match(controller, /emailOtpSendCount:\s*\{\s*\$lt:\s*OTP_MAX_SENDS_PER_IP/);
+  const authRoutes = require('../server/src/routes/authRoutes');
+  const paths = authRoutes.stack.filter((layer) => layer.route).map((layer) => layer.route.path);
+  assert.deepEqual(paths, ['/login', '/register', '/register/request', '/register/verify', '/register/complete']);
+});
+
+test('email registration UI has email, code and profile stages', () => {
+  const source = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '../client/src/components/auth/LoginModal.jsx'),
+    'utf8',
+  );
+  assert.match(source, /requestRegistration\(form\.email/);
+  assert.match(source, /verifyRegistration\(form\.email/);
+  assert.match(source, /completeRegistration\(\{/);
+  assert.match(source, /autoComplete="one-time-code"/);
 });
 
 test('non-admin users cannot reach protected product import or upload handlers', () => {
@@ -583,15 +658,15 @@ test('Admin deployed hides Shopee import form but keeps product management actio
   assert.match(source, /host === 'localhost' \|\| host === '127\.0\.0\.1' \|\| host === '::1'/);
   assert.match(source, /isLocalBrowserHost\(window\.location\.hostname\)/);
   assert.match(source, /\{isLocalBrowser && \(/);
-  assert.match(source, /admin-layout\$\{isLocalBrowser \? '' : ' single'\}/);
+  assert.match(source, /onSubmit=\{saveProduct\}/);
+  assert.match(source, /addProduct/);
+  assert.match(source, /updateProduct/);
   assert.match(source, /downloadProductJson/);
   assert.match(source, /addProductImage/);
   assert.match(source, /removeProduct/);
-  const css = require('node:fs').readFileSync(
-    require('node:path').join(__dirname, '../client/src/styles/global.css'),
-    'utf8',
-  );
-  assert.match(css, /\.admin-layout\.single \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+  assert.match(source, /Tìm tên, danh mục hoặc Item ID/);
+  assert.match(source, /ADMIN_PAGE_SIZE/);
+  assert.match(source, /imageReady === false/);
 });
 
 test('Admin import feedback stays beside the URL form instead of below the full product list', () => {
@@ -599,7 +674,7 @@ test('Admin import feedback stays beside the URL form instead of below the full 
     require('node:path').join(__dirname, '../client/src/pages/AdminPage.jsx'),
     'utf8',
   );
-  const formStart = source.indexOf('<form className="admin-form');
+  const formStart = source.lastIndexOf('<form className="admin-form', source.indexOf('onSubmit={submitShopee}'));
   const formEnd = source.indexOf('</form>', formStart);
   const listStart = source.indexOf('<section className="admin-products');
   assert.ok(formStart >= 0 && formEnd > formStart && listStart > formEnd);

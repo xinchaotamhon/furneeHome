@@ -112,6 +112,7 @@ function lightweightCollectionItem(item) {
     // localStorage quickly fills it and can make the whole site feel broken.
     roomImage: nonDataUrl(item.roomImage),
     resultImage: nonDataUrl(item.resultImage),
+    previewImage: nonDataUrl(item.previewImage),
     productImage: nonDataUrl(item.productImage),
     placements: (item.placements || item.sceneItems || item.items || []).map(lightweightPlacement),
     inspirationProducts: (item.inspirationProducts || []).map(lightweightInspirationProduct),
@@ -205,6 +206,16 @@ export function CollectionProvider({ children }) {
           }];
       });
     },
+    addRemoteRoomTemplate(template) {
+      const remote = normalizeRoomDesign(template);
+      if (!remote) return null;
+      setItems((current) => {
+        const withoutDuplicate = current.filter((item) => item._id !== remote._id && item.id !== remote.id);
+        return [...withoutDuplicate, { ...remote, syncStatus: 'synced' }];
+      });
+      setSyncMessage('Đã lưu bản fork riêng tư vào bộ sưu tập của bạn.');
+      return remote;
+    },
     saveRoomTemplate(template) {
       const localItem = normalizeRoomDesign({
         ...template,
@@ -226,6 +237,7 @@ export function CollectionProvider({ children }) {
         rotation: localItem.rotation,
         flip: localItem.flip,
         resultImage: localItem.resultImage || '',
+        previewImage: localItem.previewImage || '',
         resultMatchesLayout: localItem.resultMatchesLayout !== false,
         designMode: localItem.designMode,
         userPrompt: localItem.userPrompt || '',

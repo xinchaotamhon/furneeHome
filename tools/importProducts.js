@@ -138,7 +138,7 @@ function processProductItem(item) {
       rawName = decodeURIComponent(slugPart).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
     } catch { }
   }
-  const name = rawName || 'Sản phẩm nội thất Shopee';
+  const name = rawName || '';
   const categoryName = details.category || inferCategory(name);
   const price = Number(details.price) || 0;
 
@@ -150,10 +150,10 @@ function processProductItem(item) {
     transparentImage = `/images/products/${rawItemId}.png`;
   }
 
-  const image = details.image || transparentImage || '/images/products/desk-4060.png';
+  const image = details.image || transparentImage || '';
   const finalCutout = transparentImage || image;
-  const sellerName = details.sellerName || (details.isOfficial ? 'Shopee Mall' : 'Shopee Seller');
-  const description = details.description || name;
+  const sellerName = details.sellerName || (details.isOfficial ? 'Shopee Mall' : '');
+  const description = details.description || '';
 
   return {
     name,
@@ -166,9 +166,9 @@ function processProductItem(item) {
     shopeeSearchUrl: url,
     sellerName,
     isOfficial: Boolean(details.isOfficial),
-    rating: Number.isFinite(Number(details.rating)) ? Number(details.rating) : 5.0,
+    rating: Number.isFinite(Number(details.rating)) ? Number(details.rating) : 0,
     description,
-    stock: 100,
+    stock: Number.isFinite(Number(details.stock)) ? Number(details.stock) : 0,
     isActive: true,
   };
 }
@@ -445,10 +445,10 @@ async function validateAndImport(products) {
       slug: item.slug,
       description: item.description,
       price: item.price,
-      stock: 100,
+      stock: item.stock,
       category: categoryId,
       categoryName: item.categoryName,
-      images: [item.image],
+      images: [item.image].filter(Boolean),
       image: item.image,
       transparentImage: item.transparentImage,
       shopeeSearchUrl: item.shopeeSearchUrl,
@@ -495,20 +495,34 @@ async function syncAllProductsToJsonBackup(db) {
       }
       return {
         _id: String(p._id),
-        name: p.name || 'Sản phẩm nội thất Shopee',
+        name: p.name || 'Sản phẩm nội thất',
         slug: p.slug,
         category: categoryName,
         categoryName,
         price: Number.isFinite(p.price) ? p.price : 0,
-        image: p.image || p.transparentImage || '/images/products/desk-4060.png',
-        transparentImage: p.transparentImage || p.image || '/images/products/desk-4060.png',
+        image: p.image || p.transparentImage || '',
+        images: Array.isArray(p.images) ? p.images.filter(Boolean) : [],
+        transparentImage: p.transparentImage || p.image || '',
         sourceUrl: p.sourceUrl || p.shopeeSearchUrl || '',
         shopeeSearchUrl: p.shopeeSearchUrl || p.sourceUrl || '',
-        sellerName: p.sellerName || 'Shopee Seller',
+        sourcePlatform: p.sourcePlatform || '',
+        shopeeShopId: p.shopeeShopId || '',
+        shopeeItemId: p.shopeeItemId || '',
+        sourceImages: Array.isArray(p.sourceImages) ? p.sourceImages : [],
+        sourceFetchedAt: p.sourceFetchedAt || undefined,
+        importStatus: p.image || p.transparentImage ? (p.importStatus || 'complete') : 'needs-image-processing',
+        sellerName: p.sellerName || '',
         isOfficial: Boolean(p.isOfficial),
-        rating: Number.isFinite(p.rating) ? p.rating : 5.0,
-        description: p.description || p.name || '',
-        stock: Number.isFinite(p.stock) ? p.stock : 100,
+        rating: Number.isFinite(p.rating) ? p.rating : 0,
+        description: p.description || '',
+        stock: Number.isFinite(p.stock) ? p.stock : 0,
+        dimensions: p.dimensions || undefined,
+        dimensionsCm: p.dimensionsCm || undefined,
+        usageType: p.usageType || 'unknown',
+        placementSurface: p.placementSurface || 'unknown',
+        aiDescription: p.aiDescription || '',
+        colors: Array.isArray(p.colors) ? p.colors : [],
+        searchKeywords: Array.isArray(p.searchKeywords) ? p.searchKeywords : [],
         isActive: p.isActive !== false,
       };
     });

@@ -21,8 +21,12 @@ const roomDesignService = {
     return unwrap(await apiClient.delete(`/room-designs/${id}`));
   },
 
-  async listPublic() {
-    return unwrap(await apiClient.get('/room-designs/public')) || [];
+  async listPublic(params) {
+    return unwrap(await apiClient.get('/room-designs/public', { params })) || [];
+  },
+
+  async listPublicByCreator(creatorId) {
+    return unwrap(await apiClient.get(`/room-designs/public/creators/${encodeURIComponent(creatorId)}`)) || [];
   },
 
   async getPublic(shareSlug) {
@@ -31,6 +35,10 @@ const roomDesignService = {
 
   async reuse(id) {
     return unwrap(await apiClient.post(`/room-designs/${id}/reuse`));
+  },
+
+  async toggleLike(id) {
+    return unwrap(await apiClient.post(`/room-designs/${id}/like`));
   },
 };
 

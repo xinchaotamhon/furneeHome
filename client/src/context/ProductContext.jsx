@@ -79,6 +79,16 @@ export function ProductProvider({ children }) {
       await fetchProducts();
       return createdProduct;
     },
+    async addProduct(data) {
+      const product = await productService.create(data);
+      await fetchProducts();
+      return product;
+    },
+    async updateProduct(id, data) {
+      const product = await productService.update(id, data);
+      await fetchProducts();
+      return product;
+    },
     async removeProduct(id) {
       await productService.remove(id);
       await fetchProducts();

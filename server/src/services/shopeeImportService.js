@@ -85,11 +85,11 @@ function classifyProductFacts({ name = '', category = '', description = '' } = {
     : /ban|ghe|sofa|tu|ke|giuong|desk|chair|cabinet|shelf|bed|table/.test(facts)
       ? 'standard'
       : 'unknown';
-  const placementSurface = /treo\s*tuong|gan\s*tuong|dan\s*tuong|wall[ -]?mounted|wall\s*hanging/.test(facts)
+  const placementSurface = /treo\s*tuong|gan\s*tuong|dan\s*tuong|wall[ -]?mounted|wall\s*hanging|\btranh\b|\bcanvas\b/.test(facts)
     ? 'wall'
-    : /de\s*ban|tren\s*ban|tabletop|desktop|de\s*tren\s*ke/.test(facts)
+    : /de\s*ban|tren\s*ban|kep\s*ban|tabletop|desktop|de\s*tren\s*ke/.test(facts)
       ? 'tabletop'
-      : /dat\s*san|tren\s*san|de\s*san|floor|ngoi\s*bet|ban\s*(thap|bet)|ghe|sofa|tu|giuong/.test(facts)
+      : /dat\s*san|tren\s*san|de\s*san|lot\s*san|floor|ngoi\s*bet|ban\s*(thap|bet)|\b(ban|ghe|sofa|tu|ke|giuong|tham)\b|den\s*cay|cay\s*dung|xe\s*day/.test(facts)
         ? 'floor'
         : 'unknown';
   return { usageType, placementSurface };

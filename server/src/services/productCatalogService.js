@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const fsSync = require('node:fs');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const env = require('../config/env');
@@ -12,10 +13,24 @@ function removeUndefinedFields(value) {
   return Object.fromEntries(Object.entries(value).filter(([, fieldValue]) => fieldValue !== undefined));
 }
 
-function toPlainProduct(product, { includeDataUrls = true } = {}) {
+function localPublicImageExists(image) {
+  const source = String(image || '');
+  const publicDirectory = path.join(PROJECT_ROOT, 'client', 'public');
+  const publicPath = source.startsWith('/') ? source : `/${source}`;
+  const filePath = path.resolve(publicDirectory, `.${publicPath}`);
+  return filePath.startsWith(`${publicDirectory}${path.sep}`) && fsSync.existsSync(filePath);
+}
+
+function toPlainProduct(product, { includeDataUrls = true, validateLocalFiles = false } = {}) {
   const value = typeof product?.toObject === 'function' ? product.toObject() : { ...product };
   const categoryName = typeof value.category === 'object' ? value.category?.name : value.categoryName;
-  const keepImage = (image) => includeDataUrls || !String(image || '').startsWith('data:');
+  const keepImage = (image) => {
+    const source = String(image || '');
+    if (!source) return false;
+    if (source.startsWith('data:')) return includeDataUrls;
+    if (/^https?:\/\//i.test(source)) return true;
+    return !validateLocalFiles || localPublicImageExists(source);
+  };
   const gallery = Array.isArray(value.images) ? value.images.filter((image) => Boolean(image) && keepImage(image)) : [];
   const primaryImage = [value.image, value.transparentImage, ...gallery].find((image) => image && keepImage(image)) || '';
   const transparentImage = [value.transparentImage, value.image, ...gallery].find((image) => image && keepImage(image)) || '';
@@ -37,7 +52,7 @@ function toPlainProduct(product, { includeDataUrls = true } = {}) {
     shopeeItemId: value.shopeeItemId || '',
     sourceImages: Array.isArray(value.sourceImages) ? value.sourceImages : [],
     sourceFetchedAt: value.sourceFetchedAt || undefined,
-    importStatus: value.importStatus || 'complete',
+    importStatus: primaryImage || transparentImage ? (value.importStatus || 'complete') : 'needs-image-processing',
     sellerName: value.sellerName || '',
     isOfficial: Boolean(value.isOfficial),
     rating: Number.isFinite(value.rating) ? value.rating : 0,
@@ -77,7 +92,7 @@ async function readExistingCanonicalJson() {
   }
 }
 
-function mergeCanonicalProducts(existing, products, { removedIds = [], includeDataUrls = true } = {}) {
+function mergeCanonicalProducts(existing, products, { removedIds = [], includeDataUrls = true, validateLocalFiles = false } = {}) {
   const existingById = new Map(existing.map((item) => [String(item?._id || ''), item]));
   const databaseIds = new Set(products.map((product) => String(product._id)));
   const removed = new Set(removedIds.map(String));
@@ -87,7 +102,7 @@ function mergeCanonicalProducts(existing, products, { removedIds = [], includeDa
   });
   const databaseProducts = products.map((product) => ({
     ...(existingById.get(String(product._id)) || {}),
-    ...toPlainProduct(product, { includeDataUrls }),
+    ...toPlainProduct(product, { includeDataUrls, validateLocalFiles }),
   }));
   return [...databaseProducts, ...preservedJsonOnly];
 }
@@ -97,7 +112,7 @@ async function buildCanonicalProducts(Product, { removedIds = [], includeDataUrl
     Product.find({}).populate('category', 'name slug').sort({ createdAt: -1 }),
     readExistingCanonicalJson(),
   ]);
-  return mergeCanonicalProducts(existing, products, { removedIds, includeDataUrls });
+  return mergeCanonicalProducts(existing, products, { removedIds, includeDataUrls, validateLocalFiles: true });
 }
 
 async function exportProductsToCanonicalJson(Product, { removedIds = [] } = {}) {

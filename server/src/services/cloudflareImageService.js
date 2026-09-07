@@ -97,6 +97,7 @@ function buildRoomPrompt(input, usesReferenceImages) {
     brief.purpose && `Intended use: ${JSON.stringify(brief.purpose)}.`,
     brief.style && `Preferred style: ${JSON.stringify(brief.style)}.`,
     brief.keepClear && `Keep these areas clear: ${JSON.stringify(brief.keepClear)}.`,
+    brief.desiredPosition && `Preferred placement: ${JSON.stringify(brief.desiredPosition)}. Follow it only if that visible area can safely support the selected item.`,
     brief.avoid && `Avoid: ${JSON.stringify(brief.avoid)}.`,
   ].filter(Boolean).join(' ');
   if (input.mode !== 'inspiration') {

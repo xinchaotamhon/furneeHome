@@ -190,6 +190,36 @@ function drawAiProductGuide(fullCanvas, productImage, rectangle, isFlipped = fal
   context.restore();
 }
 
+function drawProductMask(maskContext, roomSize, productImage, rectangle, isFlipped = false, product = {}, target = { x: 50 }, cameraParams = null, rotation = 0) {
+  const silhouette = makeCanvas(roomSize.width, roomSize.height);
+  const context = silhouette.getContext('2d');
+  const isWall = isWallMounted(product);
+  const { canvasTransform } = computeProductPerspectiveTransform(target, isWall, isFlipped, cameraParams);
+
+  context.save();
+  context.translate(rectangle.productX + (rectangle.productWidth / 2), rectangle.productY + (rectangle.productHeight / 2));
+  context.rotate((Number(rotation) || 0) * Math.PI / 180);
+  if (Array.isArray(canvasTransform)) context.transform(...canvasTransform);
+  if (isFlipped) context.scale(-1, 1);
+  context.drawImage(productImage, -rectangle.productWidth / 2, -rectangle.productHeight / 2, rectangle.productWidth, rectangle.productHeight);
+  context.restore();
+
+  // Convert the source alpha into a tight white inpaint mask. A small blurred
+  // rim lets the model blend light and shadow without repainting nearby stairs,
+  // walls or doors as the former bounding-box mask did.
+  context.globalCompositeOperation = 'source-in';
+  context.fillStyle = '#fff';
+  context.fillRect(0, 0, roomSize.width, roomSize.height);
+  context.globalCompositeOperation = 'source-over';
+
+  maskContext.save();
+  maskContext.globalAlpha = 0.72;
+  maskContext.filter = 'blur(5px)';
+  maskContext.drawImage(silhouette, 0, 0);
+  maskContext.restore();
+  maskContext.drawImage(silhouette, 0, 0);
+}
+
 function createReferenceComposite(scene) {
   const columns = Math.min(3, Math.max(1, scene.length));
   const rows = Math.ceil(scene.length / columns);
@@ -315,12 +345,12 @@ export async function createRoomPreviewImages({ roomSource, placements, productS
   roomCanvas.getContext('2d').drawImage(roomImage, 0, 0, roomSize.width, roomSize.height);
   const guideCanvas = makeCanvas(roomSize.width, roomSize.height);
   guideCanvas.getContext('2d').drawImage(roomCanvas, 0, 0);
+  const identityOverlayCanvas = makeCanvas(roomSize.width, roomSize.height);
 
   const maskCanvas = makeCanvas(roomSize.width, roomSize.height);
   const maskContext = maskCanvas.getContext('2d');
   maskContext.fillStyle = '#000';
   maskContext.fillRect(0, 0, roomSize.width, roomSize.height);
-  maskContext.fillStyle = '#fff';
   const scene = scenePlacements
     .map((placement, index) => ({ placement, image: productImages[index] }))
     .sort((left, right) => (left.placement.zIndex || 0) - (right.placement.zIndex || 0));
@@ -331,17 +361,8 @@ export async function createRoomPreviewImages({ roomSource, placements, productS
     const rectangle = getProductRectangle(roomSize, image, placementTarget, sceneProduct, placement.scale);
     const productForPlacement = { ...sceneProduct, name: placement.productName || sceneProduct?.name };
     drawAiProductGuide(guideCanvas, image, rectangle, placement.isFlipped, productForPlacement, placementTarget, cameraParams, placement.rotation);
-    const angle = (Number(placement.rotation) || 0) * Math.PI / 180;
-    const rotatedWidth = Math.abs(rectangle.productWidth * Math.cos(angle)) + Math.abs(rectangle.productHeight * Math.sin(angle));
-    const rotatedHeight = Math.abs(rectangle.productWidth * Math.sin(angle)) + Math.abs(rectangle.productHeight * Math.cos(angle));
-    const padding = Math.ceil(Math.max(rotatedWidth, rotatedHeight) * 0.12);
-    const centerX = rectangle.productX + (rectangle.productWidth / 2);
-    const centerY = rectangle.productY + (rectangle.productHeight / 2);
-    const maskX = Math.max(0, Math.floor(centerX - (rotatedWidth / 2) - padding));
-    const maskY = Math.max(0, Math.floor(centerY - (rotatedHeight / 2) - padding));
-    const maskRight = Math.min(roomSize.width, Math.ceil(centerX + (rotatedWidth / 2) + padding));
-    const maskBottom = Math.min(roomSize.height, Math.ceil(centerY + (rotatedHeight / 2) + padding));
-    maskContext.fillRect(maskX, maskY, maskRight - maskX, maskBottom - maskY);
+    drawAiProductGuide(identityOverlayCanvas, image, rectangle, placement.isFlipped, productForPlacement, placementTarget, cameraParams, placement.rotation);
+    drawProductMask(maskContext, roomSize, image, rectangle, placement.isFlipped, productForPlacement, placementTarget, cameraParams, placement.rotation);
   });
 
   const referenceCanvas = createReferenceComposite(scene);
@@ -349,6 +370,7 @@ export async function createRoomPreviewImages({ roomSource, placements, productS
     roomImageDataUrl: roomCanvas.toDataURL('image/jpeg', 0.9),
     guideImageDataUrl: guideCanvas.toDataURL('image/jpeg', 0.9),
     maskImageDataUrl: maskCanvas.toDataURL('image/png'),
+    identityOverlayDataUrl: identityOverlayCanvas.toDataURL('image/png'),
     productImageDataUrl: referenceCanvas.toDataURL('image/png'),
     referenceSheet: {
       filename: `scene-references-${String(scene.length).padStart(2, '0')}-z-order.png`,
@@ -415,12 +437,13 @@ function applyMaskAlpha(cropCanvas, maskImage, width, height) {
   context.globalCompositeOperation = 'source-over';
 }
 
-export async function compositeRoomPreview({ roomSource, resultSource, maskSource, editRegion }) {
+export async function compositeRoomPreview({ roomSource, resultSource, maskSource, identityOverlaySource, editRegion }) {
   if (!roomSource || !resultSource || !editRegion) throw new Error('Thiếu ảnh để ghép kết quả AI vào phòng.');
-  const [roomImage, resultImage, maskImage] = await Promise.all([
+  const [roomImage, resultImage, maskImage, identityOverlay] = await Promise.all([
     loadImage(roomSource),
     loadImage(resultSource),
     maskSource ? loadImage(maskSource) : Promise.resolve(null),
+    identityOverlaySource ? loadImage(identityOverlaySource) : Promise.resolve(null),
   ]);
   const canvas = makeCanvas(roomImage.naturalWidth, roomImage.naturalHeight);
   const context = canvas.getContext('2d');
@@ -438,6 +461,10 @@ export async function compositeRoomPreview({ roomSource, resultSource, maskSourc
   if (maskImage) applyMaskAlpha(cropCanvas, maskImage, width, height);
   else applyFeather(cropCanvas, CROP_PADDING_PX);
   context.drawImage(cropCanvas, x, y, width, height);
+  // The model supplies lighting and blending, while this final transparent
+  // layer guarantees that every selected catalogue item remains visible with
+  // its real silhouette, colour and construction.
+  if (identityOverlay) context.drawImage(identityOverlay, 0, 0, canvas.width, canvas.height);
 
   return canvas.toDataURL('image/jpeg', 0.9);
 }

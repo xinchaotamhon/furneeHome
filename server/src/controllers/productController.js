@@ -1,3 +1,5 @@
+const fs = require('node:fs');
+const path = require('node:path');
 const Category = require('../models/Category');
 const Product = require('../models/Product');
 const {
@@ -10,15 +12,31 @@ const {
 } = require('../services/productCatalogService');
 const { importMetadataFromShopee } = require('../services/shopeeImportService');
 
+const CLIENT_PUBLIC_DIRECTORY = path.resolve(__dirname, '../../../client/public');
+
 function createError(message, status = 400) {
   const error = new Error(message);
   error.status = status;
   return error;
 }
 
+function runtimeImageSourceAvailable(value) {
+  const source = String(value || '');
+  if (!source) return false;
+  if (/^(?:data:image\/|https?:\/\/)/i.test(source)) return true;
+  const publicPath = source.startsWith('/') ? source : `/${source}`;
+  const filePath = path.resolve(CLIENT_PUBLIC_DIRECTORY, `.${publicPath}`);
+  return filePath.startsWith(`${CLIENT_PUBLIC_DIRECTORY}${path.sep}`) && fs.existsSync(filePath);
+}
+
 function compactProductListItem(product) {
   const value = typeof product?.toObject === 'function' ? product.toObject() : { ...product };
+  for (const field of ['image', 'transparentImage']) {
+    if (!runtimeImageSourceAvailable(value[field])) value[field] = '';
+  }
   if (value.image && value.transparentImage === value.image) value.transparentImage = '';
+  value.imageReady = Boolean(value.image || value.transparentImage);
+  if (!value.imageReady) value.importStatus = 'needs-image-processing';
   return value;
 }
 
@@ -266,12 +284,16 @@ async function addImage(req, res, next) {
     const uploadedImage = validateAdminProductImage(req.body?.dataUrl);
     const persistedImage = await persistAdminProductImage(product, uploadedImage);
     const imageValue = persistedImage.value;
-    const priorImages = Array.isArray(product.images) ? [...product.images] : [];
+    const hadUsablePrimary = runtimeImageSourceAvailable(product.transparentImage)
+      || runtimeImageSourceAvailable(product.image);
+    const priorImages = Array.isArray(product.images)
+      ? product.images.filter(runtimeImageSourceAvailable)
+      : [];
     product.images = [...new Set([...priorImages, imageValue])];
     validateProductImageGallery(product, product.images);
     // The first uploaded image becomes the runtime reference, replacing a stale
     // local path when the file was never committed with the product metadata.
-    if (!priorImages.length) {
+    if (!hadUsablePrimary) {
       product.image = imageValue;
       product.transparentImage = '';
       product.importStatus = 'complete';

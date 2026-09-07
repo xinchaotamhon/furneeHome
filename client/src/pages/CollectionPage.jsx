@@ -132,7 +132,6 @@ export default function CollectionPage() {
   return <main className="container page">
     <div className="page-heading split-heading">
       <div>
-        <p className="eyebrow">KHÔNG PHẢI GIỎ HÀNG</p>
         <h1>Bộ sưu tập của bạn</h1>
         <p>Lưu món đồ yêu thích và những mẫu phòng bạn đã tự sắp xếp.</p>
       </div>

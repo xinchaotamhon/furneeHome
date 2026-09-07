@@ -37,11 +37,12 @@ test('Bàn ngồi bệt giữ công năng, số đo thật và mô tả có cấ
     assert.match(prompt, /height 28 cm/);
     assert.match(prompt, /Do not add a chair/);
     assert.match(prompt, /Lối nhà vệ sinh/);
+    assert.match(prompt, /sát tường trái/);
     assert.match(prompt, /chân ngắn màu trắng/);
     return success();
   });
   const response = await callController(controller.create, { ...placement,
-    designBrief: { purpose: 'Học ngồi bệt', keepClear: 'Lối nhà vệ sinh' },
+    designBrief: { purpose: 'Học ngồi bệt', keepClear: 'Lối nhà vệ sinh', desiredPosition: 'sát tường trái' },
     sceneProducts: [{ name: 'Bàn thấp', usageType: 'floor-seating', placementSurface: 'floor', dimensionsCm: { width: 60, depth: 40, height: 28 }, aiDescription: 'chân ngắn màu trắng', target: { x: .5, y: .75 } }],
   });
   assert.equal(response.status, 200);
@@ -81,10 +82,31 @@ test('Placement luôn ghép kết quả AI qua mask, kể cả data URL', () => 
   const roomPage = fs.readFileSync(path.join(__dirname, '../client/src/pages/RoomStudioPage.jsx'), 'utf8');
   const canvas = fs.readFileSync(path.join(__dirname, '../client/src/utils/roomPreviewCanvas.js'), 'utf8');
   assert.match(roomPage, /maskSource: guideImages\.maskImageDataUrl/);
+  assert.match(roomPage, /identityOverlaySource: identityOverlayDataUrl/);
   assert.match(roomPage, /const finalImage = await compositeRoomPreview/);
   assert.match(canvas, /function applyMaskAlpha/);
+  assert.match(canvas, /function drawProductMask/);
+  assert.match(canvas, /source-in/);
+  assert.doesNotMatch(canvas, /maskContext\.fillRect\(maskX/);
   assert.match(canvas, /destination-in/);
   assert.match(canvas, /maskSource \? loadImage\(maskSource\)/);
+  assert.match(canvas, /if \(identityOverlay\) context\.drawImage/);
+});
+
+test('Mong muốn nằm dưới danh sách món và so sánh trước sau nằm trong ảnh', () => {
+  const roomPage = fs.readFileSync(path.join(__dirname, '../client/src/pages/RoomStudioPage.jsx'), 'utf8');
+  const roomDesignModel = fs.readFileSync(path.join(__dirname, '../server/src/models/RoomDesign.js'), 'utf8');
+  const productGrid = roomPage.indexOf('className="studio-product-grid"');
+  assert.ok(productGrid >= 0);
+  assert.match(roomPage, /Vị trí bạn muốn/);
+  assert.match(roomPage, /Bạn không muốn/);
+  assert.match(roomPage, /Ghi chú khác/);
+  assert.ok(roomPage.indexOf('<DesignBriefFields', productGrid) > productGrid);
+  assert.doesNotMatch(roomPage, /activeTab === "brief"/);
+  assert.match(roomPage, /className="studio-compare"/);
+  assert.match(roomPage, />Ảnh gốc<\/button>/);
+  assert.match(roomPage, />Ảnh AI<\/button>/);
+  assert.match(roomDesignModel, /designBrief: \{[^\n]*desiredPosition: String/);
 });
 
 test('Không tự bịa số đo; dữ liệu mô tả/vị trí sai bị chặn trước provider', async (t) => {
@@ -112,12 +134,13 @@ test('Lưu collection giữ brief, đặc tính bàn thấp, vị trí 0 và tr�
   RoomDesign.create = async (data) => data;
   const productFacts = { usageType: 'floor-seating', placementSurface: 'floor', dimensionsCm: { height: 28 }, aiDescription: 'không thêm ghế' };
   const saved = await callController(designs.create, { name: 'Smoke metadata', resultImage: image, resultMatchesLayout: false,
-    designBrief: { purpose: 'Học ngồi bệt' }, scaleReference: { points: [{ x: .2, y: .7 }, { x: .5, y: .7 }], lengthCm: 80 }, placements: [{ productName: 'Bàn thấp', target: { x: 0, y: 0 }, productFacts }],
+    designBrief: { purpose: 'Học ngồi bệt', desiredPosition: 'sát tường trái' }, scaleReference: { points: [{ x: .2, y: .7 }, { x: .5, y: .7 }], lengthCm: 80 }, placements: [{ productName: 'Bàn thấp', target: { x: 0, y: 0 }, productFacts }],
   }, { user: { _id: '507f1f77bcf86cd799439011' } });
   assert.equal(saved.status, 201);
   assert.deepEqual(saved.result.data.placements[0].productFacts, productFacts);
   assert.equal(saved.result.data.placements[0].target.x, 0);
   assert.equal(saved.result.data.designBrief.purpose, 'Học ngồi bệt');
+  assert.equal(saved.result.data.designBrief.desiredPosition, 'sát tường trái');
   assert.equal(saved.result.data.resultMatchesLayout, false);
   assert.equal(saved.result.data.resultImage, image);
   assert.equal(saved.result.data.scaleReference.lengthCm, 80);
@@ -341,7 +364,7 @@ test('Lưu/dùng lại ý tưởng AI giữ prompt, loại ảnh và không thê
     productId: '507f1f77bcf86cd799439012', productName: 'Bàn thấp',
     image: '/images/products/ban-thap.png', sourceUrl: 'https://shopee.vn/ban-thap',
   }];
-  const body = { name: 'Ý tưởng phòng nhỏ', designMode: 'inspiration', roomImage: image, resultImage: image, placements: [], inspirationProducts, markedCorners: [], userPrompt: input.userPrompt, model: 'klein' };
+  const body = { name: 'Ý tưởng phòng nhỏ', designMode: 'inspiration', roomImage: image, resultImage: image, previewImage: image, placements: [], inspirationProducts, markedCorners: [], userPrompt: input.userPrompt, model: 'klein' };
   const created = await callController(designs.create, body, { user: { _id: '507f1f77bcf86cd799439011', name: 'Smoke' } });
   assert.equal(created.status, 201);
   assert.equal(created.result.data.designMode, 'inspiration');
@@ -356,12 +379,81 @@ test('Lưu/dùng lại ý tưởng AI giữ prompt, loại ảnh và không thê
   assert.deepEqual(reused.result.data.inspirationProducts, inspirationProducts);
   assert.equal(reused.result.data.userPrompt, input.userPrompt);
   assert.equal(reused.result.data.resultImage, image);
+  assert.equal(reused.result.data.previewImage, image);
+  assert.equal(String(reused.result.data.parentDesign), '507f1f77bcf86cd799439022');
+  assert.equal(String(reused.result.data.rootDesign), String(created.result.data.rootDesign));
+});
+
+test('Tim public chỉ lưu một bản ghi theo user và API không làm lộ danh sách người thích', async (t) => {
+  const originalUpdate = RoomDesign.findOneAndUpdate;
+  t.after(() => { RoomDesign.findOneAndUpdate = originalUpdate; });
+  let calls = 0;
+  RoomDesign.findOneAndUpdate = async (filter, update) => {
+    calls += 1;
+    assert.equal(String(filter._id), '507f1f77bcf86cd799439022');
+    assert.equal(filter.visibility, 'public');
+    assert.equal(String(update.$addToSet.likedBy), '507f1f77bcf86cd799439011');
+    assert.equal(update.$inc.likeCount, 1);
+    return {
+      _id: filter._id, user: '507f1f77bcf86cd799439010', creatorName: 'Tác giả',
+      visibility: 'public', likedBy: ['507f1f77bcf86cd799439011'], likeCount: 1,
+      roomImage: image, resultImage: image, previewImage: image,
+    };
+  };
+  const response = await callController(designs.toggleLike, {}, {
+    params: { id: '507f1f77bcf86cd799439022' }, user: { _id: '507f1f77bcf86cd799439011' },
+  });
+  assert.equal(response.status, 200);
+  assert.equal(calls, 1);
+  assert.equal(response.result.data.likedByMe, true);
+  assert.equal(response.result.data.likeCount, 1);
+  assert.equal(response.result.data.creator.id, '507f1f77bcf86cd799439010');
+  assert.equal('likedBy' in response.result.data, false);
+  assert.equal('roomImage' in response.result.data, false);
+  assert.equal('resultImage' in response.result.data, false);
+  assert.equal(response.result.data.previewImage, image);
+});
+
+test('Danh sách public chỉ trả thumbnail và metadata, chi tiết mới trả ảnh đầy đủ', () => {
+  const source = {
+    _id: '507f1f77bcf86cd799439022', user: '507f1f77bcf86cd799439010',
+    visibility: 'public', likedBy: [], previewImage: image, roomImage: image,
+    resultImage: image, photo: image, productImage: image,
+    placements: [{ productName: 'Bàn thấp', image, transparentImage: image, target: { x: 0.5, y: 0.7 } }],
+  };
+  const listed = designs.publicDesign(source);
+  assert.equal('roomImage' in listed, false);
+  assert.equal('resultImage' in listed, false);
+  assert.equal('productImage' in listed, false);
+  assert.equal('image' in listed.placements[0], false);
+  assert.equal('transparentImage' in listed.placements[0], false);
+  assert.equal(listed.previewImage, image);
+  const detail = designs.publicDesign(source, null, { includeFullImages: true });
+  assert.equal(detail.resultImage, image);
+  assert.equal(detail.placements[0].image, image);
+});
+
+test('Public gallery yêu cầu đăng nhập cho tim/fork và giữ route tác giả riêng', () => {
+  const routes = fs.readFileSync(path.join(__dirname, '../server/src/routes/roomDesignRoutes.js'), 'utf8');
+  const controller = fs.readFileSync(path.join(__dirname, '../server/src/controllers/roomDesignController.js'), 'utf8');
+  const service = fs.readFileSync(path.join(__dirname, '../client/src/services/roomDesignService.js'), 'utf8');
+  const gallery = fs.readFileSync(path.join(__dirname, '../client/src/pages/PublicCollectionsPage.jsx'), 'utf8');
+  assert.match(routes, /optionalAuthenticate, roomDesignController\.listPublic/);
+  assert.match(routes, /router\.post\('\/:id\/like', roomDesignController\.toggleLike\)/);
+  assert.match(routes, /public\/creators\/:creatorId/);
+  assert.match(service, /listPublicByCreator/);
+  assert.match(service, /toggleLike/);
+  assert.match(gallery, /roomDesignService\.toggleLike/);
+  assert.match(gallery, /collections\/public\/creator/);
+  const listSource = controller.slice(controller.indexOf('async function publicListData'), controller.indexOf('async function listMine'));
+  assert.doesNotMatch(listSource, /resultImage roomImage/);
+  assert.match(controller, /mongoose\.isValidObjectId\(req\.params\.shareSlug\)/);
 });
 
 test('Collection gửi các trường phục hồi và product references của ý tưởng lên tài khoản', () => {
   const source = require('node:fs').readFileSync(path.join(__dirname, '../client/src/context/CollectionContext.jsx'), 'utf8');
   const payload = source.slice(source.indexOf('const payload ='), source.indexOf('return roomDesignService.create'));
-  for (const field of ['designMode', 'userPrompt', 'model', 'elapsedMs', 'placements', 'inspirationProducts', 'markedCorners', 'scaleReference']) assert.match(payload, new RegExp(`${field}:`));
+  for (const field of ['designMode', 'userPrompt', 'model', 'elapsedMs', 'previewImage', 'placements', 'inspirationProducts', 'markedCorners', 'scaleReference']) assert.match(payload, new RegExp(`${field}:`));
 });
 
 test('Phiên phòng thử dùng session; cache trình duyệt không giữ ảnh base64', () => {

@@ -46,4 +46,13 @@ module.exports = {
   huggingFaceToken: process.env.HF_TOKEN,
   // HF_TOKEN alone is intentionally insufficient: set an image-to-image model served by hf-inference.
   huggingFaceImageModel: process.env.HUGGINGFACE_IMAGE_MODEL,
+  // Registration OTP delivery. SMTP is deliberately opt-in; local test mode
+  // is accepted only outside production and only from a loopback request.
+  smtpHost: process.env.SMTP_HOST,
+  smtpPort: Number(process.env.SMTP_PORT || 587),
+  smtpSecure: process.env.SMTP_SECURE === 'true',
+  smtpUser: process.env.SMTP_USER,
+  smtpPass: process.env.SMTP_PASS,
+  smtpFrom: process.env.SMTP_FROM || process.env.SMTP_USER,
+  authOtpDevMode: process.env.AUTH_OTP_DEV_MODE === 'true',
 };
