@@ -57,6 +57,9 @@ export default function LoginModal() {
       }
     } catch (submitError) {
       setError(submitError.message || 'Không thể thực hiện yêu cầu.');
+      if (!isRegister || registerStep === 'profile') {
+        setForm((current) => ({ ...current, password: '', confirmPassword: '' }));
+      }
     } finally {
       setIsSubmitting(false);
     }
