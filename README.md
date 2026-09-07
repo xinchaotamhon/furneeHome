@@ -34,7 +34,7 @@ Dành cho Windows:
 | Trang | Đường dẫn (URL) | Chức năng chính |
 |---|---|---|
 | **Trang chủ** | `/` | Giới thiệu dự án, danh mục nổi bật, dẫn nhanh đến phòng thử |
-| **Danh sách sản phẩm** | `/products` | 70 sản phẩm thuộc các nhóm Ghế, Bàn học, Tủ, Kệ sách và Nội thất; mở link Shopee để xem nguồn |
+| **Danh sách sản phẩm** | `/products` | Sản phẩm từ MongoDB hoặc JSON dự phòng; mở link nguồn để xem thông tin gốc |
 | **Phòng thử (Room Studio)** | `/room-studio` | Tải ảnh → chọn món để hiện ngay trên ảnh → kéo, phóng/thu, xoay/lật → bấm Tạo ảnh. Mốc kích thước thật là tùy chọn |
 | **Bộ sưu tập** | `/collection` | Lưu ảnh gốc/kết quả, loại ý tưởng, vị trí/kích thước/xoay/lật/layer, điểm tham chiếu và mô tả; mở lại hoặc chủ động chia sẻ |
 | **Mẫu công khai** | `/collections/public` | Xem các mẫu được chủ sở hữu công khai; đăng nhập để công khai hoặc dùng lại thành bản sao riêng tư |
@@ -138,7 +138,7 @@ Lệnh `--dry-run` chỉ kiểm tra URL, ID, slug, PNG, danh mục, giá và d�
 
 ### 🔹 Quyết định về giá
 
-Hiện dữ liệu có **70 sản phẩm** và 70 URL Shopee riêng; 58 món đã có PNG local, 12 món đang chờ Admin tải ảnh. Room Studio đưa món có ảnh lên trước và khóa món thiếu ảnh để không gửi reference giả sang AI. `price` của cả 70 món vẫn đang bằng `0`. Giá Shopee có thể thay đổi nên không xem giá đã cào là giá bán hiện tại. Trong giai đoạn này:
+MongoDB là dữ liệu dùng chung của nhóm; JSON và ảnh local là bản fallback cần commit. Room Studio kiểm tra file ảnh có tồn tại thật, đưa món có ảnh lên trước và khóa món thiếu ảnh để không gửi reference giả sang AI. Giá Shopee có thể thay đổi nên không xem giá đã cào là giá bán hiện tại. Trong giai đoạn này:
 
 - `price` chỉ là giá tham khảo; có thể để `0` nếu sản phẩm đi theo hướng affiliate.
 - `sourceUrl`/link Shopee là đường dẫn người dùng mở để xem giá và mua.
@@ -170,8 +170,17 @@ Dự án dùng **một file `.env` duy nhất ở thư mục gốc**. Giữ nguy
 | `POLLINATIONS_IMAGE_MODELS` | Danh sách model Pollinations từ mạnh đến nhẹ, phân cách bằng dấu phẩy |
 | `HF_TOKEN` | Token Hugging Face tùy chọn |
 | `HUGGINGFACE_IMAGE_MODEL` | Model image-to-image được `hf-inference` hỗ trợ; phải có cùng `HF_TOKEN` mới bật fallback |
+| `SMTP_HOST` / `SMTP_PORT` | Máy chủ SMTP gửi mã xác minh email (mặc định cổng 587) |
+| `SMTP_SECURE` | Đặt `true` khi SMTP dùng TLS trực tiếp (thường cổng 465) |
+| `SMTP_USER` / `SMTP_PASS` | Tài khoản SMTP; chỉ lưu trong secret môi trường, không commit |
+| `SMTP_FROM` | Địa chỉ người gửi mã xác minh |
+| `AUTH_OTP_DEV_MODE` | Chỉ local: đặt `true` để nhận mã ngẫu nhiên trong response khi gọi từ localhost; production luôn bỏ qua |
 
 Chỉ cần các biến Cloudflare hiện có là Room Studio vẫn chạy như trước. Khi thêm khóa Pollinations hoặc Hugging Face, backend sẽ tự chuyển provider nếu nơi đang dùng hết quota, timeout hoặc tạm lỗi. Free quota do từng nhà cung cấp quyết định và có thể thay đổi; không provider nào được coi là miễn phí vô hạn.
+
+### Đăng ký và xác minh email
+
+Đăng ký gồm ba bước: nhập email, nhập mã 6 số rồi tạo họ tên và mật khẩu. Mã có hiệu lực 10 phút và số lần gửi được giới hạn theo email cùng địa chỉ mạng đã băm. Local có thể đặt `AUTH_OTP_DEV_MODE=true`; production phải cấu hình SMTP.
 
 ### Thêm JWT_SECRET cho xác thực backend
 
@@ -213,7 +222,7 @@ furneehome/
 │   ├── public/
 │   │   ├── favicon.ico               # Biểu tượng trình duyệt
 │   │   ├── data_import/
-│   │   │   └── data_import.json      # Backup nhẹ của 70 sản phẩm khi API chưa sẵn sàng
+│   │   │   └── data_import.json      # Backup nhẹ khi API chưa sẵn sàng
 │   │   └── images/
 │   │       ├── README.md             # Quy ước đặt ảnh sản phẩm
 │   │       └── products/
@@ -227,8 +236,6 @@ furneehome/
 │       ├── components/
 │       │   ├── auth/
 │       │   │   └── LoginModal.jsx    # Modal đăng nhập/đăng ký qua backend
-│       │   ├── common/
-│       │   │   └── Button.jsx        # Nút dùng lại
 │       │   ├── layout/
 │       │   │   ├── MainLayout.jsx    # Khung trang chung
 │       │   │   ├── Header.jsx        # Điều hướng, user và link Admin
@@ -247,7 +254,7 @@ furneehome/
 │       │
 │       ├── pages/
 │       │   ├── HomePage.jsx           # Trang giới thiệu
-│       │   ├── ProductListPage.jsx    # Tìm kiếm và xem 70 sản phẩm
+│       │   ├── ProductListPage.jsx    # Tìm kiếm và xem sản phẩm
 │       │   ├── RoomStudioPage.jsx     # Chọn điểm, đặt đồ, xem thử AI
 │       │   ├── CollectionPage.jsx     # Xem, mở lại và chia sẻ mẫu đã lưu
 │       │   ├── PublicCollectionsPage.jsx # Danh sách mẫu phòng công khai
@@ -355,11 +362,12 @@ Hệ thống được thiết kế tối ưu để deploy hoàn toàn miễn ph�
 
 ---
 
-## 🎓 9. Ứng dụng Fourgether Ôn tập & Phân vai 4 thành viên
+## 🎓 9. Ứng dụng Fourgether ôn tập chung
 
 - `fourgether/` là ứng dụng tĩnh để **Hiệp, Phúc, Triều, Dũng** cùng ôn toàn bộ đồ án:
-  - Trang đầu là cây kiến thức theo luồng người dùng → frontend → backend/AI → dữ liệu/deploy → câu hỏi bảo vệ; không chia kiến thức theo độ khó hay thành viên.
-  - Bấm một nhánh để mở thẻ ngay; hỗ trợ tìm kiếm, thu/phóng nhánh, lật thẻ và phím tắt.
+  - Bấm **Học theo luồng** để đi hết dự án; bấm một node để chỉ ôn chủ đề đó.
+  - Cây đi theo người dùng → frontend → backend/AI → dữ liệu/deploy → câu hỏi bảo vệ; không chia theo độ khó hay thành viên.
   - Mọi người học toàn bộ luồng; phân công công việc của nhóm không làm thay đổi nội dung phải biết.
   - Tiến độ chỉ giữ trong phiên hiện tại, không lưu cache ứng dụng hay dữ liệu trình duyệt; tải lại là một phiên học mới.
-  - Repo độc lập có thể deploy trực tiếp lên Cloudflare Pages.
+  - Đây là repo độc lập: <https://github.com/xinchaotamhon/fourgether>. Lần đầu clone vào thư mục `fourgether`; các lần sau chạy `git -C fourgether pull --ff-only`.
+  - Trước khi phát hành, chạy `node --test smoke.cjs` trong thư mục `fourgether`. Repo có thể deploy trực tiếp lên Cloudflare Pages.

@@ -63,10 +63,15 @@ const roomDesignSchema = new mongoose.Schema({
     anchor: { type: String, default: 'bottom-center' },
   },
   resultImage: { type: String, default: '' },
+  // Small image used by public lists; full room/result images are only returned
+  // when opening one design.
+  previewImage: { type: String, default: '', maxlength: 500_000 },
   resultMatchesLayout: { type: Boolean, default: true },
   designMode: { type: String, enum: ['placement', 'inspiration'], default: 'placement' },
   userPrompt: { type: String, default: '', trim: true, maxlength: 300 },
-  designBrief: { purpose: String, style: String, keepClear: String, avoid: String },
+  // Keep legacy fields so old saved designs still open; new UI uses
+  // desiredPosition + avoid, while userPrompt stores the third free note.
+  designBrief: { purpose: String, style: String, keepClear: String, desiredPosition: String, avoid: String },
   model: { type: String, default: '' },
   elapsedMs: Number,
   scale: { type: Number, default: 1, min: 0.1, max: 4 },
@@ -86,8 +91,19 @@ const roomDesignSchema = new mongoose.Schema({
   visibility: { type: String, enum: ['private', 'public'], default: 'private' },
   shareSlug: { type: String, trim: true, unique: true, sparse: true },
   creatorName: { type: String, default: '', trim: true },
+  // Snapshot creator data so a public post remains attributable even if a profile changes later.
+  creatorAvatar: { type: String, default: '', trim: true, maxlength: 2_000 },
+  // One user can like a design once. likeCount avoids exposing the whole liker list publicly.
+  likedBy: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
+  likeCount: { type: Number, default: 0, min: 0 },
+  // Keep reusedFrom for records created before lineage was introduced.
+  parentDesign: { type: mongoose.Schema.Types.ObjectId, ref: 'RoomDesign' },
+  rootDesign: { type: mongoose.Schema.Types.ObjectId, ref: 'RoomDesign' },
   reusedFrom: { type: mongoose.Schema.Types.ObjectId, ref: 'RoomDesign' },
   reuseCount: { type: Number, default: 0, min: 0 },
 }, { timestamps: true });
+
+roomDesignSchema.index({ visibility: 1, updatedAt: -1 });
+roomDesignSchema.index({ visibility: 1, user: 1, updatedAt: -1 });
 
 module.exports = mongoose.model('RoomDesign', roomDesignSchema);

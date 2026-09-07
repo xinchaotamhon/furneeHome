@@ -21,7 +21,10 @@ export default function HomePage() {
                 <img src="/images/home-room-2.webp" alt="Phòng trọ sau khi thử một bàn thấp" />
               </figure>
               <figure className="fh-room-slide" aria-hidden="true">
-                <img src="/images/home-room-3.webp" alt="Phòng trọ sau khi thử thêm tủ đựng đồ" />
+                <img src="/images/home-room-3.webp" alt="Phòng trọ sau khi thử bàn tròn và thảm" />
+              </figure>
+              <figure className="fh-room-slide" aria-hidden="true">
+                <img src="/images/home-room-4.webp" alt="Phòng trọ sau khi thử giá treo đồ và bàn thấp" />
               </figure>
             </div>
           </div>

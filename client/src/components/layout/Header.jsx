@@ -15,7 +15,7 @@ export default function Header() {
         <NavLink to="/">Trang chủ</NavLink>
         <NavLink to="/products">Chọn sản phẩm</NavLink>
         <NavLink to="/room-studio">Tạo ảnh thử</NavLink>
-        <NavLink to="/collections/public">Mẫu công khai</NavLink>
+        <NavLink className="public-nav-link" to="/collections/public"><span aria-hidden="true">✦</span>Mẫu công khai</NavLink>
         <NavLink to="/collection">Bộ sưu tập <span className="count-badge">{itemCount}</span></NavLink>
         {user?.role === 'admin' && <NavLink to="/admin">Quản trị</NavLink>}
       </nav>

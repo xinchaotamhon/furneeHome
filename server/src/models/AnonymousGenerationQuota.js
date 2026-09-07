@@ -8,6 +8,10 @@ const anonymousGenerationQuotaSchema = new mongoose.Schema({
   reservationId: { type: String, default: '' },
   reservedUntil: { type: Date, default: null },
   usedAt: { type: Date, default: null },
+  // The same one-way address key also bounds public OTP requests across
+  // different email addresses. Raw network addresses are never persisted.
+  emailOtpWindowStartedAt: { type: Date, default: null },
+  emailOtpSendCount: { type: Number, default: 0, min: 0 },
 }, { timestamps: true });
 
 module.exports = mongoose.model('AnonymousGenerationQuota', anonymousGenerationQuotaSchema);

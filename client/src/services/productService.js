@@ -9,6 +9,14 @@ const productService = {
     const response = await apiClient.post('/products/import-shopee', { sourceUrl });
     return response.data.data;
   },
+  async create(data) {
+    const response = await apiClient.post('/products', data);
+    return response.data.data;
+  },
+  async update(id, data) {
+    const response = await apiClient.put(`/products/${id}`, data);
+    return response.data.data;
+  },
   async addImage(id, dataUrl) {
     const response = await apiClient.post(`/products/${id}/images`, { dataUrl });
     return response.data.data;

@@ -36,13 +36,7 @@ const DATA_JSON_FILE = path.join(ROOT_DIR, 'client/public/data_import/data_impor
 
 // Danh sách sản phẩm Shopee cần nạp
 const DEFAULT_PRODUCTS = [
-  'https://shopee.vn/B%C3%A0n-gaming-ng%E1%BB%93i-b%E1%BB%87t-ch%C3%A2n-s%E1%BA%AFt-ch%E1%BB%AF-K-U-Y-Z-g%E1%BA%A5p-g%E1%BB%8Dn-%C4%91a-n%C4%83ng-b%C3%A0n-h%E1%BB%8Dc-t%E1%BA%ADp-l%C3%A0m-vi%E1%BB%87c-BBG-K-i.82449232.19644951874?extraParams=%7B%22display_model_id%22%3A164431730332%2C%22model_selection_logic%22%3A3%7D',
-  'https://shopee.vn/B%C3%A0n-L%C3%A0m-Vi%E1%BB%87c-B%C3%A0n-Gaming-Khung-ch%C3%A2n-ch%E1%BB%AF-U-K-Z-nhi%E1%BB%81u-phi%C3%AAn-b%E1%BA%A3n-m%E1%BA%B7t-g%E1%BB%97-MDF-ch%C3%A2n-s%E1%BA%AFt-s%C6%A1n-t%C4%A9nh-%C4%91i%E1%BB%87n-i.680006053.54950710347?extraParams=%7B%22display_model_id%22%3A272119587355%2C%22model_selection_logic%22%3A3%7D',
-  'https://shopee.vn/-SALE-S%E1%BB%90C-B%C3%A0n-l%C3%A0m-vi%E1%BB%87c-ch%E1%BB%AF-U-K-Z-VX07-b%C3%A0n-v%C4%83n-ph%C3%B2ng-ch%C3%A2n-s%E1%BA%AFt-s%C6%A1n-t%C4%A9nh-%C4%91i%E1%BB%87n-thi%E1%BA%BFt-k%E1%BA%BF-ch%E1%BA%AFc-ch%E1%BA%AFn-N%E1%BB%99i-Th%E1%BA%A5t-B%C3%A0n-Gh%E1%BA%BF.-i.12841133.27173869776?extraParams=%7B%22display_model_id%22%3A139471507075%2C%22model_selection_logic%22%3A3%7D',
-  'https://shopee.vn/Gh%E1%BA%BF-v%C4%83n-ph%C3%B2ng-c%C3%B4ng-th%C3%A1i-h%E1%BB%8Dc-NOVA-gh%E1%BA%BF-l%C6%B0%E1%BB%9Bi-cao-c%E1%BA%A5p-%C4%91%E1%BB%87m-d%C3%A0y-%C3%AAm-%C3%A1i-xoay-360%C2%B0-ch%C3%A2n-ch%E1%BA%AFc-ch%E1%BA%AFn-i.1801439468.51614911654?extraParams=%7B%22display_model_id%22%3A411281106724%2C%22model_selection_logic%22%3A3%7D',
-  'https://shopee.vn/Gh%E1%BA%BF-c%C3%B4ng-th%C3%A1i-h%E1%BB%8Dc-NOVA-c%C3%B3-t%E1%BB%B1a-%C4%91%E1%BA%A7u-xoay-n%C3%A2ng-h%E1%BA%A1-%C4%91%E1%BB%87m-m%C3%BAt-cao-c%E1%BA%A5p-l%C6%B0ng-r%E1%BB%99ng-ch%C3%A2n-th%C3%A9p-ch%E1%BA%AFc-ch%E1%BA%AFn-i.1801439468.53714915626?extraParams=%7B%22display_model_id%22%3A376280866034%2C%22model_selection_logic%22%3A3%7D',
-  'https://shopee.vn/Gh%E1%BA%BF-v%C4%83n-ph%C3%B2ng-AetheraHome-thi%E1%BA%BFt-k%E1%BA%BF-gh%E1%BA%BF-l%C6%B0%E1%BB%9Bi-cao-c%E1%BA%A5p-xoay-360-%C4%91%E1%BB%99-gh%E1%BA%BF-th%C3%ADch-h%E1%BB%A3p-h%E1%BB%8Dc-t%E1%BA%ADp-v%C3%A0-l%C3%A0m-vi%E1%BB%87c-i.1306395991.55713400615?extraParams=%7B%22display_model_id%22%3A351160050441%2C%22model_selection_logic%22%3A3%7D',
-  'https://shopee.vn/BRTHORY-Gh%E1%BA%BF-v%C4%83n-ph%C3%B2ng-Gh%E1%BA%BF-m%C3%A1y-t%C3%ADnh-c%C3%B3-tay-t%E1%BB%B1a-Gh%E1%BA%BF-ti%E1%BB%87n-d%E1%BB%A5ng-ch%C6%A1i-game-l%C6%B0ng-cao-N%C3%A2ng-xoay-c%C3%B3-th%E1%BB%83-%C4%91i%E1%BB%81u-ch%E1%BB%89nh-t%E1%BA%A1i-nh%C3%A0-V%C4%83n-ph%C3%B2ng-Ti%E1%BA%BFt-ki%E1%BB%87m-kh%C3%B4ng-gian-h%E1%BB%8Dc-i.1310004765.26137523086?extraParams=%7B%22display_model_id%22%3A248513047384%2C%22model_selection_logic%22%3A3%7D'
+  'https://shopee.vn/Th%E1%BA%A3m-Lau-Ch%C3%A2n-Th%E1%BA%A3m-Ch%C3%B9i-Ch%C3%A2n-Th%E1%BA%A3m-Ch%C3%A2n-Th%E1%BA%A3m-B%E1%BA%BFp-Ch%E1%BB%91ng-Tr%C6%B0%E1%BB%A3t-Ch%E1%BB%91ng-Th%E1%BA%A5m-N%C6%B0%E1%BB%9Bc-T%E1%BA%ADp-Gym-T%E1%BA%A1i-Nh%C3%A0-3D-i.477565824.22301132956?extraParams=%7B%22display_model_id%22%3A237028006361%2C%22model_selection_logic%22%3A3%7D'
 ];
 
 function removeVietnameseAccents(value = '') {
@@ -138,7 +132,7 @@ function processProductItem(item) {
       rawName = decodeURIComponent(slugPart).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
     } catch { }
   }
-  const name = rawName || 'Sản phẩm nội thất Shopee';
+  const name = rawName || '';
   const categoryName = details.category || inferCategory(name);
   const price = Number(details.price) || 0;
 
@@ -150,10 +144,10 @@ function processProductItem(item) {
     transparentImage = `/images/products/${rawItemId}.png`;
   }
 
-  const image = details.image || transparentImage || '/images/products/desk-4060.png';
+  const image = details.image || transparentImage || '';
   const finalCutout = transparentImage || image;
-  const sellerName = details.sellerName || (details.isOfficial ? 'Shopee Mall' : 'Shopee Seller');
-  const description = details.description || name;
+  const sellerName = details.sellerName || (details.isOfficial ? 'Shopee Mall' : '');
+  const description = details.description || '';
 
   return {
     name,
@@ -166,9 +160,9 @@ function processProductItem(item) {
     shopeeSearchUrl: url,
     sellerName,
     isOfficial: Boolean(details.isOfficial),
-    rating: Number.isFinite(Number(details.rating)) ? Number(details.rating) : 5.0,
+    rating: Number.isFinite(Number(details.rating)) ? Number(details.rating) : 0,
     description,
-    stock: 100,
+    stock: Number.isFinite(Number(details.stock)) ? Number(details.stock) : 0,
     isActive: true,
   };
 }
@@ -445,10 +439,10 @@ async function validateAndImport(products) {
       slug: item.slug,
       description: item.description,
       price: item.price,
-      stock: 100,
+      stock: item.stock,
       category: categoryId,
       categoryName: item.categoryName,
-      images: [item.image],
+      images: [item.image].filter(Boolean),
       image: item.image,
       transparentImage: item.transparentImage,
       shopeeSearchUrl: item.shopeeSearchUrl,
@@ -495,20 +489,34 @@ async function syncAllProductsToJsonBackup(db) {
       }
       return {
         _id: String(p._id),
-        name: p.name || 'Sản phẩm nội thất Shopee',
+        name: p.name || 'Sản phẩm nội thất',
         slug: p.slug,
         category: categoryName,
         categoryName,
         price: Number.isFinite(p.price) ? p.price : 0,
-        image: p.image || p.transparentImage || '/images/products/desk-4060.png',
-        transparentImage: p.transparentImage || p.image || '/images/products/desk-4060.png',
+        image: p.image || p.transparentImage || '',
+        images: Array.isArray(p.images) ? p.images.filter(Boolean) : [],
+        transparentImage: p.transparentImage || p.image || '',
         sourceUrl: p.sourceUrl || p.shopeeSearchUrl || '',
         shopeeSearchUrl: p.shopeeSearchUrl || p.sourceUrl || '',
-        sellerName: p.sellerName || 'Shopee Seller',
+        sourcePlatform: p.sourcePlatform || '',
+        shopeeShopId: p.shopeeShopId || '',
+        shopeeItemId: p.shopeeItemId || '',
+        sourceImages: Array.isArray(p.sourceImages) ? p.sourceImages : [],
+        sourceFetchedAt: p.sourceFetchedAt || undefined,
+        importStatus: p.image || p.transparentImage ? (p.importStatus || 'complete') : 'needs-image-processing',
+        sellerName: p.sellerName || '',
         isOfficial: Boolean(p.isOfficial),
-        rating: Number.isFinite(p.rating) ? p.rating : 5.0,
-        description: p.description || p.name || '',
-        stock: Number.isFinite(p.stock) ? p.stock : 100,
+        rating: Number.isFinite(p.rating) ? p.rating : 0,
+        description: p.description || '',
+        stock: Number.isFinite(p.stock) ? p.stock : 0,
+        dimensions: p.dimensions || undefined,
+        dimensionsCm: p.dimensionsCm || undefined,
+        usageType: p.usageType || 'unknown',
+        placementSurface: p.placementSurface || 'unknown',
+        aiDescription: p.aiDescription || '',
+        colors: Array.isArray(p.colors) ? p.colors : [],
+        searchKeywords: Array.isArray(p.searchKeywords) ? p.searchKeywords : [],
         isActive: p.isActive !== false,
       };
     });

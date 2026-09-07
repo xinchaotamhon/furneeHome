@@ -39,13 +39,25 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const register = async (profile) => {
+  const requestRegistration = async (email) => {
     try {
-      const session = await authService.register({
-        name: profile.name,
-        email: profile.email,
-        password: profile.password,
-      });
+      return await authService.requestRegistration(email);
+    } catch (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  };
+
+  const verifyRegistration = async (email, code) => {
+    try {
+      return await authService.verifyRegistration(email, code);
+    } catch (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  };
+
+  const completeRegistration = async (profile) => {
+    try {
+      const session = await authService.completeRegistration(profile);
       saveSession(session);
       setUser(session.user);
       setLoginOpen(false);
@@ -76,7 +88,9 @@ export function AuthProvider({ children }) {
     switchAuthMode: setAuthMode,
     closeLogin: () => setLoginOpen(false),
     login,
-    register,
+    requestRegistration,
+    verifyRegistration,
+    completeRegistration,
     logout,
   };
 

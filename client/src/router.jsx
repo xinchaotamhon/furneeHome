@@ -23,6 +23,7 @@ const router = createBrowserRouter([{
     { path: '/products', element: <ProductListPage /> },
     { path: '/collection', element: <CollectionPage /> },
     { path: '/collections/public', element: <PublicCollectionsPage /> },
+    { path: '/collections/public/creator/:creatorId', element: <PublicCollectionsPage /> },
     { path: '/collections/public/:shareSlug', element: <PublicCollectionDetailPage /> },
     { path: '/room-studio', element: <RoomStudioPage /> },
     { path: '/cart', element: <Navigate to="/collection" replace /> },

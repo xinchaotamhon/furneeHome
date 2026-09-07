@@ -67,6 +67,54 @@ function getCategoryName(product) {
   return product.categoryName || product.category || '';
 }
 
+const emptyProductForm = {
+  name: '',
+  categoryName: 'Nội thất',
+  price: '',
+  description: '',
+  widthCm: '',
+  depthCm: '',
+  heightCm: '',
+  usageType: 'unknown',
+  placementSurface: 'unknown',
+  aiDescription: '',
+};
+const ADMIN_PAGE_SIZE = 12;
+
+function productToForm(product) {
+  const dimensions = product.dimensionsCm || {};
+  return {
+    name: product.name || '',
+    categoryName: getCategoryName(product) || 'Nội thất',
+    price: Number.isFinite(Number(product.price)) ? String(product.price) : '',
+    description: product.description || '',
+    widthCm: dimensions.width || product.dimensions?.widthCm || '',
+    depthCm: dimensions.depth || product.dimensions?.depthCm || '',
+    heightCm: dimensions.height || product.dimensions?.heightCm || '',
+    usageType: product.usageType || 'unknown',
+    placementSurface: product.placementSurface || 'unknown',
+    aiDescription: product.aiDescription || '',
+  };
+}
+
+function formToProduct(form) {
+  const width = Number(form.widthCm) || undefined;
+  const depth = Number(form.depthCm) || undefined;
+  const height = Number(form.heightCm) || undefined;
+  return {
+    name: form.name.trim(),
+    categoryName: form.categoryName.trim(),
+    price: Number(form.price) || 0,
+    description: form.description.trim(),
+    dimensionsCm: { width, depth, height },
+    dimensions: { widthCm: width, depthCm: depth, heightCm: height },
+    usageType: form.usageType,
+    placementSurface: form.placementSurface,
+    aiDescription: form.aiDescription.trim(),
+    isActive: true,
+  };
+}
+
 function getErrorMessage(error) {
   return error.response?.data?.message || error.message || 'Không thể lưu dữ liệu.';
 }
@@ -78,22 +126,87 @@ export function isLocalBrowserHost(hostname = '') {
 
 export default function AdminPage() {
   const {
-    products, importShopeeProduct, removeProduct, refreshProducts, addProductImage, downloadProductJson,
+    products, importShopeeProduct, addProduct, updateProduct, removeProduct,
+    refreshProducts, addProductImage, downloadProductJson,
   } = useProducts();
+  const [productForm, setProductForm] = useState(emptyProductForm);
+  const [editingId, setEditingId] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [importError, setImportError] = useState('');
+  const [importNotice, setImportNotice] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingProductId, setUploadingProductId] = useState('');
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
   const isLocalBrowser = typeof window !== 'undefined'
     && isLocalBrowserHost(window.location.hostname);
+  const normalizedQuery = query.trim().toLocaleLowerCase('vi');
+  const filteredProducts = products.filter((product) => !normalizedQuery || [
+    product.name,
+    getCategoryName(product),
+    product.shopeeItemId,
+  ].some((value) => String(value || '').toLocaleLowerCase('vi').includes(normalizedQuery)));
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / ADMIN_PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visibleProducts = filteredProducts.slice((currentPage - 1) * ADMIN_PAGE_SIZE, currentPage * ADMIN_PAGE_SIZE);
+  const missingImageCount = products.filter((product) => product.imageReady === false || (!product.image && !product.transparentImage)).length;
 
-  const submit = async (event) => {
+  const updateForm = (field, value) => {
+    setProductForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const resetProductForm = () => {
+    setProductForm(emptyProductForm);
+    setEditingId('');
+  };
+
+  const saveProduct = async (event) => {
     event.preventDefault();
     setError('');
     setNotice('');
+    if (!productForm.name.trim() || !productForm.categoryName.trim()) {
+      setError('Nhập tên và danh mục sản phẩm.');
+      return;
+    }
+    if (Number(productForm.price) < 0) {
+      setError('Giá sản phẩm không hợp lệ.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const payload = formToProduct(productForm);
+      if (editingId) {
+        await updateProduct(editingId, payload);
+        setNotice('Đã cập nhật sản phẩm.');
+      } else {
+        await addProduct(payload);
+        setNotice('Đã thêm sản phẩm.');
+      }
+      resetProductForm();
+    } catch (saveError) {
+      setError(getErrorMessage(saveError));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const editProduct = (product) => {
+    setProductForm(productToForm(product));
+    setEditingId(product._id);
+    setError('');
+    setNotice('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const submitShopee = async (event) => {
+    event.preventDefault();
+    setImportError('');
+    setImportNotice('');
     if (!sourceUrl.trim()) {
-      setError('Hãy dán URL Shopee.');
+      setImportError('Hãy dán URL Shopee.');
       return;
     }
 
@@ -104,11 +217,11 @@ export default function AdminPage() {
       const needsImage = product?.importStatus === 'needs-image-processing'
         && !product?.sourceImages?.length;
       setSourceUrl('');
-      setNotice(result?.alreadyExists
+      setImportNotice(result?.alreadyExists
         ? 'Sản phẩm đã có.'
         : needsImage ? 'Đã thêm sản phẩm. Hãy thêm ảnh.' : `Đã thêm: ${product?.name || 'sản phẩm'}`);
     } catch (submitError) {
-      setError(getErrorMessage(submitError));
+      setImportError(getErrorMessage(submitError));
     } finally {
       setIsSaving(false);
     }
@@ -157,44 +270,106 @@ export default function AdminPage() {
         <h1>Quản trị sản phẩm</h1>
       </div>
 
-      <div className={`admin-layout${isLocalBrowser ? '' : ' single'}`}>
-        {isLocalBrowser && (
-          <form className="admin-form panel-card admin-enter" onSubmit={submit}>
+      <div className="admin-layout">
+        <div className="admin-sidebar">
+          <form className="admin-form panel-card admin-enter" onSubmit={saveProduct}>
             <div className="section-title">
-              <div><span className="step-label">SẢN PHẨM</span><h2>Thêm sản phẩm</h2></div>
+              <div><span className="step-label">SẢN PHẨM</span><h2>{editingId ? 'Sửa sản phẩm' : 'Thêm sản phẩm'}</h2></div>
             </div>
 
-            <label>URL Shopee
-              <input
-                type="url"
-                inputMode="url"
-                placeholder="https://shopee.vn/..."
-                value={sourceUrl}
-                onChange={(event) => setSourceUrl(event.target.value)}
-                autoComplete="url"
-                required
-              />
+            <label>Tên
+              <input value={productForm.name} onChange={(event) => updateForm('name', event.target.value)} required />
+            </label>
+            <label>Danh mục
+              <input value={productForm.categoryName} onChange={(event) => updateForm('categoryName', event.target.value)} required />
+            </label>
+            <label>Giá
+              <input type="number" min="0" value={productForm.price} onChange={(event) => updateForm('price', event.target.value)} />
+            </label>
+            <label>Mô tả
+              <textarea rows="3" value={productForm.description} onChange={(event) => updateForm('description', event.target.value)} />
             </label>
 
-            <button className="button" type="submit" disabled={isSaving}>
-              {isSaving ? 'Đang thêm…' : 'Thêm sản phẩm'}
-            </button>
+            <details className="admin-product-details">
+              <summary>Thông tin tạo ảnh</summary>
+              <div className="admin-detail-fields">
+                <label>Cách sử dụng
+                  <select value={productForm.usageType} onChange={(event) => updateForm('usageType', event.target.value)}>
+                    <option value="unknown">Chưa xác định</option>
+                    <option value="standard">Thông thường</option>
+                    <option value="floor-seating">Ngồi bệt</option>
+                  </select>
+                </label>
+                <label>Đặt ở đâu
+                  <select value={productForm.placementSurface} onChange={(event) => updateForm('placementSurface', event.target.value)}>
+                    <option value="unknown">Chưa xác định</option>
+                    <option value="floor">Trên sàn</option>
+                    <option value="wall">Trên tường</option>
+                    <option value="tabletop">Trên mặt bàn</option>
+                  </select>
+                </label>
+                <div className="admin-dimensions">
+                  <label>Rộng (cm)<input type="number" min="1" value={productForm.widthCm} onChange={(event) => updateForm('widthCm', event.target.value)} /></label>
+                  <label>Sâu (cm)<input type="number" min="1" value={productForm.depthCm} onChange={(event) => updateForm('depthCm', event.target.value)} /></label>
+                  <label>Cao (cm)<input type="number" min="1" value={productForm.heightCm} onChange={(event) => updateForm('heightCm', event.target.value)} /></label>
+                </div>
+                <label>Mô tả hình dạng
+                  <textarea rows="3" maxLength="300" value={productForm.aiDescription} onChange={(event) => updateForm('aiDescription', event.target.value)} />
+                </label>
+              </div>
+            </details>
+
+            <div className="admin-form-actions">
+              <button className="button" type="submit" disabled={isSaving}>{isSaving ? 'Đang lưu…' : 'Lưu sản phẩm'}</button>
+              {editingId && <button className="text-button" type="button" onClick={resetProductForm}>Hủy</button>}
+            </div>
             {error && <p className="form-error" role="alert" aria-live="polite">{error}</p>}
             {notice && <p className="form-success" role="status" aria-live="polite">{notice}</p>}
           </form>
-        )}
+
+          {isLocalBrowser && (
+            <form className="admin-form panel-card admin-enter" onSubmit={submitShopee}>
+              <div className="section-title">
+                <div><span className="step-label">LOCALHOST</span><h2>Nhập từ Shopee</h2></div>
+              </div>
+              <label>URL Shopee
+                <input
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://shopee.vn/..."
+                  value={sourceUrl}
+                  onChange={(event) => setSourceUrl(event.target.value)}
+                  autoComplete="url"
+                  required
+                />
+              </label>
+              <button className="button" type="submit" disabled={isSaving}>{isSaving ? 'Đang thêm…' : 'Thêm từ URL'}</button>
+              {importError && <p className="form-error" role="alert" aria-live="polite">{importError}</p>}
+              {importNotice && <p className="form-success" role="status" aria-live="polite">{importNotice}</p>}
+            </form>
+          )}
+        </div>
 
         <section className="admin-products panel-card admin-enter">
           <div className="section-title">
-            <div><span className="step-label">{products.length} SẢN PHẨM</span><h2>Danh sách sản phẩm</h2></div>
+            <div><span className="step-label">{products.length} SẢN PHẨM · {missingImageCount} CẦN ẢNH</span><h2>Danh sách sản phẩm</h2></div>
             <div className="row-actions">
               <button className="text-button" type="button" onClick={refreshProducts} disabled={isSaving}>Tải lại</button>
               <button className="text-button" type="button" onClick={() => downloadProductJson().catch((downloadError) => setError(getErrorMessage(downloadError)))} disabled={isSaving}>Tải JSON</button>
             </div>
           </div>
 
+          <input
+            className="admin-search"
+            type="search"
+            value={query}
+            placeholder="Tìm tên, danh mục hoặc Item ID"
+            aria-label="Tìm sản phẩm quản trị"
+            onChange={(event) => { setQuery(event.target.value); setPage(1); }}
+          />
+
           <div className="admin-product-list">
-            {products.map((product) => (
+            {visibleProducts.map((product) => (
               <article key={product._id}>
                 <a
                   className="admin-thumb"
@@ -215,13 +390,11 @@ export default function AdminPage() {
                   >
                     <strong>{product.name}</strong>
                   </a>
-                  <span>{getCategoryName(product)} · {(
-                    product.importStatus === 'needs-image-processing' && !product.sourceImages?.length
-                      ? 'Chưa có giá'
-                      : formatPrice(product.price)
-                  )}</span>
+                  <span>{getCategoryName(product)} · {formatPrice(product.price)}</span>
+                  {(product.imageReady === false || (!product.image && !product.transparentImage)) && <small>Chưa có ảnh</small>}
                 </div>
                 <div className="row-actions">
+                  <button className="text-button" type="button" onClick={() => editProduct(product)} disabled={isSaving}>Sửa</button>
                   <label className="text-button">{uploadingProductId === product._id ? 'Đang lưu…' : 'Thêm ảnh'}
                     <input hidden type="file" accept="image/png,image/jpeg,image/webp" disabled={Boolean(uploadingProductId)} onChange={(event) => uploadImage(product, event.target.files?.[0])} />
                   </label>
@@ -230,6 +403,12 @@ export default function AdminPage() {
               </article>
             ))}
           </div>
+          {!visibleProducts.length && <p className="muted">Không tìm thấy sản phẩm.</p>}
+          {totalPages > 1 && <div className="admin-pagination">
+            <button className="text-button" type="button" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>←</button>
+            <span>{currentPage} / {totalPages}</span>
+            <button className="text-button" type="button" disabled={currentPage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>→</button>
+          </div>}
         </section>
       </div>
     </main>

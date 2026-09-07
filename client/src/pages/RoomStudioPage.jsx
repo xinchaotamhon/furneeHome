@@ -332,16 +332,18 @@ function resizeImageForAi(source, maxEdge = 1280, quality = 0.9) {
   });
 }
 
-function DesignBriefFields({ value, onChange }) {
-  const presets = [
-    ['Góc học ngồi bệt', { purpose: 'Học tập, ngồi bệt với bàn thấp', style: 'Gỗ sáng, gọn gàng', keepClear: 'Cửa ra vào, lối đi và cửa nhà vệ sinh', avoid: 'Bàn cao, ghế cao; đồ chắn lối đi' }],
-    ['Phòng trọ gọn', { purpose: 'Sinh hoạt và cất đồ trong phòng nhỏ', style: 'Tối giản, tiết kiệm diện tích', keepClear: 'Lối đi, cầu thang và cửa ra vào', avoid: 'Đồ cồng kềnh, quá nhiều đồ trang trí' }],
-    ['Góc thư giãn', { purpose: 'Đọc sách và thư giãn', style: 'Ấm áp, vật liệu tự nhiên', keepClear: 'Cửa sổ và lối di chuyển', avoid: 'Đổi tường, sàn hoặc ánh sáng phòng gốc' }],
-  ];
-  return <div className="studio-brief-form">
-    <div className="studio-presets">{presets.map(([label, fields]) => <button type="button" key={label} onClick={() => onChange(fields)}>{label}</button>)}</div>
-    {[['purpose', 'Dùng phòng để làm gì?', 'Ví dụ: học tập ngồi bệt', 80], ['style', 'Phong cách', 'Ví dụ: gỗ sáng, tối giản', 80], ['keepClear', 'Giữ trống', 'Ví dụ: trước cửa WC, lối cầu thang', 120], ['avoid', 'Không thay đổi', 'Ví dụ: không đổi bàn thấp thành bàn cao', 120]].map(([key, label, placeholder, maxLength]) =>
-      <label key={key}>{label}<input value={value[key] || ''} maxLength={maxLength} placeholder={placeholder} onChange={(event) => onChange({ ...value, [key]: event.target.value })} /></label>)}
+const EMPTY_DESIGN_BRIEF = { desiredPosition: '', avoid: '' };
+
+function DesignBriefFields({ value, onChange, notes, onNotesChange, onClear }) {
+  const hasContent = Boolean(value.desiredPosition?.trim() || value.avoid?.trim() || notes.trim());
+  return <div className="studio-brief-form studio-brief-simple">
+    <div className="studio-panel-heading">
+      <h2>Mong muốn</h2>
+      {hasContent && <button type="button" className="text-button danger" onClick={onClear}>Xóa</button>}
+    </div>
+    <label>Vị trí bạn muốn<input value={value.desiredPosition || ''} maxLength="120" placeholder="Ví dụ: sát tường bên trái" onChange={(event) => onChange({ ...value, desiredPosition: event.target.value })} /></label>
+    <label>Bạn không muốn<input value={value.avoid || ''} maxLength="120" placeholder="Ví dụ: không che cửa hoặc cầu thang" onChange={(event) => onChange({ ...value, avoid: event.target.value })} /></label>
+    <label className="studio-prompt"><span>Ghi chú khác</span><textarea value={notes} maxLength="300" placeholder="Ví dụ: giữ nguyên màu sản phẩm" onChange={(event) => onNotesChange(event.target.value)} /></label>
   </div>;
 }
 
@@ -418,8 +420,10 @@ export default function RoomStudioPage() {
   const [roomRequest, setRoomRequest] = useState(
     savedInitial?.userPrompt || savedInitial?.roomRequest || "",
   );
-  const [designBrief, setDesignBrief] = useState(savedInitial?.designBrief || {
-    purpose: '', style: '', keepClear: '', avoid: '',
+  const [designBrief, setDesignBrief] = useState({
+    ...EMPTY_DESIGN_BRIEF,
+    desiredPosition: savedInitial?.designBrief?.desiredPosition || '',
+    avoid: savedInitial?.designBrief?.avoid || '',
   });
   const [stageBox, setStageBox] = useState({ width: 0, height: 0 });
   const stageViewportRef = useRef(null);
@@ -528,6 +532,11 @@ export default function RoomStudioPage() {
   }), [inspirationProducts, products]);
   const chooseProduct = (product) => {
     const id = product._id || product.id;
+    if (!getProductImageSource(product)) {
+      setUnavailableProductIds((current) => new Set(current).add(id));
+      setMessage(`${product.name} chưa có ảnh. Admin cần thêm ảnh trước khi dùng.`);
+      return;
+    }
     setSelectedId(id);
     setIsMarkingMode(false);
     if (!roomImage) {
@@ -636,8 +645,8 @@ export default function RoomStudioPage() {
             `${product.name || ""} ${getProductCategory(product)}`,
           ).includes(search)),
     ).sort((left, right) => {
-      const leftMissing = unavailableProductIds.has(left._id || left.id);
-      const rightMissing = unavailableProductIds.has(right._id || right.id);
+      const leftMissing = !getProductImageSource(left) || unavailableProductIds.has(left._id || left.id);
+      const rightMissing = !getProductImageSource(right) || unavailableProductIds.has(right._id || right.id);
       return Number(leftMissing) - Number(rightMissing);
     });
   }, [products, debouncedQuery, category, unavailableProductIds]);
@@ -755,6 +764,11 @@ export default function RoomStudioPage() {
         placements: scene,
         cameraParams: buildCameraParameters(markedCorners, imageSize),
       });
+      const {
+        identityOverlayDataUrl,
+        compositeMaskImageDataUrl,
+        ...providerGuideImages
+      } = guideImages;
       const focus =
         scene.find((placement) => placement.id === changedPlacementId) ||
         scene[scene.length - 1];
@@ -763,7 +777,7 @@ export default function RoomStudioPage() {
         .filter(Boolean)
         .join(", ")}`.slice(0, 200);
       const result = await createRoomPreview({
-        ...guideImages,
+        ...providerGuideImages,
         roomImageDataUrl: await resizeImageForAi(roomImage, 1280),
         smallRoomImageDataUrl: guideImages.roomImageDataUrl,
         productName,
@@ -784,7 +798,8 @@ export default function RoomStudioPage() {
       const finalImage = await compositeRoomPreview({
         roomSource: roomImage,
         resultSource: result.imageDataUrl,
-        maskSource: guideImages.maskImageDataUrl,
+        maskSource: compositeMaskImageDataUrl,
+        identityOverlaySource: identityOverlayDataUrl,
         editRegion: guideImages.editRegion,
       });
       if (!finalImage?.startsWith("data:image/"))
@@ -1054,7 +1069,7 @@ export default function RoomStudioPage() {
       setSelectedId('');
       setNeedsAccount(false);
       setRoomRequest('');
-      setDesignBrief({ purpose: '', style: '', keepClear: '', avoid: '' });
+      setDesignBrief(EMPTY_DESIGN_BRIEF);
       setResultMatchesLayout(true);
       setRoomFileName(file.name);
       setImageSize({ width: 0, height: 0 });
@@ -1082,6 +1097,11 @@ export default function RoomStudioPage() {
       setMessage(
         "Hãy tạo một ý tưởng hoặc đặt ít nhất một sản phẩm trước khi lưu.",
       );
+      return;
+    }
+    if (!user) {
+      setMessage('Đăng nhập để lưu đầy đủ ảnh và cài đặt vào Bộ sưu tập.');
+      openRegister();
       return;
     }
     const latest = activePlacement || placements[placements.length - 1] || {};
@@ -1115,10 +1135,12 @@ export default function RoomStudioPage() {
     });
     let savedRoomImage = roomImage;
     let savedResultImage = resultMatchesLayout ? resultImage : '';
+    let savedPreviewImage = '';
     try {
-      [savedRoomImage, savedResultImage] = await Promise.all([
+      [savedRoomImage, savedResultImage, savedPreviewImage] = await Promise.all([
         resizeImageForAi(roomImage, 1280, 0.82),
         savedResultImage ? resizeImageForAi(savedResultImage, 1280, 0.82) : Promise.resolve(''),
+        resizeImageForAi(savedResultImage || roomImage, 560, 0.68),
       ]);
     } catch {
       setMessage('Không thể chuẩn bị ảnh để lưu. Hãy thử lại.');
@@ -1152,6 +1174,7 @@ export default function RoomStudioPage() {
       scaleReference: serializeScaleReference(scaleReference),
       imageSize,
       resultImage: savedResultImage,
+      previewImage: savedPreviewImage,
       resultMatchesLayout,
       designMode: savingInspiration ? 'inspiration' : 'placement',
       userPrompt: roomRequest.trim(),
@@ -1171,7 +1194,7 @@ export default function RoomStudioPage() {
     setSelectedId('');
     setNeedsAccount(false);
     setRoomRequest('');
-    setDesignBrief({ purpose: '', style: '', keepClear: '', avoid: '' });
+    setDesignBrief(EMPTY_DESIGN_BRIEF);
     setResultMatchesLayout(true);
     setRoomFileName("");
     setImageSize({ width: 0, height: 0 });
@@ -1202,11 +1225,12 @@ export default function RoomStudioPage() {
       placement.target,
       placement.isFlipped,
       buildCameraParameters(markedCorners, imageSize),
+      placement.scale,
+      normalizeRotation(placement.rotation),
     );
     return {
       ...base,
       zIndex: placement.zIndex,
-      transform: `${base.transform} rotate(${normalizeRotation(placement.rotation)}deg) scale(${placement.scale || 1})`,
     };
   };
 
@@ -1217,11 +1241,7 @@ export default function RoomStudioPage() {
           <div className="studio-brand">
             <span>PHÒNG THỬ</span>
             <strong>{roomFileName || "Studio nội thất"}</strong>
-            <small>
-              {placements.length
-                ? `${placements.length} món trong bố cục`
-                : "Ảnh thật · ý tưởng thật"}
-            </small>
+            {placements.length > 0 && <small>{placements.length} món trong bố cục</small>}
           </div>
           <div className="studio-toolbar-actions">
             <label className="button button-small button-secondary">
@@ -1251,26 +1271,6 @@ export default function RoomStudioPage() {
             >
               {isGenerating ? 'Đang tạo…' : 'Tạo ảnh'}
             </button>
-            {resultImage && (
-              <button
-                type="button"
-                className="button button-small button-secondary"
-                disabled={isGenerating}
-                onClick={() =>
-                  setShowResult((current) => {
-                    const next = !current;
-                    setMessage(
-                      next
-                        ? "Đang xem ảnh AI gần nhất."
-                        : "Đang xem ảnh phòng gốc và bố cục để chỉnh sửa.",
-                    );
-                    return next;
-                  })
-                }
-              >
-                {showResult ? "Ảnh gốc" : "Ảnh AI gần nhất"}
-              </button>
-            )}
             <button
               type="button"
               className="button button-small"
@@ -1327,6 +1327,12 @@ export default function RoomStudioPage() {
                       });
                   }}
                 />
+                {resultImage && !isGenerating && (
+                  <div className="studio-compare" role="group" aria-label="So sánh ảnh trước và sau">
+                    <button type="button" className={!showResult ? 'active' : ''} aria-pressed={!showResult} onClick={(event) => { event.stopPropagation(); setShowResult(false); }}>Ảnh gốc</button>
+                    <button type="button" className={showResult ? 'active' : ''} aria-pressed={showResult} onClick={(event) => { event.stopPropagation(); setShowResult(true); }}>Ảnh AI</button>
+                  </div>
+                )}
                 {!activeResult && scaleReference?.points?.length > 0 && (
                   <>
                     <svg className="studio-scale-reference" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -1462,34 +1468,6 @@ export default function RoomStudioPage() {
                     <small>Ảnh và bố cục gốc vẫn được giữ.</small>
                   </div>
                 )}
-                {activeResult && (
-                  <div className="studio-result-label">
-                    <strong>
-                      {resultMode === "inspiration"
-                        ? "Gợi ý cả phòng"
-                        : "Ảnh AI bố cục"}
-                    </strong>
-                    <span>
-                      {elapsedMs
-                        ? `${(elapsedMs / 1000).toFixed(1)} giây`
-                        : "Vừa tạo xong"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        stopResultView(
-                          resultMode === "inspiration"
-                            ? "Đã quay lại ảnh phòng gốc; ý tưởng AI chỉ là tham khảo."
-                            : "Đã quay lại bố cục để chỉnh từng sản phẩm.",
-                        )
-                      }
-                    >
-                      {resultMode === "inspiration"
-                        ? "Xem ảnh gốc"
-                        : "Chỉnh bố cục"}
-                    </button>
-                  </div>
-                )}
                 {activeResult && resultMode === "inspiration" && displayedInspirationProducts.length > 0 && (
                   <details
                     className="studio-result-products"
@@ -1541,13 +1519,6 @@ export default function RoomStudioPage() {
             </button>
             <button
               type="button"
-              className={activeTab === "brief" ? "active" : ""}
-              onClick={() => setActiveTab("brief")}
-            >
-              Mong muốn
-            </button>
-            <button
-              type="button"
               className={activeTab === "layout" ? "active" : ""}
               onClick={() => setActiveTab("layout")}
             >
@@ -1563,26 +1534,6 @@ export default function RoomStudioPage() {
             </button>
           </nav>
           <div className="studio-tab-content">
-            {activeTab === 'brief' && <section className="studio-tab-panel">
-              <div className="studio-panel-heading">
-                <h1>Mong muốn</h1>
-                <button
-                  type="button"
-                  className="text-button danger studio-brief-clear"
-                  disabled={!roomRequest.trim() && !Object.values(designBrief).some((value) => String(value || '').trim())}
-                  onClick={() => {
-                    setRoomRequest('');
-                    setDesignBrief({ purpose: '', style: '', keepClear: '', avoid: '' });
-                    setResultMatchesLayout(false);
-                    setMessage('Đã xóa nội dung mong muốn.');
-                  }}
-                >
-                  Xóa nội dung
-                </button>
-              </div>
-              <DesignBriefFields value={designBrief} onChange={(value) => { setDesignBrief(value); setResultMatchesLayout(false); }} />
-              <label className="studio-prompt"><span>Chi tiết khác</span><textarea value={roomRequest} maxLength="300" onChange={(event) => { setRoomRequest(event.target.value); setResultMatchesLayout(false); }} placeholder="Ví dụ: để khoảng trống trước tủ để mở cánh" /></label>
-            </section>}
             {activeTab === "products" && (
               <section className="studio-tab-panel studio-products-tab">
                 <div className="studio-panel-heading">
@@ -1623,7 +1574,7 @@ export default function RoomStudioPage() {
                 <div className="studio-product-grid">
                   {visibleProducts.map((product) => {
                     const id = product._id || product.id;
-                    const imageUnavailable = unavailableProductIds.has(id);
+                    const imageUnavailable = !getProductImageSource(product) || unavailableProductIds.has(id);
                     return (
                       <button
                         key={id}
@@ -1669,6 +1620,17 @@ export default function RoomStudioPage() {
                     →
                   </button>
                 </div>
+                <DesignBriefFields
+                  value={designBrief}
+                  notes={roomRequest}
+                  onChange={(value) => { setDesignBrief(value); setResultMatchesLayout(false); }}
+                  onNotesChange={(value) => { setRoomRequest(value); setResultMatchesLayout(false); }}
+                  onClear={() => {
+                    setRoomRequest('');
+                    setDesignBrief(EMPTY_DESIGN_BRIEF);
+                    setResultMatchesLayout(false);
+                  }}
+                />
               </section>
             )}
             {activeTab === "layout" && (

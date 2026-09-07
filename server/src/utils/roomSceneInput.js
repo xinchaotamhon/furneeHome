@@ -17,6 +17,7 @@ function cleanDesignBrief(value = {}) {
     purpose: text(value.purpose, 80, 'Mục đích sử dụng'),
     style: text(value.style, 80, 'Phong cách'),
     keepClear: text(value.keepClear, 120, 'Khu vực cần giữ trống'),
+    desiredPosition: text(value.desiredPosition, 120, 'Vị trí mong muốn'),
     avoid: text(value.avoid, 120, 'Điều cần tránh'),
   };
 }

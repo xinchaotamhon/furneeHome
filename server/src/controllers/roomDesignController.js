@@ -7,6 +7,7 @@ const MAX_MARKED_CORNERS = 16;
 const MAX_SCALE_REFERENCE_POINTS = 2;
 const MAX_INSPIRATION_PRODUCTS = 3;
 const MAX_IMAGE_LENGTH = 4_000_000;
+const MAX_PREVIEW_IMAGE_LENGTH = 500_000;
 const MAX_PLACEMENT_IMAGE_LENGTH = 350_000;
 const MAX_REFERENCE_URL_LENGTH = 2_000;
 
@@ -165,6 +166,7 @@ function cleanDesignInput(body = {}) {
     photo: cleanText(body.photo, 'Ảnh thiết kế cũ', MAX_IMAGE_LENGTH),
     roomImage: cleanText(body.roomImage, 'Ảnh căn phòng', MAX_IMAGE_LENGTH),
     resultImage: cleanText(body.resultImage, 'Ảnh kết quả', MAX_IMAGE_LENGTH),
+    previewImage: cleanText(body.previewImage, 'Ảnh xem trước', MAX_PREVIEW_IMAGE_LENGTH),
     resultMatchesLayout: body.resultMatchesLayout === undefined ? undefined : Boolean(body.resultMatchesLayout),
     designMode: body.designMode,
     userPrompt: cleanText(body.userPrompt, 'Mô tả mong muốn', 300),
@@ -217,6 +219,58 @@ function getCreatorName(user) {
   return user?.name || user?.fullName || user?.email || 'Thành viên FurneeHome';
 }
 
+function getCreatorAvatar(user) {
+  return user?.avatarUrl || '';
+}
+
+function publicDesign(design, viewerId, { includeFullImages = false } = {}) {
+  const data = typeof design?.toObject === 'function' ? design.toObject() : { ...design };
+  const likerIds = Array.isArray(data.likedBy) ? data.likedBy : [];
+  const creatorId = data.user?._id || data.user || null;
+  const rootDesign = data.rootDesign || data.reusedFrom || data._id;
+
+  delete data.likedBy;
+  if (!includeFullImages) {
+    delete data.roomImage;
+    delete data.resultImage;
+    delete data.photo;
+    delete data.productImage;
+    data.placements = (Array.isArray(data.placements) ? data.placements : []).map((placement) => {
+      const { image, transparentImage, ...metadata } = placement;
+      return metadata;
+    });
+  }
+  return {
+    ...data,
+    likeCount: Math.max(Number(data.likeCount || 0), likerIds.length),
+    likedByMe: Boolean(viewerId && likerIds.some((id) => String(id) === String(viewerId))),
+    creator: {
+      id: creatorId ? String(creatorId) : '',
+      name: data.creatorName || 'Thành viên FurneeHome',
+      avatarUrl: data.creatorAvatar || '',
+    },
+    lineage: {
+      rootDesign: rootDesign ? String(rootDesign) : '',
+      parentDesign: data.parentDesign || data.reusedFrom ? String(data.parentDesign || data.reusedFrom) : '',
+      isFork: Boolean(data.parentDesign || data.reusedFrom),
+    },
+  };
+}
+
+function publicListQuery(filter, limit) {
+  return RoomDesign.find(filter)
+    .sort({ updatedAt: -1 })
+    .limit(limit)
+    .select('-roomImage -resultImage -photo');
+}
+
+async function publicListData(filter, limit, viewerId) {
+  const designs = await publicListQuery(filter, limit);
+  // Legacy records without previewImage intentionally show a placeholder.
+  // Listing pages must never fetch their multi-megabyte full room images.
+  return designs.map((design) => publicDesign(design, viewerId));
+}
+
 async function listMine(req, res, next) {
   try {
     const designs = await RoomDesign.find({ user: req.user._id }).sort({ updatedAt: -1 });
@@ -230,11 +284,20 @@ async function listPublic(req, res, next) {
   try {
     const requestedLimit = Number.parseInt(req.query.limit, 10) || 12;
     const limit = Math.min(Math.max(requestedLimit, 1), 30);
-    const designs = await RoomDesign.find({ visibility: 'public' })
-      .sort({ updatedAt: -1 })
-      .limit(limit)
-      .select('-roomImage');
-    res.json({ success: true, message: 'Đã tải bộ sưu tập cộng đồng', data: designs });
+    const data = await publicListData({ visibility: 'public' }, limit, req.user?._id);
+    res.json({ success: true, message: 'Đã tải bộ sưu tập cộng đồng', data });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function listPublicByCreator(req, res, next) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.creatorId)) throw createError('Tác giả không hợp lệ');
+    const requestedLimit = Number.parseInt(req.query.limit, 10) || 24;
+    const limit = Math.min(Math.max(requestedLimit, 1), 30);
+    const data = await publicListData({ visibility: 'public', user: req.params.creatorId }, limit, req.user?._id);
+    res.json({ success: true, message: 'Đã tải mẫu của tác giả', data });
   } catch (error) {
     next(error);
   }
@@ -242,12 +305,11 @@ async function listPublic(req, res, next) {
 
 async function getPublicBySlug(req, res, next) {
   try {
-    const design = await RoomDesign.findOne({
-      shareSlug: req.params.shareSlug,
-      visibility: 'public',
-    });
+    const identity = [{ shareSlug: req.params.shareSlug }];
+    if (mongoose.isValidObjectId(req.params.shareSlug)) identity.push({ _id: req.params.shareSlug });
+    const design = await RoomDesign.findOne({ visibility: 'public', $or: identity });
     if (!design) throw createError('Không tìm thấy thiết kế công khai', 404);
-    res.json({ success: true, message: 'Đã tải thiết kế', data: design });
+    res.json({ success: true, message: 'Đã tải thiết kế', data: publicDesign(design, req.user?._id, { includeFullImages: true }) });
   } catch (error) {
     next(error);
   }
@@ -258,13 +320,43 @@ async function create(req, res, next) {
     const data = cleanDesignInput(req.body);
     if (!data.name) data.name = `Thiết kế ${new Date().toLocaleDateString('vi-VN')}`;
     if (data.visibility === 'public') data.shareSlug = await createShareSlug();
+    const designId = new mongoose.Types.ObjectId();
 
     const design = await RoomDesign.create({
+      _id: designId,
       ...data,
       user: req.user._id,
       creatorName: getCreatorName(req.user),
+      creatorAvatar: getCreatorAvatar(req.user),
+      rootDesign: designId,
     });
     res.status(201).json({ success: true, message: 'Đã lưu thiết kế', data: design });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function toggleLike(req, res, next) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) throw createError('Mã thiết kế không hợp lệ');
+    const userId = req.user._id;
+    let design = await RoomDesign.findOneAndUpdate(
+      { _id: req.params.id, visibility: 'public', likedBy: { $ne: userId } },
+      { $addToSet: { likedBy: userId }, $inc: { likeCount: 1 } },
+      { new: true },
+    );
+    let liked = true;
+
+    if (!design) {
+      design = await RoomDesign.findOneAndUpdate(
+        { _id: req.params.id, visibility: 'public', likedBy: userId },
+        { $pull: { likedBy: userId }, $inc: { likeCount: -1 } },
+        { new: true },
+      );
+      liked = false;
+    }
+    if (!design) throw createError('Không tìm thấy thiết kế công khai', 404);
+    res.json({ success: true, message: liked ? 'Đã thả tim mẫu phòng' : 'Đã bỏ tim mẫu phòng', data: publicDesign(design, userId) });
   } catch (error) {
     next(error);
   }
@@ -279,6 +371,10 @@ async function update(req, res, next) {
     const data = cleanDesignInput(req.body);
     if (data.visibility === 'public' && !design.shareSlug) {
       data.shareSlug = await createShareSlug();
+    }
+    if (data.visibility === 'public') {
+      data.creatorName = getCreatorName(req.user);
+      data.creatorAvatar = getCreatorAvatar(req.user);
     }
     if (data.visibility === 'private') data.shareSlug = undefined;
 
@@ -305,6 +401,7 @@ async function remove(req, res, next) {
 
 async function reuse(req, res, next) {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) throw createError('Mã thiết kế không hợp lệ');
     const source = await RoomDesign.findById(req.params.id);
     if (!source || source.visibility !== 'public') {
       throw createError('Không tìm thấy thiết kế công khai', 404);
@@ -319,6 +416,7 @@ async function reuse(req, res, next) {
       photo: source.photo,
       roomImage: source.roomImage,
       resultImage: source.resultImage,
+      previewImage: source.previewImage,
       resultMatchesLayout: source.resultMatchesLayout,
       designMode: source.designMode || 'placement',
       userPrompt: source.userPrompt,
@@ -336,6 +434,9 @@ async function reuse(req, res, next) {
       scaleReference: source.scaleReference,
       visibility: 'private',
       creatorName: getCreatorName(req.user),
+      creatorAvatar: getCreatorAvatar(req.user),
+      parentDesign: source._id,
+      rootDesign: source.rootDesign || source.reusedFrom || source._id,
       reusedFrom: source._id,
     });
 
@@ -349,9 +450,12 @@ async function reuse(req, res, next) {
 module.exports = {
   listMine,
   listPublic,
+  listPublicByCreator,
   getPublicBySlug,
   create,
   update,
   remove,
+  toggleLike,
   reuse,
+  publicDesign,
 };
