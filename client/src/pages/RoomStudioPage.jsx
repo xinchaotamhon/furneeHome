@@ -764,7 +764,11 @@ export default function RoomStudioPage() {
         placements: scene,
         cameraParams: buildCameraParameters(markedCorners, imageSize),
       });
-      const { identityOverlayDataUrl, ...providerGuideImages } = guideImages;
+      const {
+        identityOverlayDataUrl,
+        compositeMaskImageDataUrl,
+        ...providerGuideImages
+      } = guideImages;
       const focus =
         scene.find((placement) => placement.id === changedPlacementId) ||
         scene[scene.length - 1];
@@ -794,7 +798,7 @@ export default function RoomStudioPage() {
       const finalImage = await compositeRoomPreview({
         roomSource: roomImage,
         resultSource: result.imageDataUrl,
-        maskSource: guideImages.maskImageDataUrl,
+        maskSource: compositeMaskImageDataUrl,
         identityOverlaySource: identityOverlayDataUrl,
         editRegion: guideImages.editRegion,
       });
@@ -1221,11 +1225,12 @@ export default function RoomStudioPage() {
       placement.target,
       placement.isFlipped,
       buildCameraParameters(markedCorners, imageSize),
+      placement.scale,
+      normalizeRotation(placement.rotation),
     );
     return {
       ...base,
       zIndex: placement.zIndex,
-      transform: `${base.transform} rotate(${normalizeRotation(placement.rotation)}deg) scale(${placement.scale || 1})`,
     };
   };
 

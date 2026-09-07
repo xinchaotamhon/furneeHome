@@ -129,7 +129,7 @@ export default function CollectionPage() {
     }
   };
 
-  return <main className="container page">
+  return <main className="container page collection-page">
     <div className="page-heading split-heading">
       <div>
         <h1>Bộ sưu tập của bạn</h1>
@@ -138,10 +138,7 @@ export default function CollectionPage() {
       <Link className="button button-secondary" to="/collections/public">Khám phá mẫu công khai</Link>
     </div>
 
-    <div className="privacy-note">
-      <strong>Quyền riêng tư</strong>
-      <span>Mẫu mặc định là riêng tư. Khi bạn bấm “Chia sẻ”, ảnh phòng, kết quả và cách sắp xếp sẽ được người khác xem và dùng lại.</span>
-    </div>
+    <p className="collection-privacy-note">Mẫu phòng mới luôn riêng tư cho đến khi bạn chọn công khai.</p>
     {shareNotice && <p className="studio-message" aria-live="polite">{shareNotice}</p>}
     {isLoadingDesigns && <p className="muted" aria-live="polite">Đang tải mẫu phòng từ tài khoản…</p>}
     {syncMessage && <p className="studio-message" aria-live="polite">{syncMessage}</p>}
@@ -154,7 +151,7 @@ export default function CollectionPage() {
       {products.length ? <div className="collection-grid">
         {products.map((item) => <article className="saved-card" key={item.id}>
           <div className="saved-visual"><ProductArtwork product={item.product} /></div>
-          <div>
+          <div className="saved-card-body">
             <span className="category-label">SẢN PHẨM ĐÃ LƯU</span>
             <h2>{item.product.name}</h2>
             <p>{item.product.dimensions}</p>
@@ -181,11 +178,10 @@ export default function CollectionPage() {
               ? <img src={item.resultImage || item.roomImage} alt={`Mẫu phòng ${item.name}`} />
               : '▦'}
           </div>
-          <div>
+          <div className="saved-card-body">
             <span className="category-label">{item.visibility === 'public' ? 'ĐANG CÔNG KHAI' : 'MẪU RIÊNG TƯ'}</span>
             <h2>{item.name}</h2>
             <p>{savedSettingsText(item)}</p>
-            {(item.placements || []).length > 0 && <small className="muted">Đã lưu vị trí, kích thước, góc xoay, lật ảnh và thứ tự lớp.</small>}
             {item.syncStatus === 'local' && <small className="muted">Chỉ lưu trên thiết bị này vì chưa đồng bộ được tài khoản.</small>}
           </div>
           <div className="saved-actions">

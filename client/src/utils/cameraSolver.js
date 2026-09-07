@@ -201,58 +201,44 @@ export function estimateRoomCameraParameters(imageWidth, imageHeight) {
 export function computeProductPerspectiveTransform(target, isWall = false, isFlipped = false, cameraParams = null) {
   const targetX = Number.isFinite(target?.x) ? target.x : 50;
 
-  if (isWall) {
+  const affineResult = (canvasTransform, wallSide) => {
+    const [a, b, c, d, e, f] = canvasTransform;
+    // CSS and Canvas must use the same affine matrix. Keeping the horizontal
+    // flip inside the CSS matrix mirrors Canvas' later context.scale(-1, 1).
+    const flip = isFlipped ? -1 : 1;
     return {
-      cssTransform: isFlipped ? 'translate(-50%, -100%) scaleX(-1)' : 'translate(-50%, -100%)',
-      canvasTransform: [1, 0, 0, 1, 0, 0],
+      cssTransform: `matrix(${a * flip}, ${b * flip}, ${c}, ${d}, ${e}, ${f})`,
+      canvasTransform,
+      wallSide,
     };
+  };
+
+  if (isWall) {
+    return affineResult([1, 0, 0, 1, 0, 0], 'wall');
   }
 
   // Nếu người dùng đã căn chỉnh bằng thước fSpy: Sử dụng góc nghiêng chính xác từ ma trận
-  let baseRotateY = 16;
-  let baseSkewY = -1.8;
   let canvasSkewY = -0.038;
 
   if (cameraParams && cameraParams.calibrated) {
     const pitch = Math.abs(cameraParams.pitchDeg || 20);
-    const yaw = Math.abs(cameraParams.yawDeg || 15);
-    baseRotateY = Math.min(28, Math.max(8, yaw * 1.1));
-    baseSkewY = -Number((pitch * 0.08).toFixed(2));
     canvasSkewY = -Number((pitch * 0.0016).toFixed(4));
   }
 
   // Tường trái (x < 42%) -> Bẻ góc 3/4 quay vào trong phòng
   if (targetX < 42) {
     const intensity = Math.min(1.5, Math.max(0.5, (42 - targetX) / 25));
-    const rotateYDeg = Number((baseRotateY * intensity).toFixed(1));
-    const skewYDeg = Number((baseSkewY * intensity).toFixed(2));
     const cSkewY = Number((canvasSkewY * intensity).toFixed(4));
-
-    return {
-      cssTransform: `translate(-50%, -100%) ${isFlipped ? 'scaleX(-1)' : ''} perspective(650px) rotateY(${rotateYDeg}deg) skewY(${skewYDeg}deg)`,
-      canvasTransform: [1, cSkewY, 0, 0.965, 0, 0],
-      wallSide: 'left',
-    };
+    return affineResult([1, cSkewY, 0, 0.965, 0, 0], 'left');
   }
 
   // Tường phải (x > 58%) -> Bẻ góc 3/4 quay sang trái
   if (targetX > 58) {
     const intensity = Math.min(1.5, Math.max(0.5, (targetX - 58) / 25));
-    const rotateYDeg = Number((-baseRotateY * intensity).toFixed(1));
-    const skewYDeg = Number((-baseSkewY * intensity).toFixed(2));
     const cSkewY = Number((-canvasSkewY * intensity).toFixed(4));
-
-    return {
-      cssTransform: `translate(-50%, -100%) ${isFlipped ? 'scaleX(-1)' : ''} perspective(650px) rotateY(${rotateYDeg}deg) skewY(${skewYDeg}deg)`,
-      canvasTransform: [1, cSkewY, 0, 0.965, 0, 0],
-      wallSide: 'right',
-    };
+    return affineResult([1, cSkewY, 0, 0.965, 0, 0], 'right');
   }
 
   // Giữa phòng / Tường sau -> Đứng diện mạo thẳng
-  return {
-    cssTransform: `translate(-50%, -100%) ${isFlipped ? 'scaleX(-1)' : ''}`,
-    canvasTransform: [1, 0, 0, 1, 0, 0],
-    wallSide: 'center',
-  };
+  return affineResult([1, 0, 0, 1, 0, 0], 'center');
 }

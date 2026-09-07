@@ -3,6 +3,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
+const { pathToFileURL } = require('node:url');
 
 const envPath = require.resolve('../server/src/config/env');
 const config = {
@@ -69,28 +70,53 @@ test('Prompt giữ nguyên khung đỡ của bàn và không tự suy ra gắn t
   assert.match(prompt, /do not add, remove, merge, bend or duplicate supports/i);
 });
 
-test('Bản hướng dẫn giữ đúng tọa độ người dùng đặt, không tự đẩy món theo đường sàn đoán', () => {
+test('Bản hướng dẫn giữ đúng tọa độ, độ phân giải ghép và affine của giao diện', async () => {
   const roomPage = fs.readFileSync(path.join(__dirname, '../client/src/pages/RoomStudioPage.jsx'), 'utf8');
   const canvas = fs.readFileSync(path.join(__dirname, '../client/src/utils/roomPreviewCanvas.js'), 'utf8');
+  const canvasModule = await import(pathToFileURL(path.join(__dirname, '../client/src/utils/roomPreviewCanvas.js')));
+  const cameraModule = await import(pathToFileURL(path.join(__dirname, '../client/src/utils/cameraSolver.js')));
   assert.doesNotMatch(roomPage, /getGroundedFloorAnchorY/);
   assert.doesNotMatch(canvas, /getGroundedFloorAnchorY/);
   assert.match(roomPage, /target: \{ x: item\.target\.x \/ 100, y: item\.target\.y \/ 100 \}/);
   assert.match(canvas, /const anchorY = roomSize\.height \* \(target\.y \/ 100\);/);
+
+  assert.deepEqual(canvasModule.getRoomLayerSizes(1024, 768), {
+    provider: { width: 511, height: 383 },
+    composite: { width: 1024, height: 768 },
+  });
+  assert.ok(canvasModule.IDENTITY_DETAIL_ALPHA >= 0.15 && canvasModule.IDENTITY_DETAIL_ALPHA <= 0.22);
+  assert.ok(canvasModule.OUTPUT_JPEG_QUALITY >= 0.92 && canvasModule.OUTPUT_JPEG_QUALITY <= 0.96);
+
+  const affine = cameraModule.computeProductPerspectiveTransform({ x: 25, y: 72 }, false, true);
+  assert.doesNotMatch(affine.cssTransform, /perspective|rotateY|skewY/);
+  const cssNumbers = affine.cssTransform.match(/matrix\(([^)]+)\)/)[1].split(',').map(Number);
+  assert.deepEqual(cssNumbers.slice(0, 4), [
+    -affine.canvasTransform[0],
+    -affine.canvasTransform[1],
+    affine.canvasTransform[2],
+    affine.canvasTransform[3],
+  ]);
 });
 
 test('Placement luôn ghép kết quả AI qua mask, kể cả data URL', () => {
   const roomPage = fs.readFileSync(path.join(__dirname, '../client/src/pages/RoomStudioPage.jsx'), 'utf8');
   const canvas = fs.readFileSync(path.join(__dirname, '../client/src/utils/roomPreviewCanvas.js'), 'utf8');
-  assert.match(roomPage, /maskSource: guideImages\.maskImageDataUrl/);
+  assert.match(roomPage, /maskSource: compositeMaskImageDataUrl/);
   assert.match(roomPage, /identityOverlaySource: identityOverlayDataUrl/);
   assert.match(roomPage, /const finalImage = await compositeRoomPreview/);
+  assert.match(canvas, /const \{ provider: providerSize, composite: compositeSize \} = getRoomLayerSizes/);
+  assert.match(canvas, /providerMaskCanvas/);
+  assert.match(canvas, /compositeMaskCanvas/);
+  assert.match(canvas, /compositeMaskImageDataUrl/);
   assert.match(canvas, /function applyMaskAlpha/);
   assert.match(canvas, /function drawProductMask/);
   assert.match(canvas, /source-in/);
   assert.doesNotMatch(canvas, /maskContext\.fillRect\(maskX/);
+  assert.match(canvas, /maskContext\.ellipse/);
   assert.match(canvas, /destination-in/);
   assert.match(canvas, /maskSource \? loadImage\(maskSource\)/);
-  assert.match(canvas, /if \(identityOverlay\) context\.drawImage/);
+  assert.match(canvas, /context\.globalAlpha = IDENTITY_DETAIL_ALPHA/);
+  assert.doesNotMatch(canvas, /if \(identityOverlay\) context\.drawImage/);
 });
 
 test('Mong muốn nằm dưới danh sách món và so sánh trước sau nằm trong ảnh', () => {

@@ -1,4 +1,4 @@
-import { computeProductPerspectiveTransform } from './cameraSolver';
+import { computeProductPerspectiveTransform } from './cameraSolver.js';
 
 // Workers AI FLUX requires every reference edge to be smaller than 512 px.
 const MAX_GUIDE_EDGE = 511;
@@ -6,6 +6,8 @@ const MAX_REFERENCE_EDGE = 511;
 const CROP_PADDING_PX = 16;
 const REFERENCE_BACKGROUND = '#f3f1ec';
 const REFERENCE_OBJECT_RATIO = 0.9;
+export const IDENTITY_DETAIL_ALPHA = 0.18;
+export const OUTPUT_JPEG_QUALITY = 0.94;
 
 function loadImage(source) {
   return new Promise((resolve, reject) => {
@@ -20,6 +22,15 @@ function loadImage(source) {
 function fitSize(width, height, maxEdge) {
   const scale = Math.min(1, maxEdge / Math.max(width, height));
   return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
+}
+
+export function getRoomLayerSizes(width, height) {
+  const safeWidth = Math.max(1, Math.round(Number(width) || 1));
+  const safeHeight = Math.max(1, Math.round(Number(height) || 1));
+  return {
+    provider: fitSize(safeWidth, safeHeight, MAX_GUIDE_EDGE),
+    composite: { width: safeWidth, height: safeHeight },
+  };
 }
 
 export function getProductImageSource(product) {
@@ -73,8 +84,8 @@ function isWallMounted(product = {}) {
   return /treo|tranh|gương|khung lưới|đèn tường|clock|đồng hồ treo/i.test(product?.name || '');
 }
 
-export function getProductPreviewStyle(product, target, isFlipped = false, cameraParams = null) {
-  const scale = getProductScale(product, target);
+export function getProductPreviewStyle(product, target, isFlipped = false, cameraParams = null, placementScale = 1, rotation = 0) {
+  const scale = getProductScale(product, target) * Math.max(0.4, Math.min(1.8, Number(placementScale) || 1));
   const isWall = isWallMounted(product);
   const { cssTransform } = computeProductPerspectiveTransform(target, isWall, isFlipped, cameraParams);
 
@@ -82,8 +93,8 @@ export function getProductPreviewStyle(product, target, isFlipped = false, camer
     left: `${target.x}%`,
     top: `${target.y}%`,
     width: `${scale * 100}%`,
-    transform: cssTransform,
-    transformOrigin: 'bottom center',
+    transform: `rotate(${Number(rotation) || 0}deg) ${cssTransform} translate(-50%, -100%)`,
+    transformOrigin: '0 0',
   };
 }
 
@@ -165,19 +176,18 @@ function drawPhysicsFloorShadow(context, rect, product = {}, target = { x: 50 })
   context.restore();
 }
 
-function drawAiProductGuide(fullCanvas, productImage, rectangle, isFlipped = false, product = {}, target = { x: 50 }, cameraParams = null, rotation = 0) {
+function drawAiProductGuide(fullCanvas, productImage, rectangle, isFlipped = false, product = {}, target = { x: 50 }, cameraParams = null, rotation = 0, includeShadow = true) {
   const context = fullCanvas.getContext('2d');
   const isWall = isWallMounted(product);
   const { canvasTransform } = computeProductPerspectiveTransform(target, isWall, isFlipped, cameraParams);
 
-  // 1. Vẽ bóng đổ tiếp xúc vật lý chạm sàn
-  drawPhysicsFloorShadow(context, rectangle, product, target);
+  if (includeShadow) drawPhysicsFloorShadow(context, rectangle, product, target);
 
   // 2. Vẽ sản phẩm với phối cảnh tự động tính từ cameraSolver
   context.save();
   context.globalAlpha = 1;
 
-  context.translate(rectangle.productX + (rectangle.productWidth / 2), rectangle.productY + (rectangle.productHeight / 2));
+  context.translate(rectangle.productX + (rectangle.productWidth / 2), rectangle.productY + rectangle.productHeight);
   context.rotate((Number(rotation) || 0) * Math.PI / 180);
   if (Array.isArray(canvasTransform)) {
     context.transform(...canvasTransform);
@@ -185,7 +195,7 @@ function drawAiProductGuide(fullCanvas, productImage, rectangle, isFlipped = fal
   if (isFlipped) {
     context.scale(-1, 1);
   }
-  context.drawImage(productImage, -rectangle.productWidth / 2, -rectangle.productHeight / 2, rectangle.productWidth, rectangle.productHeight);
+  context.drawImage(productImage, -rectangle.productWidth / 2, -rectangle.productHeight, rectangle.productWidth, rectangle.productHeight);
   context.restore();
 }
 
@@ -196,26 +206,47 @@ function drawProductMask(maskContext, roomSize, productImage, rectangle, isFlipp
   const { canvasTransform } = computeProductPerspectiveTransform(target, isWall, isFlipped, cameraParams);
 
   context.save();
-  context.translate(rectangle.productX + (rectangle.productWidth / 2), rectangle.productY + (rectangle.productHeight / 2));
+  context.translate(rectangle.productX + (rectangle.productWidth / 2), rectangle.productY + rectangle.productHeight);
   context.rotate((Number(rotation) || 0) * Math.PI / 180);
   if (Array.isArray(canvasTransform)) context.transform(...canvasTransform);
   if (isFlipped) context.scale(-1, 1);
-  context.drawImage(productImage, -rectangle.productWidth / 2, -rectangle.productHeight / 2, rectangle.productWidth, rectangle.productHeight);
+  context.drawImage(productImage, -rectangle.productWidth / 2, -rectangle.productHeight, rectangle.productWidth, rectangle.productHeight);
   context.restore();
 
-  // Convert the source alpha into a tight white inpaint mask. A small blurred
-  // rim lets the model blend light and shadow without repainting nearby stairs,
-  // walls or doors as the former bounding-box mask did.
+  // Convert source alpha into a white silhouette, then add a local halo. The
+  // halo gives AI enough room for light and contact shadow without opening a
+  // rectangular area that could repaint nearby architecture.
   context.globalCompositeOperation = 'source-in';
   context.fillStyle = '#fff';
   context.fillRect(0, 0, roomSize.width, roomSize.height);
   context.globalCompositeOperation = 'source-over';
 
+  const haloSize = Math.max(4, Math.min(24, Math.round(Math.max(rectangle.productWidth, rectangle.productHeight) * 0.055)));
   maskContext.save();
-  maskContext.globalAlpha = 0.72;
-  maskContext.filter = 'blur(5px)';
+  maskContext.globalAlpha = 0.64;
+  maskContext.filter = `blur(${haloSize}px)`;
   maskContext.drawImage(silhouette, 0, 0);
   maskContext.restore();
+
+  if (!isWall && getPlacementSurface(product) !== 'tabletop') {
+    maskContext.save();
+    maskContext.globalAlpha = 0.58;
+    maskContext.filter = `blur(${Math.max(3, Math.round(haloSize * 0.7))}px)`;
+    maskContext.fillStyle = '#fff';
+    maskContext.beginPath();
+    maskContext.ellipse(
+      rectangle.productX + (rectangle.productWidth / 2),
+      rectangle.productY + rectangle.productHeight,
+      Math.max(4, rectangle.productWidth * 0.42),
+      Math.max(3, rectangle.productHeight * 0.045),
+      0,
+      0,
+      Math.PI * 2,
+    );
+    maskContext.fill();
+    maskContext.restore();
+  }
+
   maskContext.drawImage(silhouette, 0, 0);
 }
 
@@ -339,17 +370,24 @@ export async function createRoomPreviewImages({ roomSource, placements, productS
     }
     throw new Error(`Không thể đọc ảnh tách nền của ${name}.`);
   }));
-  const roomSize = fitSize(roomImage.naturalWidth, roomImage.naturalHeight, MAX_GUIDE_EDGE);
-  const roomCanvas = makeCanvas(roomSize.width, roomSize.height);
-  roomCanvas.getContext('2d').drawImage(roomImage, 0, 0, roomSize.width, roomSize.height);
-  const guideCanvas = makeCanvas(roomSize.width, roomSize.height);
+  const { provider: providerSize, composite: compositeSize } = getRoomLayerSizes(
+    roomImage.naturalWidth,
+    roomImage.naturalHeight,
+  );
+  const roomCanvas = makeCanvas(providerSize.width, providerSize.height);
+  roomCanvas.getContext('2d').drawImage(roomImage, 0, 0, providerSize.width, providerSize.height);
+  const guideCanvas = makeCanvas(providerSize.width, providerSize.height);
   guideCanvas.getContext('2d').drawImage(roomCanvas, 0, 0);
-  const identityOverlayCanvas = makeCanvas(roomSize.width, roomSize.height);
+  const identityOverlayCanvas = makeCanvas(compositeSize.width, compositeSize.height);
 
-  const maskCanvas = makeCanvas(roomSize.width, roomSize.height);
-  const maskContext = maskCanvas.getContext('2d');
-  maskContext.fillStyle = '#000';
-  maskContext.fillRect(0, 0, roomSize.width, roomSize.height);
+  const providerMaskCanvas = makeCanvas(providerSize.width, providerSize.height);
+  const providerMaskContext = providerMaskCanvas.getContext('2d');
+  providerMaskContext.fillStyle = '#000';
+  providerMaskContext.fillRect(0, 0, providerSize.width, providerSize.height);
+  const compositeMaskCanvas = makeCanvas(compositeSize.width, compositeSize.height);
+  const compositeMaskContext = compositeMaskCanvas.getContext('2d');
+  compositeMaskContext.fillStyle = '#000';
+  compositeMaskContext.fillRect(0, 0, compositeSize.width, compositeSize.height);
   const scene = scenePlacements
     .map((placement, index) => ({ placement, image: productImages[index] }))
     .sort((left, right) => (left.placement.zIndex || 0) - (right.placement.zIndex || 0));
@@ -357,18 +395,22 @@ export async function createRoomPreviewImages({ roomSource, placements, productS
   scene.forEach(({ placement, image }) => {
     const placementTarget = placement.target || target;
     const sceneProduct = placement.product || product;
-    const rectangle = getProductRectangle(roomSize, image, placementTarget, sceneProduct, placement.scale);
     const productForPlacement = { ...sceneProduct, name: placement.productName || sceneProduct?.name };
-    drawAiProductGuide(guideCanvas, image, rectangle, placement.isFlipped, productForPlacement, placementTarget, cameraParams, placement.rotation);
-    drawAiProductGuide(identityOverlayCanvas, image, rectangle, placement.isFlipped, productForPlacement, placementTarget, cameraParams, placement.rotation);
-    drawProductMask(maskContext, roomSize, image, rectangle, placement.isFlipped, productForPlacement, placementTarget, cameraParams, placement.rotation);
+    const providerRectangle = getProductRectangle(providerSize, image, placementTarget, sceneProduct, placement.scale);
+    drawAiProductGuide(guideCanvas, image, providerRectangle, placement.isFlipped, productForPlacement, placementTarget, cameraParams, placement.rotation);
+    drawProductMask(providerMaskContext, providerSize, image, providerRectangle, placement.isFlipped, productForPlacement, placementTarget, cameraParams, placement.rotation);
+
+    const compositeRectangle = getProductRectangle(compositeSize, image, placementTarget, sceneProduct, placement.scale);
+    drawAiProductGuide(identityOverlayCanvas, image, compositeRectangle, placement.isFlipped, productForPlacement, placementTarget, cameraParams, placement.rotation, false);
+    drawProductMask(compositeMaskContext, compositeSize, image, compositeRectangle, placement.isFlipped, productForPlacement, placementTarget, cameraParams, placement.rotation);
   });
 
   const referenceCanvas = createReferenceComposite(scene);
   return {
     roomImageDataUrl: roomCanvas.toDataURL('image/jpeg', 0.9),
     guideImageDataUrl: guideCanvas.toDataURL('image/jpeg', 0.9),
-    maskImageDataUrl: maskCanvas.toDataURL('image/png'),
+    maskImageDataUrl: providerMaskCanvas.toDataURL('image/png'),
+    compositeMaskImageDataUrl: compositeMaskCanvas.toDataURL('image/png'),
     identityOverlayDataUrl: identityOverlayCanvas.toDataURL('image/png'),
     productImageDataUrl: referenceCanvas.toDataURL('image/png'),
     referenceSheet: {
@@ -460,10 +502,15 @@ export async function compositeRoomPreview({ roomSource, resultSource, maskSourc
   if (maskImage) applyMaskAlpha(cropCanvas, maskImage, width, height);
   else applyFeather(cropCanvas, CROP_PADDING_PX);
   context.drawImage(cropCanvas, x, y, width, height);
-  // The model supplies lighting and blending, while this final transparent
-  // layer guarantees that every selected catalogue item remains visible with
-  // its real silhouette, colour and construction.
-  if (identityOverlay) context.drawImage(identityOverlay, 0, 0, canvas.width, canvas.height);
+  // Keep a little catalogue detail without hiding the lighting and material
+  // integration produced by AI. A full-opacity overlay would recreate the
+  // pasted cutout that this generation step is meant to remove.
+  if (identityOverlay) {
+    context.save();
+    context.globalAlpha = IDENTITY_DETAIL_ALPHA;
+    context.drawImage(identityOverlay, 0, 0, canvas.width, canvas.height);
+    context.restore();
+  }
 
-  return canvas.toDataURL('image/jpeg', 0.9);
+  return canvas.toDataURL('image/jpeg', OUTPUT_JPEG_QUALITY);
 }

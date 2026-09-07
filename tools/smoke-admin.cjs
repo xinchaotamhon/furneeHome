@@ -683,3 +683,35 @@ test('Admin import feedback stays beside the URL form instead of below the full 
   assert.match(form, /role="status"/);
   assert.doesNotMatch(source.slice(listStart), /role="alert"|role="status"/);
 });
+
+test('important discovery, collection, home and Admin UI treatments stay present', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const readClient = (file) => fs.readFileSync(path.join(__dirname, '../client/src', file), 'utf8');
+  const header = readClient('components/layout/Header.jsx');
+  const home = readClient('pages/HomePage.jsx');
+  const collection = readClient('pages/CollectionPage.jsx');
+  const discoveryCss = readClient('styles/discovery.css');
+  const globalCss = readClient('styles/global.css');
+
+  assert.match(header, /className="public-nav-link"/);
+  assert.match(header, /<span aria-hidden="true">✦<\/span>Mẫu công khai/);
+  assert.match(home, /home-room-3\.webp/);
+  assert.match(home, /home-room-4\.webp/);
+  assert.match(discoveryCss, /\.main-nav \.public-nav-link/);
+  assert.match(discoveryCss, /animation:\s*fh-room-slide-fade 12s/);
+  assert.match(discoveryCss, /\.fh-room-slide:nth-child\(4\)/);
+
+  assert.match(collection, /className="container page collection-page"/);
+  assert.match(collection, /className="saved-card-body"/);
+  assert.doesNotMatch(collection, /Đã lưu vị trí, kích thước và góc xoay/);
+  assert.match(globalCss, /\.collection-page \.collection-grid/);
+  assert.match(globalCss, /grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(260px,\s*1fr\)\)/);
+  assert.match(globalCss, /\.admin-product-list \.row-actions\s*>\s*button/);
+  assert.match(globalCss, /\.admin-product-list \.row-actions\s*>\s*label/);
+  assert.match(globalCss, /grid-template-columns:\s*repeat\(3,\s*minmax\(76px,\s*1fr\)\)/);
+
+  ['home-room-3.webp', 'home-room-4.webp'].forEach((file) => {
+    assert.equal(fs.existsSync(path.join(__dirname, '../client/public/images', file)), true);
+  });
+});
