@@ -1095,6 +1095,11 @@ export default function RoomStudioPage() {
       );
       return;
     }
+    if (!user) {
+      setMessage('Đăng nhập để lưu đầy đủ ảnh và cài đặt vào Bộ sưu tập.');
+      openRegister();
+      return;
+    }
     const latest = activePlacement || placements[placements.length - 1] || {};
     const savingInspiration = resultMatchesLayout && resultMode === 'inspiration';
     const latestProduct =

@@ -454,6 +454,10 @@ test('Collection gửi các trường phục hồi và product references của 
   const source = require('node:fs').readFileSync(path.join(__dirname, '../client/src/context/CollectionContext.jsx'), 'utf8');
   const payload = source.slice(source.indexOf('const payload ='), source.indexOf('return roomDesignService.create'));
   for (const field of ['designMode', 'userPrompt', 'model', 'elapsedMs', 'previewImage', 'placements', 'inspirationProducts', 'markedCorners', 'scaleReference']) assert.match(payload, new RegExp(`${field}:`));
+  const studio = require('node:fs').readFileSync(path.join(__dirname, '../client/src/pages/RoomStudioPage.jsx'), 'utf8');
+  const saveFlow = studio.slice(studio.indexOf('const saveCollection = async'), studio.indexOf('const resetStudio'));
+  assert.match(saveFlow, /if \(!user\)/);
+  assert.match(saveFlow, /openRegister\(\)/);
 });
 
 test('Phiên phòng thử dùng session; cache trình duyệt không giữ ảnh base64', () => {

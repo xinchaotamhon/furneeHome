@@ -111,7 +111,7 @@ Trước khi sửa Review, đối chiếu với code và tài liệu nguồn ch�
 - Sản phẩm, link nguồn và ảnh local hiện có không bị xóa nhầm; món chờ ảnh không được hiện như ảnh hỏng hoặc gửi sang AI.
 - Room Studio không bắt buộc đặt mốc tỷ lệ; nếu dùng chỉ có 2 điểm + chiều dài cm, hiển thị đoạn và nhãn ngay trên ảnh. Đo cả page và panel để không giấu nút ngoài màn hình; ảnh, spinner, kết quả cùng khung, không crop.
 - Collection đọc được dữ liệu cũ; dữ liệu mới dùng `designMode`, `resultImage`, `placements` cùng product facts, `scaleReference`, `markedCorners` legacy, `designBrief`, `userPrompt` và tọa độ chuẩn hóa từ 0 đến 1.
-- Người đăng nhập có thể đồng bộ thiết kế vào MongoDB, chủ động công khai/đặt riêng tư, thả tim, lưu và tạo biến thể từ mẫu công khai. Khách vẫn có thể lưu trên thiết bị.
+- Người đăng nhập lưu đầy đủ ảnh và cài đặt vào MongoDB, chủ động công khai/đặt riêng tư, thả tim, lưu và tạo biến thể từ mẫu công khai. Khách được thử tạo một ảnh nhưng phải đăng nhập để lưu bền vững.
 - Khách chỉ tiêu một lượt tạo ảnh sau khi provider thành công; request lỗi trả lại lượt. IP thô không được lưu. Khi deploy sau proxy phải cấu hình `TRUST_PROXY` đúng topology.
 - README/START_HERE không chứa secret thật và liên kết tương đối trong repo hoạt động.
 - Chạy `node --test tools/smoke-room.cjs tools/smoke-admin.cjs`: kiểm tra hai chế độ ảnh, prompt/fallback, quota khách, lưu/dùng lại collection, auth/Admin, ảnh và JSON bằng mock; không tiêu quota AI thật. Đây không phải bằng chứng chất lượng ảnh provider; phải phân biệt với kiểm thử giao diện và một lần gọi provider có chủ đích.
