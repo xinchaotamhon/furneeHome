@@ -60,7 +60,7 @@ Giữ các nguyên tắc:
 
 Bản đồ từng file cốt lõi nằm ở [README.md](README.md), mục 7.
 
-Tham khảo UX đã chọn từ CLOVER: [React Bits](https://github.com/DavidHDev/react-bits) cho hiệu ứng nhẹ, [Open Design](https://github.com/nexu-io/open-design) cho cách tổ chức vùng làm việc và [React Flow](https://reactflow.dev/examples/layout/dagre) cho cây học. Chỉ lấy ý tưởng, không thêm các repo/framework này làm dependency. `fourgether/` là cây học theo luồng riêng, dùng font hệ thống hỗ trợ tiếng Việt; tiến độ chỉ giữ trong phiên, không lưu bộ nhớ trình duyệt.
+Tham khảo UX đã chọn từ CLOVER: [React Bits](https://github.com/DavidHDev/react-bits) cho hiệu ứng nhẹ, [Open Design](https://github.com/nexu-io/open-design) cho cách tổ chức vùng làm việc và [React Flow](https://reactflow.dev/examples/layout/dagre) cho cây học. Chỉ lấy ý tưởng, không thêm các repo/framework này làm dependency. `fourgether/` là repo cây học riêng, dùng font hệ thống hỗ trợ tiếng Việt; tiến độ chỉ giữ trong phiên, không lưu bộ nhớ trình duyệt. Khi sửa cây học, chạy `node --test smoke.cjs` ngay trong thư mục đó.
 
 ## 6. Ranh giới phần trình bày đồ án
 

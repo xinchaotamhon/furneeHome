@@ -1,6 +1,5 @@
 import { computeProductPerspectiveTransform } from './cameraSolver';
 
-const DEFAULT_PRODUCT_SCALE = 0.22;
 // Workers AI FLUX requires every reference edge to be smaller than 512 px.
 const MAX_GUIDE_EDGE = 511;
 const MAX_REFERENCE_EDGE = 511;
@@ -467,9 +466,4 @@ export async function compositeRoomPreview({ roomSource, resultSource, maskSourc
   if (identityOverlay) context.drawImage(identityOverlay, 0, 0, canvas.width, canvas.height);
 
   return canvas.toDataURL('image/jpeg', 0.9);
-}
-
-// Giữ tên cũ để các màn hình hoặc nhánh đang phát triển không bị lỗi import.
-export async function createRoomGuideImages(args) {
-  return createRoomPreviewImages(args);
 }

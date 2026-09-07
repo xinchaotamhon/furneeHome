@@ -236,8 +236,6 @@ furneehome/
 │       ├── components/
 │       │   ├── auth/
 │       │   │   └── LoginModal.jsx    # Modal đăng nhập/đăng ký qua backend
-│       │   ├── common/
-│       │   │   └── Button.jsx        # Nút dùng lại
 │       │   ├── layout/
 │       │   │   ├── MainLayout.jsx    # Khung trang chung
 │       │   │   ├── Header.jsx        # Điều hướng, user và link Admin
@@ -364,11 +362,12 @@ Hệ thống được thiết kế tối ưu để deploy hoàn toàn miễn ph�
 
 ---
 
-## 🎓 9. Ứng dụng Fourgether Ôn tập & Phân vai 4 thành viên
+## 🎓 9. Ứng dụng Fourgether ôn tập chung
 
 - `fourgether/` là ứng dụng tĩnh để **Hiệp, Phúc, Triều, Dũng** cùng ôn toàn bộ đồ án:
-  - Trang đầu là cây kiến thức theo luồng người dùng → frontend → backend/AI → dữ liệu/deploy → câu hỏi bảo vệ; không chia kiến thức theo độ khó hay thành viên.
-  - Bấm một nhánh để mở thẻ ngay; hỗ trợ tìm kiếm, thu/phóng nhánh, lật thẻ và phím tắt.
+  - Bấm **Học theo luồng** để đi hết dự án; bấm một node để chỉ ôn chủ đề đó.
+  - Cây đi theo người dùng → frontend → backend/AI → dữ liệu/deploy → câu hỏi bảo vệ; không chia theo độ khó hay thành viên.
   - Mọi người học toàn bộ luồng; phân công công việc của nhóm không làm thay đổi nội dung phải biết.
   - Tiến độ chỉ giữ trong phiên hiện tại, không lưu cache ứng dụng hay dữ liệu trình duyệt; tải lại là một phiên học mới.
-  - Repo độc lập có thể deploy trực tiếp lên Cloudflare Pages.
+  - Đây là repo độc lập: <https://github.com/xinchaotamhon/fourgether>. Lần đầu clone vào thư mục `fourgether`; các lần sau chạy `git -C fourgether pull --ff-only`.
+  - Trước khi phát hành, chạy `node --test smoke.cjs` trong thư mục `fourgether`. Repo có thể deploy trực tiếp lên Cloudflare Pages.

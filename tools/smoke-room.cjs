@@ -546,15 +546,18 @@ test('Tên sản phẩm dài trong dataset vẫn lưu được đầy đủ bố
   assert.equal(response.result.data.placements[0].isFlipped, true);
 });
 
-test('CSS responsive giữ đúng khối media; spinner không bị tắt trên mọi màn hình', () => {
+test('CSS responsive giữ đúng khối media và trạng thái loading', () => {
   const fs = require('node:fs');
   const postcss = require('../client/node_modules/postcss');
   const css = postcss.parse(fs.readFileSync(path.join(__dirname, '../client/src/styles/global.css'), 'utf8'));
   let studioBreakpoint = false;
+  let loadingDot = false;
   css.walkAtRules('media', (rule) => {
     if (rule.params.includes('980px')) rule.walkRules('.studio-workspace', () => { studioBreakpoint = true; });
   });
   assert.ok(studioBreakpoint, 'Grid mobile phải nằm trong media query');
+  css.walkRules('.loading-dot', () => { loadingDot = true; });
+  assert.ok(loadingDot, 'Thông báo tạo ảnh phải giữ dấu hiệu loading');
   css.walkRules('.room-spinner', (rule) => {
     rule.walkDecls('animation', (decl) => {
       if (decl.value === 'none') assert.equal(rule.parent.name, 'media', 'Chỉ tắt xoay khi người dùng chọn giảm chuyển động');

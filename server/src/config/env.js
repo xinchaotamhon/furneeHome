@@ -35,7 +35,6 @@ module.exports = {
   anonymousQuotaSalt: process.env.ANONYMOUS_QUOTA_SALT || configuredJwtSecret || 'development-only-anonymous-quota-salt',
   trustProxy: readTrustProxy(process.env.TRUST_PROXY),
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
-  kreaApiKey: process.env.KREA_API_KEY,
   cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
   cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN,
   cloudflareImageModel: process.env.CLOUDFLARE_IMAGE_MODEL || '@cf/black-forest-labs/flux-2-klein-4b',

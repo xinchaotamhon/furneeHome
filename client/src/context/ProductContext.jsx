@@ -101,7 +101,6 @@ export function ProductProvider({ children }) {
     downloadProductJson() {
       return productService.downloadJson();
     },
-    resetProducts: fetchProducts,
   }), [products, loading]);
 
   return <ProductContext.Provider value={value}>{children}</ProductContext.Provider>;
