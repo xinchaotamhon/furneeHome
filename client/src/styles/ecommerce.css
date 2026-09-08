@@ -1436,3 +1436,28 @@
   }
 }
 
+/* Giới hạn kích thước điều chỉnh của textarea */
+textarea {
+  resize: vertical;
+  min-height: 68px;
+  max-height: 220px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+textarea[rows="2"] {
+  min-height: 58px;
+  max-height: 180px;
+}
+
+textarea[rows="3"] {
+  min-height: 80px;
+  max-height: 220px;
+}
+
+textarea[rows="7"] {
+  min-height: 130px;
+  max-height: 350px;
+}
+
+
