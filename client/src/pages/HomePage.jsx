@@ -65,7 +65,7 @@ export default function HomePage() {
         <div>
           <p className="eyebrow">ĐIỂM NỔI BẬT</p>
           <h2>Xem sản phẩm ngay trong ảnh phòng thật</h2>
-          <p>Tải ảnh phòng, chọn một sản phẩm và tạo kết quả để so sánh.</p>
+          <p>Chọn tối đa 3 sản phẩm, tải ảnh phòng và tạo kết quả để so sánh.</p>
         </div>
         <ol className="fh-priority-list">
           <li><strong>1. Ảnh phòng</strong><span>Không gian thật của người dùng.</span></li>

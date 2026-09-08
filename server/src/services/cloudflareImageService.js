@@ -31,35 +31,40 @@ function outputSize(imageSize = {}) {
   };
 }
 
-function buildPrompt(input) {
-  const product = input.sceneProduct || {};
+function productPrompt(product, index) {
   const dimensions = Object.entries(product.dimensionsCm || {})
     .filter(([, value]) => Number(value) > 0)
     .map(([name, value]) => `${name} ${value} cm`)
     .join(', ');
-  const lowFurniture = product.usageType === 'floor-seating'
-    ? 'This is low furniture for floor seating. Keep its top and legs low. Do not turn it into a normal-height desk and do not add a chair.'
+  const usage = product.usageType === 'floor-seating'
+    ? 'It is low furniture for floor seating; keep it low and do not add a chair.'
     : '';
   const support = {
-    floor: 'Keep it standing on the visible floor.',
-    wall: 'Keep it mounted on the visible wall without adding floor legs.',
-    tabletop: 'Keep it on an existing tabletop or shelf.',
-  }[product.placementSurface] || 'Keep the support structure shown in the product reference.';
+    floor: 'It must stand naturally on the floor.',
+    wall: 'It must be mounted naturally on the wall.',
+    tabletop: 'It must rest naturally on an existing tabletop or shelf.',
+  }[product.placementSurface] || '';
 
   return [
-    'Create one photorealistic interior edit.',
-    'Image 1 is the original room, image 2 is the exact placement guide, and image 3 is the exact product reference.',
-    `Use exactly one ${JSON.stringify(input.productName)} at the position and size shown in the placement guide.`,
-    'Keep the product recognizable: preserve its silhouette, colors, material, proportions, number of legs, shelves, doors, handles and supports.',
-    dimensions ? `Known product dimensions: ${dimensions}. Preserve these proportions.` : 'Its exact dimensions are unknown. Do not invent measurements; follow the reference proportions.',
-    lowFurniture,
+    `Product ${index + 1}: ${JSON.stringify(product.productName)}.`,
+    `Place it ${product.desiredPosition}.`,
+    `Reference image ${index + 2} is this exact product. Preserve its silhouette, color, material, proportions, legs, shelves, doors, handles and supports.`,
+    dimensions ? `Known dimensions: ${dimensions}.` : '',
+    usage,
     support,
-    product.aiDescription ? `Important product detail: ${product.aiDescription}` : '',
-    input.designBrief?.desiredPosition ? `Preferred position: ${input.designBrief.desiredPosition}` : '',
-    input.designBrief?.keepClear ? `Keep clear: ${input.designBrief.keepClear}` : '',
-    input.userPrompt ? `Additional preference: ${input.userPrompt}` : '',
-    'Preserve the original camera, framing, walls, floor, ceiling, doors, windows, stairs, bathroom, fixtures and existing large objects.',
-    'Change only the guided product area. Match perspective, light and a small contact shadow. Do not add text, logos, watermarks, duplicate products or extra furniture.',
+    product.aiDescription ? `Product detail: ${product.aiDescription}.` : '',
+  ].filter(Boolean).join(' ');
+}
+
+function buildPrompt(input) {
+  return [
+    'Create one photorealistic edit of the original room in image 1.',
+    `Add exactly ${input.products.length} selected product${input.products.length > 1 ? 's' : ''}, using the following reference images in order.`,
+    ...input.products.map(productPrompt),
+    input.userPrompt ? `Other request: ${input.userPrompt}.` : '',
+    'Keep the original camera, framing, walls, floor, ceiling, doors, windows, stairs, bathroom, fixtures, room shape and existing large objects unchanged.',
+    'Place every selected product once, at a physically possible location described by the user. Match perspective, scale, lighting and contact shadows.',
+    'Do not add unselected furniture. Do not duplicate, replace or redesign a selected product. Do not add text, logos or watermarks.',
     'Return only the finished room image.',
   ].filter(Boolean).join(' ');
 }
@@ -77,8 +82,9 @@ async function fetchWithTimeout(url, options) {
 async function callPollinations(input, model) {
   const form = new FormData();
   form.append('image', new Blob([input.room.buffer], { type: input.room.mimeType }), 'room.jpg');
-  form.append('image', new Blob([input.guide.buffer], { type: input.guide.mimeType }), 'placement.jpg');
-  form.append('image', new Blob([input.product.buffer], { type: input.product.mimeType }), 'product.png');
+  input.products.forEach((product, index) => {
+    form.append('image', new Blob([product.image.buffer], { type: product.image.mimeType }), `product-${index + 1}.png`);
+  });
   form.append('prompt', input.prompt);
   form.append('model', model);
   form.append('size', `${input.size.width}x${input.size.height}`);
@@ -108,8 +114,9 @@ async function callCloudflare(input, model) {
   form.append('width', String(input.size.width));
   form.append('height', String(input.size.height));
   form.append('input_image_0', new Blob([input.room.buffer], { type: input.room.mimeType }), 'room.jpg');
-  form.append('input_image_1', new Blob([input.guide.buffer], { type: input.guide.mimeType }), 'placement.jpg');
-  form.append('input_image_2', new Blob([input.product.buffer], { type: input.product.mimeType }), 'product.png');
+  input.products.forEach((product, index) => {
+    form.append(`input_image_${index + 1}`, new Blob([product.image.buffer], { type: product.image.mimeType }), `product-${index + 1}.png`);
+  });
 
   const url = `https://api.cloudflare.com/client/v4/accounts/${env.cloudflareAccountId}/ai/run/${model}`;
   const response = await fetchWithTimeout(url, {
@@ -133,9 +140,9 @@ function providerList() {
   const providers = [];
   for (const name of requested) {
     if (name === 'pollinations' && env.pollinationsApiKey) {
-      const models = String(env.pollinationsImageModels || 'gpt-image-2')
-        .split(',').map((model) => model.trim()).filter(Boolean).slice(0, 2);
-      models.forEach((model) => providers.push({ name, model }));
+      String(env.pollinationsImageModels || 'gpt-image-2')
+        .split(',').map((model) => model.trim()).filter(Boolean).slice(0, 2)
+        .forEach((model) => providers.push({ name, model }));
     }
     if (name === 'cloudflare' && env.cloudflareAccountId && env.cloudflareApiToken) {
       providers.push({ name, model: env.cloudflareImageModel });
@@ -146,15 +153,17 @@ function providerList() {
 
 async function generateRoomPreview(input) {
   const room = readImage(input.roomImageDataUrl, 'Ảnh phòng');
-  const guide = readImage(input.guideImageDataUrl, 'Ảnh vị trí');
-  const product = readImage(input.productImageDataUrl, 'Ảnh sản phẩm');
-  if (room.buffer.length + guide.buffer.length + product.buffer.length > MAX_TOTAL_BYTES) {
-    throw serviceError('Tổng dung lượng ảnh vượt quá 15 MB.', 400);
-  }
+  const products = input.products.map((product, index) => ({
+    ...product,
+    image: readImage(product.image, `Ảnh sản phẩm ${index + 1}`),
+  }));
+  const totalBytes = room.buffer.length + products.reduce((sum, product) => sum + product.image.buffer.length, 0);
+  if (totalBytes > MAX_TOTAL_BYTES) throw serviceError('Tổng dung lượng ảnh vượt quá 15 MB.', 400);
 
   const providers = providerList();
   if (!providers.length) throw serviceError('Chưa cấu hình dịch vụ tạo ảnh.', 503);
-  const request = { ...input, room, guide, product, size: outputSize(input.imageSize), prompt: buildPrompt(input) };
+  const request = { ...input, room, products, size: outputSize(input.imageSize) };
+  request.prompt = buildPrompt(request);
   const errors = [];
   const startedAt = Date.now();
 
@@ -168,7 +177,7 @@ async function generateRoomPreview(input) {
         provider: provider.name,
         model: provider.model,
         elapsedMs: Date.now() - startedAt,
-        editRegion: input.editRegion,
+        productCount: products.length,
       };
     } catch (error) {
       errors.push(`${provider.name}/${provider.model}: ${error.message}`);

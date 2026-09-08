@@ -17,6 +17,13 @@ const productSchema = new mongoose.Schema({
   transparentImage: { type: String, default: '' },
   sourceImages: [{ type: String }],
   sourceUrl: { type: String, default: '' },
+  sourcePlatform: { type: String, default: '', trim: true },
+  shopeeShopId: { type: String, default: '', trim: true, index: true },
+  shopeeItemId: { type: String, default: '', trim: true, index: true },
+  sourceCategoryName: { type: String, default: '', trim: true },
+  sellerName: { type: String, default: '', trim: true },
+  specifications: [{ name: { type: String, trim: true }, value: { type: String, trim: true } }],
+  importedAt: { type: Date },
   dimensionsCm: {
     width: { type: Number, min: 1 },
     depth: { type: Number, min: 1 },

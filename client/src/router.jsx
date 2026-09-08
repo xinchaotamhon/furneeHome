@@ -5,7 +5,6 @@ import AdminOrdersPage from './pages/AdminOrdersPage';
 import AdminPage from './pages/AdminPage';
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
-import CollectionPage from './pages/CollectionPage';
 import FeedbackPage from './pages/FeedbackPage';
 import HomePage from './pages/HomePage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -54,7 +53,6 @@ const router = createBrowserRouter([
       { path: '/checkout', element: <CheckoutPage /> },
       { path: '/orders', element: <OrderHistoryPage /> },
       { path: '/room-studio', element: <RoomStudioPage /> },
-      { path: '/collection', element: <CollectionPage /> },
       { path: '/profile', element: <ProfilePage /> },
       { path: '/feedback', element: <FeedbackPage /> },
       { path: '/admin', element: <AdminRoute /> },

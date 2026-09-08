@@ -11,6 +11,13 @@ function localOnlyAccountAllowed(req, user, isProduction = env.isProduction) {
   return !user?.localOnly || (!isProduction && isLocalRequest(req));
 }
 
+function requireLocalShopeeImport(req, res, next) {
+  if (env.isProduction || !isLocalRequest(req)) {
+    return res.status(403).json({ success: false, message: 'Chỉ có thể import Shopee từ máy local.', data: null });
+  }
+  return next();
+}
+
 async function authenticate(req, res, next) {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
@@ -57,6 +64,7 @@ module.exports = {
   optionalAuthenticate,
   requireAdmin,
   requireSuperadmin,
+  requireLocalShopeeImport,
   isLocalRequest,
   localOnlyAccountAllowed,
 };

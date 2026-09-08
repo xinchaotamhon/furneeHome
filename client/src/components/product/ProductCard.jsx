@@ -1,15 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
-import { useCollection } from '../../context/CollectionContext';
 import { formatPrice } from '../../utils/formatPrice';
 import ProductArtwork from './ProductArtwork';
 
-export default function ProductCard({ product, onReferenceImageError }) {
+export default function ProductCard({ product, onReferenceImageError, roomSelection = false, selectedForRoom = false, onToggleRoomProduct }) {
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { isProductSaved, toggleProduct } = useCollection();
-  const saved = isProductSaved(product._id || product.id);
   const roomImage = product.transparentImage || product.image || product.sourceImages?.[0] || '';
   const [hasReferenceImage, setHasReferenceImage] = useState(Boolean(roomImage));
   const [justAdded, setJustAdded] = useState(false);
@@ -48,6 +45,12 @@ export default function ProductCard({ product, onReferenceImageError }) {
         />
       </Link>
       <div className="product-card-content">
+        {roomSelection && (
+          <label className="room-select-control">
+            <input type="checkbox" checked={selectedForRoom} onChange={() => onToggleRoomProduct?.(product)} disabled={!hasReferenceImage} />
+            <span>{hasReferenceImage ? (selectedForRoom ? 'Đã chọn' : 'Chọn vào phòng') : 'Chưa có ảnh'}</span>
+          </label>
+        )}
         <div className="product-meta-tags">
           {categoryName && <span className="category-tag">{categoryName}</span>}
         </div>
@@ -75,14 +78,6 @@ export default function ProductCard({ product, onReferenceImageError }) {
             disabled={!hasReferenceImage}
           >
             {hasReferenceImage ? 'Thử phòng' : 'Chưa có ảnh'}
-          </button>
-          <button
-            className={`button button-secondary ${saved ? 'is-saved' : ''}`}
-            type="button"
-            onClick={() => toggleProduct(product)}
-            title="Lưu vào bộ sưu tập"
-          >
-            {saved ? '♥ Đã lưu' : '♡ Lưu'}
           </button>
         </div>
       </div>

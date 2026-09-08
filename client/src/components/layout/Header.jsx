@@ -1,12 +1,10 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
-import { useCollection } from '../../context/CollectionContext';
 import '../../styles/discovery.css';
 
 export default function Header() {
   const { user, openLogin, openRegister, logout } = useAuth();
-  const { itemCount } = useCollection();
   const { totalCount } = useCart();
 
   return (
@@ -19,20 +17,14 @@ export default function Header() {
         <nav className="main-nav" aria-label="Điều hướng chính">
           <NavLink to="/">Trang chủ</NavLink>
           <NavLink to="/products">Sản phẩm</NavLink>
+          <NavLink to="/room-studio">Phòng thử</NavLink>
           <NavLink to="/cart" className="cart-nav-link">
             Giỏ hàng <span className="count-badge cart-badge">{totalCount}</span>
           </NavLink>
           {user && <NavLink to="/orders">Đơn mua</NavLink>}
-          <NavLink to="/room-studio">Phòng thử</NavLink>
-          <NavLink to="/collection">
-            Bộ sưu tập <span className="count-badge">{itemCount}</span>
-          </NavLink>
-          <NavLink to="/feedback">Hỗ trợ</NavLink>
+          <NavLink to="/feedback">Liên hệ</NavLink>
           {(user?.role === 'admin' || user?.role === 'superadmin') && (
-            <>
-              <NavLink to="/admin">Sản phẩm & User</NavLink>
-              <NavLink to="/admin/orders">Đơn hàng (Admin)</NavLink>
-            </>
+            <NavLink to="/admin">Quản trị</NavLink>
           )}
         </nav>
 

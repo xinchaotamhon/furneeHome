@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import ProductCard from './ProductCard';
 
-export default function ProductGrid({ products }) {
+export default function ProductGrid({ products, roomSelection = false, selectedIds = [], onToggleRoomProduct }) {
   const [failedSources, setFailedSources] = useState(() => new Map());
   const orderedProducts = useMemo(() => [...products].sort((left, right) => {
     const leftMissing = failedSources.get(left._id) === left.image;
@@ -17,6 +17,13 @@ export default function ProductGrid({ products }) {
   });
 
   return <div className="product-grid">{orderedProducts.map((product) => (
-    <ProductCard key={product._id} product={product} onReferenceImageError={markMissing} />
+    <ProductCard
+      key={product._id || product.id}
+      product={product}
+      onReferenceImageError={markMissing}
+      roomSelection={roomSelection}
+      selectedForRoom={selectedIds.includes(String(product._id || product.id))}
+      onToggleRoomProduct={onToggleRoomProduct}
+    />
   ))}</div>;
 }

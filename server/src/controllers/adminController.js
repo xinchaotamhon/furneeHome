@@ -77,12 +77,23 @@ async function updateUser(req, res, next) {
     }
 
     if (req.body.role !== undefined) {
+      if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ success: false, message: 'Chỉ quản trị cao nhất được thay đổi quyền.', data: null });
+      }
       if (!['customer', 'admin'].includes(req.body.role)) {
         return res.status(400).json({ success: false, message: 'Quyền người dùng không hợp lệ.', data: null });
       }
       user.role = req.body.role;
     }
-    if (req.body.isActive !== undefined) user.isActive = Boolean(req.body.isActive);
+    if (req.body.isActive !== undefined) {
+      if (typeof req.body.isActive !== 'boolean') {
+        return res.status(400).json({ success: false, message: 'Trạng thái tài khoản không hợp lệ.', data: null });
+      }
+      if (req.user.role === 'admin' && user.role !== 'customer') {
+        return res.status(403).json({ success: false, message: 'Admin chỉ được khóa hoặc mở khóa khách hàng.', data: null });
+      }
+      user.isActive = req.body.isActive;
+    }
     await user.save();
 
     return res.json({

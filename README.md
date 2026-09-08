@@ -1,6 +1,6 @@
 # FurneeHome
 
-FurneeHome là website bán nội thất của nhóm 4 thành viên. Người dùng có thể mua hàng và thử một sản phẩm trong ảnh phòng bằng AI.
+FurneeHome là website bán nội thất của nhóm 4 thành viên. Người dùng có thể mua hàng và thử tối đa 3 sản phẩm trong ảnh phòng bằng AI.
 
 ## Chức năng
 
@@ -11,15 +11,14 @@ FurneeHome là website bán nội thất của nhóm 4 thành viên. Người d�
 | Giỏ hàng | Thêm, đổi số lượng, xóa sản phẩm |
 | Thanh toán | Đặt hàng COD, kiểm tra lại giá và tồn kho |
 | Đơn hàng | Xem trạng thái, hủy đơn chưa giao |
-| Phòng thử | Tải ảnh phòng, chọn một sản phẩm, tạo ảnh AI, so sánh và lưu |
-| Bộ sưu tập | Lưu sản phẩm và ảnh phòng đã tạo |
+| Phòng thử | Chọn tối đa 3 sản phẩm, tải ảnh phòng, nhập vị trí và tạo ảnh AI |
 | Tài khoản | Đăng ký, đăng nhập, quên mật khẩu OTP, sửa hồ sơ |
-| Hỗ trợ | Gửi góp ý hoặc báo nội dung xấu |
+| Liên hệ | Gửi góp ý hoặc báo nội dung xấu |
 | Quản trị | Quản lý sản phẩm, tồn kho, đơn hàng, người dùng và phản hồi |
 
 Quyền tài khoản:
 
-- `customer`: mua hàng, dùng Phòng thử, bộ sưu tập và gửi phản hồi.
+- `customer`: mua hàng, dùng Phòng thử và gửi phản hồi.
 - `admin`: quản lý sản phẩm, đơn hàng và phản hồi.
 - `superadmin`: có quyền admin và cấp quyền hoặc khóa tài khoản khác.
 
@@ -85,7 +84,7 @@ Có thể đổi tài khoản superadmin bằng `ADMIN_USERNAME`, `ADMIN_EMAIL`,
 | Biến | Mục đích |
 |---|---|
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Máy chủ SMTP |
-| `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Tài khoản gửi email |
+| `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | Tài khoản gửi email |
 | `AUTH_OTP_DEV_MODE` | Cho phép hiện OTP khi chạy local |
 
 Gmail dùng App Password. Khi deploy, đặt `AUTH_OTP_DEV_MODE=false`.
@@ -110,6 +109,7 @@ Gmail dùng App Password. Khi deploy, đặt `AUTH_OTP_DEV_MODE=false`.
 - Hai sản phẩm chưa có ảnh được ẩn cho đến khi admin thêm ảnh.
 - Giá và tồn kho của đơn hàng luôn được backend đọc lại từ MongoDB.
 - Đơn hàng lưu tên, giá và ảnh tại thời điểm mua để lịch sử không đổi khi sản phẩm được sửa.
+- Quản trị viên có thể nhập sản phẩm từ URL Shopee khi backend chạy trên localhost.
 
 ## Luồng chính
 
@@ -121,7 +121,7 @@ Khách chỉ hủy khi đơn đang `Pending` hoặc `Processing`. Khi hủy, t�
 
 ### Phòng thử
 
-Tải ảnh phòng → chọn một sản phẩm → bấm **Tạo ảnh** → AI tạo kết quả → so sánh ảnh gốc → lưu Bộ sưu tập.
+Chọn 1–3 sản phẩm → tải ảnh phòng → nhập vị trí cho từng món → bấm **Tạo ảnh** → so sánh kết quả với ảnh gốc.
 
 ### Quên mật khẩu
 
@@ -131,13 +131,7 @@ Nhập email → server tạo OTP có hạn 10 phút → gửi email → nhập 
 
 ```powershell
 cd client
-npm run smoke
 npm run build
-```
-
-```powershell
-cd server
-npm run test:commerce
 ```
 
 Sau đó demo theo thứ tự:
@@ -147,7 +141,7 @@ Sau đó demo theo thứ tự:
 3. Mở lịch sử, hủy một đơn mới.
 4. Đăng nhập admin, sửa tồn kho và cập nhật đơn hàng.
 5. Quên mật khẩu bằng OTP.
-6. Phòng thử: tải ảnh, chọn món, tạo ảnh, so sánh và lưu.
+6. Phòng thử: chọn 1–3 món, tải ảnh, nhập vị trí, tạo ảnh và so sánh.
 7. Sửa hồ sơ, gửi phản hồi, xử lý phản hồi ở admin.
 
 ## Deploy

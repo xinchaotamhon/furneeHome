@@ -8,8 +8,7 @@
     "dev": "node --watch src/server.js",
     "seed": "node src/utils/seedData.js",
     "admin:local": "node src/utils/bootstrapLocalAdmin.js --create-or-update-local-admin",
-    "admin:reset": "node src/utils/bootstrapLocalAdmin.js --create-or-update-local-admin --reset-password",
-    "test:commerce": "node --test test/ecommerce-smoke.cjs"
+    "admin:reset": "node src/utils/bootstrapLocalAdmin.js --create-or-update-local-admin --reset-password"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

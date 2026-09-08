@@ -37,17 +37,17 @@ export default function FeedbackPage() {
   return (
     <main className="container page">
       <div className="page-heading">
-        <h1>Góp ý và báo lỗi</h1>
-        <p>Gửi thông tin để nhóm FurneeHome kiểm tra.</p>
+        <h1>Liên hệ FurneeHome</h1>
+        <p>Gửi góp ý, báo nội dung hoặc để lại lời nhắn cho nhóm FurneeHome.</p>
       </div>
 
       <form className="panel-card admin-form feedback-card" onSubmit={submit}>
         {reportedProduct && <p className="feedback-target"><strong>Sản phẩm:</strong> {reportedProduct.name}</p>}
         <label>
-          Loại phản hồi
+            Nội dung liên hệ
           <select value={type} onChange={(event) => setType(event.target.value)}>
             <option value="suggestion">Góp ý</option>
-            <option value="report">Báo nội dung xấu</option>
+            <option value="report">Báo nội dung</option>
           </select>
         </label>
         <label>

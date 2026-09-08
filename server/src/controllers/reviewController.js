@@ -61,11 +61,43 @@ async function getByProduct(req, res, next) {
   try {
     const { productId } = req.params;
     checkId(productId);
-    const reviews = await Review.find({ product: productId }).populate('user', 'name avatarUrl').sort({ createdAt: -1 });
+    const reviews = await Review.find({ product: productId, isHidden: { $ne: true } }).populate('user', 'name avatarUrl').sort({ createdAt: -1 });
     return res.json({ success: true, message: 'Đã tải danh sách đánh giá.', data: reviews });
   } catch (error) {
     return next(error);
   }
 }
 
-module.exports = { createReview, getByProduct, refreshRating };
+async function moderateReview(req, res, next) {
+  try {
+    checkId(req.params.id);
+    const isHidden = req.body.isHidden === true || req.body.isHidden === 'true';
+    const moderationReason = String(req.body.reason || '').trim();
+    if (moderationReason.length > 200) throw createError('Lý do kiểm duyệt quá dài.');
+    const review = await Review.findByIdAndUpdate(req.params.id, {
+      $set: {
+        isHidden,
+        moderationReason: isHidden ? moderationReason : '',
+        moderatedAt: new Date(),
+      },
+    }, { returnDocument: 'after', runValidators: true }).populate('user', 'name avatarUrl');
+    if (!review) throw createError('Không tìm thấy đánh giá.', 404);
+    return res.json({ success: true, message: isHidden ? 'Đã ẩn đánh giá.' : 'Đã hiển thị lại đánh giá.', data: review });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function deleteReview(req, res, next) {
+  try {
+    checkId(req.params.id);
+    const review = await Review.findByIdAndDelete(req.params.id);
+    if (!review) throw createError('Không tìm thấy đánh giá.', 404);
+    await refreshRating(review.product);
+    return res.json({ success: true, message: 'Đã xóa đánh giá.', data: null });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = { createReview, getByProduct, moderateReview, deleteReview, refreshRating };

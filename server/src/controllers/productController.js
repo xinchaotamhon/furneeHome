@@ -1,8 +1,12 @@
+const fs = require('node:fs/promises');
+const path = require('node:path');
 const mongoose = require('mongoose');
 const Category = require('../models/Category');
 const Product = require('../models/Product');
 
 const MAX_IMAGE_LENGTH = 5_000_000;
+const LOCAL_CATALOG_PATH = path.resolve(__dirname, '../../../client/public/data_import/data_import.json');
+const SHOPEE_API = 'https://shopee.vn/api/v4/item/get';
 
 function createError(message, status = 400) {
   const error = new Error(message);
@@ -32,6 +36,146 @@ function number(value, label, minimum = 0, whole = false) {
   const result = Number(value);
   if (!Number.isFinite(result) || result < minimum || (whole && !Number.isInteger(result))) throw createError(`${label} không hợp lệ.`);
   return result;
+}
+
+function uniqueStrings(values, maximum = 12) {
+  return [...new Set(values.filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim()))]
+    .slice(0, maximum);
+}
+
+function parseShopeeUrl(value) {
+  const sourceUrl = String(value || '').trim();
+  let parsed;
+  try {
+    parsed = new URL(sourceUrl);
+  } catch {
+    throw createError('Link Shopee không hợp lệ.');
+  }
+  if (!/(^|\.)shopee\.(vn|co\.id|co\.th|ph|sg|com\.my)$/i.test(parsed.hostname)) {
+    throw createError('Chỉ hỗ trợ link sản phẩm Shopee.');
+  }
+  const match = `${parsed.pathname}${parsed.search}`.match(/(?:^|[-.])i\.(\d+)\.(\d+)(?:$|[?&#/])/i);
+  if (!match) throw createError('Link Shopee thiếu mã shop hoặc mã sản phẩm.');
+  return { sourceUrl, shopId: match[1], itemId: match[2] };
+}
+
+function imageUrl(value) {
+  const source = String(value || '').trim();
+  if (!source) return '';
+  if (/^https?:\/\//i.test(source)) return source;
+  return `https://down-vn.img.susercontent.com/file/${source}`;
+}
+
+function shopeePriceToVnd(item) {
+  const price = Number(item.price_min ?? item.price ?? item.price_before_discount ?? 0);
+  // Shopee item APIs represent VND in 1/100000 dong units.
+  return Number.isFinite(price) && price > 0 ? Math.round(price / 100000) : 0;
+}
+
+function shopeeStock(item) {
+  if (Array.isArray(item.models) && item.models.length) {
+    return item.models.reduce((total, model) => total + Math.max(0, Number(model.stock) || 0), 0);
+  }
+  return Math.max(0, Math.round(Number(item.stock) || 0));
+}
+
+function shopeeSpecifications(item) {
+  return (Array.isArray(item.attributes) ? item.attributes : [])
+    .map((attribute) => ({
+      name: String(attribute.name || attribute.key || '').trim(),
+      value: String(attribute.value || attribute.val || '').trim(),
+    }))
+    .filter((attribute) => attribute.name && attribute.value)
+    .slice(0, 30);
+}
+
+function suggestedCategory(name, description, sourceCategoryName) {
+  const value = `${name} ${description} ${sourceCategoryName}`.toLocaleLowerCase('vi-VN');
+  if (/giường|nệm|chăn|gối|tủ quần áo/.test(value)) return 'Phòng ngủ';
+  if (/bếp|nồi|chảo|bát|đĩa|ly|cốc|bàn ăn/.test(value)) return 'Bếp & Phòng ăn';
+  if (/thảm|đèn|gương|tranh|cây|hoa giả|rèm|decor|trang trí/.test(value)) return 'Trang trí & Đèn';
+  if (/bàn|ghế|kệ sách|văn phòng|học tập|làm việc/.test(value)) return 'Phòng làm việc';
+  return 'Phòng khách';
+}
+
+function shopeeProductData(item, sourceUrl, shopId, itemId) {
+  const name = String(item.name || '').trim();
+  const description = String(item.description || '').trim();
+  const images = uniqueStrings([
+    imageUrl(item.image),
+    ...(Array.isArray(item.images) ? item.images.map(imageUrl) : []),
+  ]);
+  const sourceCategoryName = String(
+    item.categories?.[item.categories.length - 1]?.display_name
+      || item.category_name
+      || item.category
+      || '',
+  ).trim();
+  const price = shopeePriceToVnd(item);
+  if (!name || !price) throw createError('Shopee không trả về tên hoặc giá hợp lệ.', 502);
+  return {
+    name,
+    description: description || name,
+    price,
+    stock: shopeeStock(item),
+    image: images[0] || '',
+    images,
+    sourceImages: images,
+    sourceUrl,
+    sourcePlatform: 'shopee',
+    shopeeShopId: shopId,
+    shopeeItemId: itemId,
+    sourceCategoryName,
+    sellerName: String(item.shop_name || item.shop?.name || '').trim(),
+    specifications: shopeeSpecifications(item),
+    categoryName: suggestedCategory(name, description, sourceCategoryName),
+    importedAt: new Date(),
+    isActive: shopeeStock(item) > 0,
+  };
+}
+
+function catalogRecord(product) {
+  const item = product.toObject ? product.toObject() : product;
+  return {
+    _id: String(item._id),
+    name: item.name,
+    slug: item.slug,
+    category: item.categoryName,
+    categoryName: item.categoryName,
+    price: item.price,
+    stock: item.stock,
+    image: item.image,
+    images: item.images || [],
+    transparentImage: item.transparentImage || '',
+    sourceImages: item.sourceImages || [],
+    sourceUrl: item.sourceUrl,
+    sourcePlatform: item.sourcePlatform,
+    shopeeShopId: item.shopeeShopId,
+    shopeeItemId: item.shopeeItemId,
+    sourceCategoryName: item.sourceCategoryName || '',
+    sellerName: item.sellerName || '',
+    specifications: item.specifications || [],
+    description: item.description,
+    usageType: item.usageType,
+    placementSurface: item.placementSurface,
+    aiDescription: item.aiDescription || item.name,
+    isActive: item.isActive,
+    importedAt: item.importedAt ? new Date(item.importedAt).toISOString() : undefined,
+  };
+}
+
+async function syncLocalCatalog(product) {
+  const raw = await fs.readFile(LOCAL_CATALOG_PATH, 'utf8');
+  const catalog = JSON.parse(raw);
+  if (!Array.isArray(catalog)) throw createError('Catalog local không đúng định dạng.', 500);
+  const record = catalogRecord(product);
+  const index = catalog.findIndex((item) => (
+    String(item.shopeeShopId || '') === record.shopeeShopId
+    && String(item.shopeeItemId || '') === record.shopeeItemId
+  ));
+  if (index >= 0) catalog[index] = { ...catalog[index], ...record };
+  else catalog.push(record);
+  await fs.writeFile(LOCAL_CATALOG_PATH, `${JSON.stringify(catalog, null, 2)}\n`, 'utf8');
 }
 
 async function findCategory(value) {
@@ -204,4 +348,52 @@ async function addImage(req, res, next) {
   }
 }
 
-module.exports = { list, getById, create, update, remove, addImage, productData, toSlug };
+async function importShopee(req, res, next) {
+  try {
+    const { sourceUrl, shopId, itemId } = parseShopeeUrl(req.body.sourceUrl || req.body.url);
+    const response = await fetch(`${SHOPEE_API}?itemid=${encodeURIComponent(itemId)}&shopid=${encodeURIComponent(shopId)}`, {
+      headers: {
+        accept: 'application/json',
+        'user-agent': 'Mozilla/5.0 (compatible; FurneeHome local catalog importer)',
+        referer: sourceUrl,
+      },
+    });
+    if (!response.ok) throw createError('Shopee hiện không cho tải dữ liệu sản phẩm. Vui lòng thử lại sau.', 502);
+    const payload = await response.json();
+    const item = payload?.data?.item || payload?.data;
+    if (!item || payload?.error) throw createError('Shopee không trả về dữ liệu sản phẩm hợp lệ.', 502);
+
+    const data = shopeeProductData(item, sourceUrl, shopId, itemId);
+    const category = await findCategory(data.categoryName);
+    data.category = category._id;
+    data.categoryName = category.name;
+    data.aiDescription = data.name.slice(0, 300);
+
+    const product = await Product.findOneAndUpdate(
+      { sourcePlatform: 'shopee', shopeeShopId: shopId, shopeeItemId: itemId },
+      { $set: data, $setOnInsert: { slug: `${toSlug(data.name)}-${itemId}` } },
+      { upsert: true, returnDocument: 'after', runValidators: true },
+    );
+    await syncLocalCatalog(product);
+    await product.populate('category', 'name slug');
+    return res.status(201).json({ success: true, message: 'Đã import dữ liệu Shopee vào MongoDB và catalog local.', data: product });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = {
+  list,
+  getById,
+  create,
+  update,
+  remove,
+  addImage,
+  importShopee,
+  productData,
+  toSlug,
+  parseShopeeUrl,
+  shopeeProductData,
+  suggestedCategory,
+  shopeeSpecifications,
+};

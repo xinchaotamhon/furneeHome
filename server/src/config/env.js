@@ -14,6 +14,14 @@ function readAuthOtpDevMode(value, productionMode) {
   return value === 'true';
 }
 
+function readSmtpFrom(values = process.env) {
+  return values.EMAIL_FROM || values.SMTP_FROM || values.SMTP_USER;
+}
+
+function readSmtpSecure(values = process.env) {
+  return values.SMTP_SECURE === 'true' || Number(values.SMTP_PORT) === 465;
+}
+
 // Render sets RENDER=true. Treat it as production even if NODE_ENV was omitted,
 // so a deployed backend can never fall back to the local JWT secret.
 const isProduction = readProductionMode(process.env.NODE_ENV, process.env.RENDER);
@@ -33,6 +41,8 @@ module.exports = {
   readTrustProxy,
   readProductionMode,
   readAuthOtpDevMode,
+  readSmtpFrom,
+  readSmtpSecure,
   isProduction,
   port: process.env.PORT || 5000,
   mongoUri: process.env.MONGO_URI,
@@ -47,9 +57,9 @@ module.exports = {
   pollinationsImageModels: process.env.POLLINATIONS_IMAGE_MODELS || 'gpt-image-2,gptimage-large',
   smtpHost: process.env.SMTP_HOST,
   smtpPort: Number(process.env.SMTP_PORT || 587),
-  smtpSecure: process.env.SMTP_SECURE === 'true',
+  smtpSecure: readSmtpSecure(),
   smtpUser: process.env.SMTP_USER,
   smtpPass: process.env.SMTP_PASS,
-  smtpFrom: process.env.SMTP_FROM || process.env.SMTP_USER,
+  smtpFrom: readSmtpFrom(),
   authOtpDevMode: readAuthOtpDevMode(process.env.AUTH_OTP_DEV_MODE, isProduction),
 };

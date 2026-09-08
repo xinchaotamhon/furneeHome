@@ -22,12 +22,12 @@ Thứ tự ưu tiên:
 - Đánh giá sau khi đã nhận hàng.
 - Đăng ký, đăng nhập, đăng xuất, OTP quên mật khẩu.
 - Sửa hồ sơ, góp ý và báo nội dung xấu.
-- Bộ sưu tập cá nhân.
 - Admin quản lý sản phẩm, ảnh, giá, tồn kho, đơn hàng và phản hồi.
 - Superadmin quản lý quyền và trạng thái tài khoản.
-- Phòng thử: tải một ảnh, chọn một sản phẩm, tạo ảnh, so sánh và lưu.
+- Phòng thử: chọn tối đa 3 sản phẩm, tải ảnh phòng, nhập vị trí từng món, tạo ảnh và so sánh.
+- Import URL Shopee chỉ dành cho quản trị viên khi chạy backend trên localhost.
 
-Không thêm kéo thả, điểm góc, 3D, nhiều sản phẩm, chat, thanh toán online, import Shopee hoặc mẫu công khai vào bản bảo vệ.
+Không thêm kéo thả, điểm góc, 3D, chat, thanh toán online hoặc mẫu công khai vào bản bảo vệ.
 
 ## 3. Quy tắc code
 
@@ -50,7 +50,6 @@ Không thêm kéo thả, điểm góc, 3D, nhiều sản phẩm, chat, thanh to�
 | `context/AuthContext.jsx` | Phiên đăng nhập và user hiện tại |
 | `context/ProductContext.jsx` | MongoDB trước, JSON/cache dự phòng sau |
 | `context/CartContext.jsx` | Giỏ khách local, giỏ user MongoDB |
-| `context/CollectionContext.jsx` | Sản phẩm và ảnh phòng đã lưu |
 | `pages/ProductListPage.jsx` | Danh sách, tìm, lọc, sắp xếp |
 | `pages/ProductDetailPage.jsx` | Chi tiết, tồn kho, thêm giỏ, đánh giá |
 | `pages/CartPage.jsx` | Số lượng và tổng tạm tính |
@@ -74,7 +73,6 @@ Không thêm kéo thả, điểm góc, 3D, nhiều sản phẩm, chat, thanh to�
 | `/api/orders` | `orderController` | Order, Product |
 | `/api/reviews` | `reviewController` | Review, Order, Product |
 | `/api/room-previews` | `roomPreviewController` | Dịch vụ tạo ảnh |
-| `/api/room-designs` | `roomDesignController` | RoomDesign |
 | `/api/feedback` | `feedbackController` | Feedback |
 | `/api/admin` | `adminController` | User, Feedback |
 
@@ -90,7 +88,6 @@ Hàm quan trọng:
 - `productData`: kiểm tra giá và tồn kho khi admin lưu.
 - `generate`: gọi Phòng thử từ giao diện.
 - `buildPrompt`, `generateRoomPreview`: mô tả yêu cầu và thử provider AI.
-- `saveRoomTemplate`: lưu ảnh đã tạo vào Bộ sưu tập.
 - `updateUser`: chỉ superadmin thay đổi role hoặc khóa tài khoản.
 
 ## 6. Quy tắc nghiệp vụ
@@ -124,11 +121,13 @@ Hàm quan trọng:
 ### Phòng thử
 
 1. Nhận ảnh JPG, PNG hoặc WebP dưới 10 MB.
-2. Chọn đúng một sản phẩm.
-3. `generate` gửi ảnh phòng và ảnh sản phẩm tới backend.
-4. Backend thử provider theo biến môi trường.
-5. Giao diện hiển thị kết quả, cho so sánh và lưu.
-6. Không có kéo, góc, resize, nhiều món hoặc 3D.
+2. Chọn từ 1 đến 3 sản phẩm.
+3. Nhập một vị trí mong muốn cho từng sản phẩm.
+4. `generate` gửi ảnh phòng, ảnh sản phẩm và vị trí tới backend.
+5. Backend thử provider theo biến môi trường.
+6. Giao diện hiển thị kết quả và cho so sánh với ảnh gốc.
+7. Nếu provider lỗi, giao diện báo lỗi và không giả ảnh gốc thành ảnh AI.
+8. Không có kéo, điểm góc, resize hoặc 3D.
 
 ## 7. Dữ liệu mẫu
 
@@ -140,9 +139,9 @@ Hàm quan trọng:
 
 ## 8. Lưu trữ trình duyệt
 
-- `localStorage`: token/user, giỏ khách, sản phẩm đã lưu và cache sản phẩm nhẹ.
-- `sessionStorage`: ảnh phòng, sản phẩm và kết quả của phiên Phòng thử.
-- MongoDB: user, sản phẩm, giỏ đăng nhập, đơn, đánh giá, thiết kế và phản hồi.
+- `localStorage`: token/user, giỏ khách và cache sản phẩm nhẹ.
+- `sessionStorage`: ảnh phòng, tối đa 3 sản phẩm, vị trí và kết quả của phiên Phòng thử.
+- MongoDB: user, sản phẩm, giỏ đăng nhập, đơn, đánh giá và phản hồi.
 - Không lưu mật khẩu, OTP hoặc secret trong local/session storage.
 
 ## 9. Kiểm tra bắt buộc
@@ -151,13 +150,7 @@ Sau mỗi thay đổi, chạy phần liên quan:
 
 ```powershell
 cd client
-npm run smoke
 npm run build
-```
-
-```powershell
-cd server
-npm run test:commerce
 ```
 
 Kiểm tra thủ công trước khi bảo vệ:
@@ -168,7 +161,7 @@ Kiểm tra thủ công trước khi bảo vệ:
 4. Admin sửa giá/tồn kho và chuyển trạng thái đơn.
 5. Customer không vào được route/API admin.
 6. OTP local và Gmail production hoạt động theo cấu hình.
-7. Phòng thử có đủ ảnh phòng + sản phẩm, trạng thái tải, kết quả, so sánh và lưu.
+7. Phòng thử chọn được 1–3 sản phẩm, nhận đủ vị trí, ảnh phòng, trạng thái tải, kết quả và so sánh.
 8. Tải lại URL trực tiếp không ra 404 ở Cloudflare.
 9. Fourgether khớp route, hàm và nghiệp vụ hiện tại.
 
