@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import ProductArtwork from '../components/product/ProductArtwork';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -34,6 +34,7 @@ function ReviewItem({ review, isAdmin, onModerate, onDelete }) {
 
 export default function ProductDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { products, loading } = useProducts();
   const { addToCart } = useCart();
   const { user, openLogin } = useAuth();
@@ -61,6 +62,14 @@ export default function ProductDetailPage() {
   const stock = Math.max(0, Number(product.stock ?? product.countInStock ?? 99));
   const category = typeof product.category === 'object' ? product.category?.name : (product.category || product.categoryName || 'Nội thất');
   const add = () => { const outcome = addToCart(product, quantity); setNotice(outcome?.ok === false ? outcome.message : 'Đã thêm vào giỏ hàng.'); };
+  const buyNow = () => {
+    const outcome = addToCart(product, quantity);
+    if (outcome?.ok === false) {
+      setNotice(outcome.message);
+      return;
+    }
+    navigate('/checkout');
+  };
   const submitReview = async (event) => {
     event.preventDefault();
     setReviewNotice('');
@@ -106,8 +115,11 @@ export default function ProductDetailPage() {
             />
           </label>
 
-          <button className="button add-cart-button" type="button" onClick={add}>
+          <button className="button button-outline add-cart-button" type="button" onClick={add}>
             Thêm vào giỏ
+          </button>
+          <button className="button button-accent buy-now-button" type="button" onClick={buyNow}>
+            Mua ngay
           </button>
         </div>}
         {notice && <p className="form-success" role="status">{notice}</p>}

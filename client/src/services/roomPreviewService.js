@@ -11,7 +11,14 @@ export async function createRoomPreview(payload, options = {}) {
 
   const body = await response.json().catch(() => null);
   if (!response.ok || !body?.success) {
-    const error = new Error(body?.message || 'Không thể tạo bản chân thực.');
+    if (response.status === 401 && (body?.message === 'Invalid session' || body?.message === 'Invalid account')) {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('furneehome-user');
+    }
+    const message = response.status === 401 && body?.message === 'Invalid session'
+      ? 'Phiên đăng nhập đã hết hạn. Bạn có thể đăng nhập lại hoặc thử tiếp với tư cách khách.'
+      : (body?.message || 'Không thể tạo bản chân thực.');
+    const error = new Error(message);
     error.code = body?.code;
     error.status = response.status;
     throw error;

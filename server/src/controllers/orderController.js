@@ -103,7 +103,8 @@ async function createOrder(req, res, next) {
       });
     }
 
-    const shippingFee = 0;
+    const requestedShippingFee = Number(req.body.shippingFee);
+    const shippingFee = Number.isFinite(requestedShippingFee) && requestedShippingFee >= 0 ? requestedShippingFee : 0;
     const order = await Order.create({
       orderNumber: orderNumber(),
       user: req.user._id,

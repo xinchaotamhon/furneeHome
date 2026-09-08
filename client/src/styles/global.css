@@ -109,6 +109,31 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
 .empty-state p { color: var(--color-muted); }
 .empty-icon { display: block; color: var(--color-accent); font-size: 4rem; line-height: 1; }
 
+.collection-grid { display: grid; gap: 14px; }
+.saved-card { display: grid; grid-template-columns: 135px minmax(0, 1fr) auto; gap: 24px; align-items: center; padding: 18px; border: 1px solid var(--color-border); border-radius: var(--radius-medium); background: white; overflow: hidden; }
+.saved-visual { position: relative; display: flex; align-items: center; justify-content: center; width: 135px; height: 115px; max-width: 100%; padding: 8px; border-radius: 8px; background: #f2f1eb; overflow: hidden; box-sizing: border-box; flex-shrink: 0; }
+.saved-visual .product-artwork { width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.saved-card h2 { margin: 6px 0; font-family: var(--font-heading); font-size: 1.25rem; word-break: break-word; }
+.saved-card p { margin-bottom: 6px; color: var(--color-muted); }
+.saved-actions { display: grid; gap: 11px; justify-items: center; }
+.room-template-icon { display: grid; place-items: center; height: 115px; border-radius: 8px; color: var(--color-primary); background: repeating-linear-gradient(0deg, transparent 0 22px, #d4ddd7 23px), repeating-linear-gradient(90deg, transparent 0 22px, #d4ddd7 23px), #edf1ed; font-size: 2.2rem; overflow: hidden; }
+.room-template-icon img { width: 100%; height: 100%; border-radius: 8px; object-fit: cover; }
+
+.collection-page section + section { margin-top: 42px; }
+.collection-privacy-note { width: fit-content; margin: -18px 0 28px; color: var(--color-muted); font-size: .84rem; }
+.collection-page .collection-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; align-items: stretch; }
+.collection-page .saved-card { display: flex; flex-direction: column; height: 100%; gap: 0; padding: 0; border-color: #d8e1d7; border-radius: 16px; background: #fffdf9; box-shadow: 0 10px 26px rgb(38 53 42 / 8%); transition: transform .18s ease, box-shadow .18s ease; align-items: stretch; }
+.collection-page .saved-card:hover { box-shadow: 0 16px 32px rgb(38 53 42 / 14%); transform: translateY(-2px); }
+.collection-page .saved-visual, .collection-page .room-template-icon { width: 100%; height: 210px; border-radius: 0; }
+.collection-page .saved-visual { padding: 18px; background: linear-gradient(145deg, #f7f3ea, #e9eee9); }
+.collection-page .room-template-icon img { border-radius: 0; }
+.collection-page .saved-card-body { display: flex; flex: 1; flex-direction: column; width: 100%; max-width: 100%; min-width: 0; padding: 14px 14px 10px; box-sizing: border-box; }
+.collection-page .saved-card h2 { display: -webkit-box; overflow: hidden; min-height: 2.4em; margin: 6px 0; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 1.05rem; line-height: 1.2; word-break: break-word; overflow-wrap: anywhere; }
+.collection-page .saved-card p { overflow: hidden; margin: 0; color: var(--color-muted); font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.collection-page .saved-card small { display: block; margin-top: 7px; font-size: .72rem; word-break: break-word; }
+.collection-page .saved-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; width: 100%; margin-top: auto; padding: 0 14px 14px; justify-items: stretch; box-sizing: border-box; }
+.collection-page .saved-actions .button, .collection-page .saved-actions .text-button { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 7px; font-size: .76rem; line-height: 1.2; text-align: center; }
+.collection-page .saved-actions .text-button { background: #fff; }
 .modal-backdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 18px; background: rgb(14 25 20 / 62%); backdrop-filter: blur(5px); }
 .login-card { position: relative; display: grid; gap: 13px; width: min(430px, 100%); padding: 34px; border-radius: var(--radius-medium); background: white; box-shadow: 0 30px 80px rgb(0 0 0 / 30%); }
 .login-card h2 { margin: -4px 0 0; color: var(--color-primary-dark); font-family: var(--font-heading); font-size: 2rem; }

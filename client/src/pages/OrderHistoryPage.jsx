@@ -92,6 +92,13 @@ export default function OrderHistoryPage() {
                 );
               })}
 
+              {Number(order.shippingFee) > 0 && (
+                <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)' }}>
+                  <span>Phí vận chuyển</span>
+                  <span>{formatPrice(order.shippingFee)}</span>
+                </p>
+              )}
+
               <footer>
                 <span>{new Date(order.createdAt).toLocaleDateString('vi-VN')} · COD</span>
                 <strong>{formatPrice(order.totalAmount)}</strong>
