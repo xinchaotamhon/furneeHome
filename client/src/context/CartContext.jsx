@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { clearStoredCart, cartService, getStoredCart, saveStoredCart } from '../services/cartService';
 import { useAuth } from './AuthContext';
 
@@ -18,16 +18,43 @@ const fromRemote = (cart) => (cart?.items || []).map((item) => ({
 
 export function CartProvider({ children }) {
   const { user } = useAuth();
-  const [items, setItems] = useState(() => getStoredCart());
+  const userId = user?._id || user?.id || null;
+  const prevUserIdRef = useRef(userId);
 
-  useEffect(() => { saveStoredCart(items); }, [items]);
+  // Khởi tạo giỏ hàng từ localStorage theo userId hiện tại
+  const [items, setItems] = useState(() => getStoredCart(userId));
 
+  // Khi user thay đổi (đăng nhập / đăng xuất / đổi tài khoản)
   useEffect(() => {
+    const prevUserId = prevUserIdRef.current;
+    prevUserIdRef.current = userId;
+
+    if (prevUserId === userId) return; // không có gì thay đổi
+
+    if (!userId) {
+      // Đăng xuất → xóa sạch giỏ hàng hiển thị (không xóa storage của user cũ)
+      setItems([]);
+      return;
+    }
+
+    // Đăng nhập / đổi tài khoản → tải giỏ hàng local của tài khoản mới
+    setItems(getStoredCart(userId));
+  }, [userId]);
+
+  // Lưu vào localStorage mỗi khi items thay đổi (theo key của user hiện tại)
+  useEffect(() => {
+    if (userId !== null || items.length > 0) {
+      saveStoredCart(items, userId);
+    }
+  }, [items, userId]);
+
+  // Đồng bộ với server khi đăng nhập
+  useEffect(() => {
+    if (!userId) return undefined;
     let active = true;
-    if (!user) return undefined;
     (async () => {
       try {
-        const local = getStoredCart();
+        const local = getStoredCart(userId);
         const remote = fromRemote(await cartService.get());
         const remoteIds = new Set(remote.map((item) => productId(item.product)));
         for (const item of local) {
@@ -41,10 +68,10 @@ export function CartProvider({ children }) {
       }
     })();
     return () => { active = false; };
-  }, [user]);
+  }, [userId]);
 
   const value = useMemo(() => {
-    const sync = (action) => { if (user) action().catch(() => {}); };
+    const sync = (action) => { if (userId) action().catch(() => {}); };
     return {
       items,
       totalCount: items.reduce((sum, item) => sum + item.quantity, 0),
@@ -77,10 +104,10 @@ export function CartProvider({ children }) {
         sync(() => cartService.remove(id));
       },
       clearCart() {
-        setItems([]); clearStoredCart(); sync(() => cartService.clear());
+        setItems([]); clearStoredCart(userId); sync(() => cartService.clear());
       },
     };
-  }, [items, user]);
+  }, [items, userId]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

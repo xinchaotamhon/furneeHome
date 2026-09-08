@@ -45,6 +45,7 @@ export default function AdminPage() {
   const [editingId, setEditingId] = useState('');
   const [isNewCategory, setNewCategory] = useState(false);
   const [query, setQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('Tất cả');
   const [users, setUsers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [feedback, setFeedback] = useState([]);
@@ -54,10 +55,20 @@ export default function AdminPage() {
   const [error, setError] = useState('');
   const isSuperadmin = user?.role === 'superadmin';
 
+  const filterCategories = useMemo(() => {
+    const list = products.map(categoryName).filter(Boolean);
+    return ['Tất cả', ...Array.from(new Set(list))];
+  }, [products]);
+
   const visibleProducts = useMemo(() => {
     const search = query.trim().toLocaleLowerCase('vi');
-    return products.filter((product) => !search || `${product.name} ${categoryName(product)}`.toLocaleLowerCase('vi').includes(search));
-  }, [products, query]);
+    return products.filter((product) => {
+      const cat = categoryName(product);
+      const matchesSearch = !search || `${product.name} ${cat}`.toLocaleLowerCase('vi').includes(search);
+      const matchesCategory = selectedCategory === 'Tất cả' || cat === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, query, selectedCategory]);
   const categories = useMemo(() => [...new Set([...products.map(categoryName), form.categoryName].filter(Boolean))].sort((first, second) => first.localeCompare(second, 'vi')), [products, form.categoryName]);
   const customers = users.filter((account) => account.role === 'customer');
   const managedAccounts = users.filter((account) => account.role !== 'superadmin');
@@ -161,7 +172,61 @@ export default function AdminPage() {
         <details className="admin-product-details"><summary>Thông tin Phòng thử</summary><div className="admin-detail-fields"><div className="admin-dimensions"><label>Rộng (cm)<input type="number" min="1" value={form.width} onChange={(event) => updateField('width', event.target.value)} /></label><label>Sâu (cm)<input type="number" min="1" value={form.depth} onChange={(event) => updateField('depth', event.target.value)} /></label><label>Cao (cm)<input type="number" min="1" value={form.height} onChange={(event) => updateField('height', event.target.value)} /></label></div><label>Cách sử dụng<select value={form.usageType} onChange={(event) => updateField('usageType', event.target.value)}><option value="standard">Thông thường</option><option value="floor-seating">Ngồi bệt</option><option value="unknown">Chưa xác định</option></select></label><label>Vị trí đặt<select value={form.placementSurface} onChange={(event) => updateField('placementSurface', event.target.value)}><option value="floor">Trên sàn</option><option value="wall">Trên tường</option><option value="tabletop">Trên mặt bàn</option><option value="unknown">Chưa xác định</option></select></label><label>Mô tả hình dạng<textarea rows="3" maxLength="300" value={form.aiDescription} onChange={(event) => updateField('aiDescription', event.target.value)} /></label></div></details>
         <div className="admin-form-actions"><button className="button" type="submit" disabled={isWorking}>{isWorking ? 'Đang lưu…' : editingId ? 'Cập nhật' : 'Thêm sản phẩm'}</button>{editingId && <button className="text-button" type="button" onClick={resetForm}>Hủy</button>}</div>
       </form>
-      <section className="admin-products panel-card"><div className="section-title"><h2>Danh sách sản phẩm ({visibleProducts.length})</h2><button className="text-button" type="button" onClick={refreshProducts} disabled={loading || isWorking}>{loading ? 'Đang tải…' : 'Tải lại'}</button></div><input className="admin-search" type="search" value={query} placeholder="Tìm tên hoặc danh mục" onChange={(event) => setQuery(event.target.value)} /><div className="admin-product-list">{visibleProducts.map((product) => { const id = product._id || product.id; const active = product.isActive !== false; return <article key={id}><div className="admin-thumb"><ProductArtwork product={product} /></div><div className="admin-product-name"><strong>{product.name}</strong><span>{categoryName(product)} · {formatPrice(product.price)} · Còn {product.stock ?? 0} · {active ? 'Đang bán' : 'Ngừng bán'}</span></div><div className="row-actions"><button className="admin-edit" type="button" onClick={() => startEditing(product)}>Sửa</button><label className="admin-upload">{uploadingId === id ? 'Đang lưu…' : 'Thêm ảnh'}<input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadImage(product, event.target.files?.[0])} /></label><button className={active ? 'admin-delete' : 'admin-edit'} type="button" onClick={() => changeProductStatus(product)}>{active ? 'Ngừng bán' : 'Bán lại'}</button></div></article>; })}</div>{!visibleProducts.length && <p className="muted">Không tìm thấy sản phẩm.</p>}</section>
+      <section className="admin-products panel-card">
+        <div className="section-title">
+          <h2>Danh sách sản phẩm ({visibleProducts.length})</h2>
+          <button className="text-button" type="button" onClick={refreshProducts} disabled={loading || isWorking}>
+            {loading ? 'Đang tải…' : 'Tải lại'}
+          </button>
+        </div>
+        <input
+          className="admin-search"
+          type="search"
+          value={query}
+          placeholder="Tìm tên hoặc danh mục"
+          onChange={(event) => setQuery(event.target.value)}
+        />
+        <div className="category-pills" style={{ margin: '12px 0 16px', gap: '6px' }}>
+          {filterCategories.map((item) => (
+            <button
+              className={selectedCategory === item ? 'active' : ''}
+              type="button"
+              key={item}
+              onClick={() => setSelectedCategory(item)}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+        <div className="admin-product-list">
+          {visibleProducts.map((product) => {
+            const id = product._id || product.id;
+            const active = product.isActive !== false;
+            return (
+              <article key={id}>
+                <div className="admin-thumb">
+                  <ProductArtwork product={product} />
+                </div>
+                <div className="admin-product-name">
+                  <strong>{product.name}</strong>
+                  <span>{categoryName(product)} · {formatPrice(product.price)} · Còn {product.stock ?? 0} · {active ? 'Đang bán' : 'Ngừng bán'}</span>
+                </div>
+                <div className="row-actions">
+                  <button className="admin-edit" type="button" onClick={() => startEditing(product)}>Sửa</button>
+                  <label className="admin-upload">
+                    {uploadingId === id ? 'Đang lưu…' : 'Thêm ảnh'}
+                    <input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadImage(product, event.target.files?.[0])} />
+                  </label>
+                  <button className={active ? 'admin-delete' : 'admin-edit'} type="button" onClick={() => changeProductStatus(product)}>
+                    {active ? 'Ngừng bán' : 'Bán lại'}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+        {!visibleProducts.length && <p className="muted">Không tìm thấy sản phẩm thuộc danh mục này.</p>}
+      </section>
     </div>}
 
     {tab === 'customers' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Khách hàng ({customers.length})</h2><button className="text-button" type="button" onClick={loadUsers}>Tải lại</button></div>{isWorking && !customers.length ? <p className="muted">Đang tải…</p> : <div className="admin-user-list">{customers.map((account) => { const id = account._id || account.id; return <article key={id}><div><strong>{account.name}</strong><span>{account.username ? `@${account.username} · ` : ''}{account.email}</span></div><span className="admin-role">Khách hàng</span><button type="button" className={account.isActive ? 'admin-delete' : 'admin-edit'} onClick={() => updateAccount(id, { isActive: !account.isActive })} disabled={isWorking}>{account.isActive ? 'Khóa' : 'Mở khóa'}</button></article>; })}</div>}</section>}

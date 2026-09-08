@@ -1,25 +1,29 @@
 import apiClient from './apiClient';
 
-const CART_KEY = 'furneehome_cart';
+const CART_KEY_PREFIX = 'furneehome_cart';
 
-export function getStoredCart() {
+function cartKey(userId) {
+  return userId ? `${CART_KEY_PREFIX}_${userId}` : `${CART_KEY_PREFIX}_guest`;
+}
+
+export function getStoredCart(userId) {
   try {
-    const raw = localStorage.getItem(CART_KEY);
+    const raw = localStorage.getItem(cartKey(userId));
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-export function saveStoredCart(items) {
+export function saveStoredCart(items, userId) {
   try {
-    localStorage.setItem(CART_KEY, JSON.stringify(items));
+    localStorage.setItem(cartKey(userId), JSON.stringify(items));
   } catch {}
 }
 
-export function clearStoredCart() {
+export function clearStoredCart(userId) {
   try {
-    localStorage.removeItem(CART_KEY);
+    localStorage.removeItem(cartKey(userId));
   } catch {}
 }
 
