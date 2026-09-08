@@ -118,7 +118,7 @@ async function updateFeedback(req, res, next) {
     const feedback = await Feedback.findByIdAndUpdate(
       req.params.id,
       { status: req.body.status },
-      { new: true, runValidators: true },
+      { returnDocument: 'after', runValidators: true },
     );
     if (!feedback) return res.status(404).json({ success: false, message: 'Không tìm thấy phản hồi.', data: null });
     return res.json({ success: true, message: 'Đã cập nhật phản hồi.', data: feedback });

@@ -1,151 +1,184 @@
 # START HERE — FurneeHome bản bảo vệ
 
-Đọc hết file này trước khi sửa code. README dành cho nhóm; file này là bản đồ làm việc cho AI.
+AI phải đọc hết file này trước khi sửa code. README dành cho nhóm; file này là bản đồ kỹ thuật.
 
 ## 1. Mục tiêu
 
-FurneeHome là đồ án tốt nghiệp của nhóm 4 người. Người dùng tìm nội thất và xem thử một sản phẩm trong ảnh phòng thật trước khi quyết định.
+FurneeHome là website bán nội thất của nhóm 4 người.
 
-Ưu tiên theo thứ tự:
+Thứ tự ưu tiên:
 
-1. Chạy ổn định khi bảo vệ.
-2. Luồng dễ hiểu, dễ demo, dễ trả lời câu hỏi.
-3. Code ngắn và tuần tự như `pretest2`.
-4. Một điểm wow rõ ràng: Phòng thử.
-5. Giao diện đủ tốt và responsive, không thêm hiệu ứng hoặc kiến trúc phức tạp.
+1. Mua hàng, tài khoản và quản trị phải chạy ổn định.
+2. Code tuần tự, dễ đọc như `pretest2`.
+3. Luồng dễ demo và dễ giải thích khi bảo vệ.
+4. Phòng thử AI là một điểm wow đơn giản.
+5. Không thêm chức năng, thư viện hoặc kiến trúc nếu chưa thật sự cần.
 
 ## 2. Phạm vi chốt
 
-Giữ các chức năng sau:
-
-- Trang chủ.
-- Tìm kiếm, lọc và sắp xếp sản phẩm.
-- Phòng thử: tải ảnh, chọn đúng một sản phẩm, kéo, đổi kích thước, lật, tạo và lưu ảnh.
-- Bộ sưu tập sản phẩm và mẫu phòng cá nhân.
-- Đăng ký, đăng nhập, đăng xuất, quên mật khẩu bằng OTP.
-- Cập nhật họ tên và ảnh đại diện.
-- Góp ý và báo nội dung sản phẩm xấu.
-- Admin CRUD sản phẩm và xử lý phản hồi.
+- Trang chủ, danh sách và chi tiết sản phẩm.
+- Tìm kiếm, lọc và sắp xếp.
+- Giỏ hàng, thanh toán COD, lịch sử và hủy đơn.
+- Đánh giá sau khi đã nhận hàng.
+- Đăng ký, đăng nhập, đăng xuất, OTP quên mật khẩu.
+- Sửa hồ sơ, góp ý và báo nội dung xấu.
+- Bộ sưu tập cá nhân.
+- Admin quản lý sản phẩm, ảnh, giá, tồn kho, đơn hàng và phản hồi.
 - Superadmin quản lý quyền và trạng thái tài khoản.
+- Phòng thử: tải một ảnh, chọn một sản phẩm, tạo ảnh, so sánh và lưu.
 
-Không tự thêm giỏ hàng, thanh toán, đơn hàng, chat, mẫu công khai, nhiều sản phẩm trong một ảnh, random phòng, 3D hoặc import Shopee. Những phần đó không thuộc bản chốt.
+Không thêm kéo thả, điểm góc, 3D, nhiều sản phẩm, chat, thanh toán online, import Shopee hoặc mẫu công khai vào bản bảo vệ.
 
 ## 3. Quy tắc code
 
-- Luồng backend: `route → controller → model → MongoDB → JSON response`.
-- Luồng frontend: `page/component → service → API → context/state → giao diện`.
-- Mỗi hàm làm một việc và đặt tên nói rõ việc đó.
-- Ưu tiên `if`, `map`, `filter`, `try/catch`; không tạo abstraction nếu chỉ dùng một lần.
-- Không thêm thư viện khi JavaScript, React hoặc CSS hiện có đã làm được.
-- Không tạo folder hoặc file phụ chỉ để mô tả kế hoạch, log hay trạng thái.
-- Không ghi secret, OTP production hoặc mật khẩu vào code, README, log hay Git.
-- Không đổi tên route/hàm quan trọng nếu không thật sự cần, vì Fourgether dùng các tên đó để nhóm học.
-- Nội dung giao diện ngắn, trực tiếp; không thêm ghi chú giải thích điều người dùng đã nhìn thấy.
-- Giữ thay đổi cũ của người dùng và không khôi phục các file họ đã xóa.
+- Backend: `route → controller → model → MongoDB → JSON response`.
+- Frontend: `page → service/context → API → state → giao diện`.
+- Mỗi hàm làm một việc; ưu tiên `if`, `map`, `filter`, `try/catch`.
+- Không tạo abstraction chỉ dùng một lần.
+- Không tạo thêm file hoặc folder chỉ để ghi kế hoạch hay trạng thái.
+- Nội dung giao diện ngắn và trực tiếp.
+- Không đổi route hoặc tên hàm quan trọng nếu không cần; Fourgether liên kết tới mã nguồn thật.
+- Không tin giá, tồn kho, tổng tiền hay role do frontend gửi.
+- Không ghi `.env`, JWT, OTP, API key hoặc mật khẩu production vào Git.
+- Không khôi phục file người dùng đã xóa.
 
 ## 4. Bản đồ frontend
 
 | File | Vai trò |
 |---|---|
-| `client/src/router.jsx` | Khai báo URL và chặn trang quản trị |
-| `context/AuthContext.jsx` | User, JWT, mở modal, đăng nhập, đăng ký, logout, cập nhật hồ sơ |
-| `context/ProductContext.jsx` | Tải sản phẩm, JSON dự phòng và CRUD admin |
-| `context/CollectionContext.jsx` | Sản phẩm đã lưu, mẫu phòng local/MongoDB |
-| `pages/HomePage.jsx` | Trang giới thiệu |
-| `pages/ProductListPage.jsx` | Tìm, lọc, sắp xếp sản phẩm |
-| `pages/RoomStudioPage.jsx` | Toàn bộ luồng Phòng thử |
-| `pages/CollectionPage.jsx` | Xem, mở lại và xóa mục đã lưu |
-| `pages/ProfilePage.jsx` | Cập nhật hồ sơ |
-| `pages/FeedbackPage.jsx` | Góp ý và báo nội dung xấu |
-| `pages/AdminPage.jsx` | Ba tab Sản phẩm, Người dùng, Phản hồi |
-| `services/*.js` | Gọi API và trả `response.data.data` |
-| `utils/roomPreviewCanvas.js` | Tạo ảnh hướng dẫn, mask và ghép kết quả |
-
-Các hàm frontend cần giữ dễ nhận biết:
-
-- `fetchProducts`: API trước, JSON dự phòng sau.
-- `generatePreview`: kiểm tra đầu vào, tạo preview local, gọi AI, ghép kết quả.
-- `createRoomPreviewImages`: tạo room, guide, mask, reference sản phẩm.
-- `compositeRoomPreview`: chỉ ghép vùng sản phẩm lên phòng gốc.
-- `saveDesign`: gom trạng thái Phòng thử để lưu.
-- `saveRoomTemplate`: giữ local trước, đồng bộ MongoDB khi đã đăng nhập.
-- `openDesign`: tải mẫu đầy đủ và chuyển trạng thái về Phòng thử.
+| `client/src/router.jsx` | Khai báo trang và chặn route quản trị |
+| `context/AuthContext.jsx` | Phiên đăng nhập và user hiện tại |
+| `context/ProductContext.jsx` | MongoDB trước, JSON/cache dự phòng sau |
+| `context/CartContext.jsx` | Giỏ khách local, giỏ user MongoDB |
+| `context/CollectionContext.jsx` | Sản phẩm và ảnh phòng đã lưu |
+| `pages/ProductListPage.jsx` | Danh sách, tìm, lọc, sắp xếp |
+| `pages/ProductDetailPage.jsx` | Chi tiết, tồn kho, thêm giỏ, đánh giá |
+| `pages/CartPage.jsx` | Số lượng và tổng tạm tính |
+| `pages/CheckoutPage.jsx` | Địa chỉ và đặt hàng COD |
+| `pages/OrderHistoryPage.jsx` | Theo dõi và hủy đơn |
+| `pages/RoomStudioPage.jsx` | Ba bước tạo ảnh AI |
+| `pages/ProfilePage.jsx` | Sửa hồ sơ |
+| `pages/FeedbackPage.jsx` | Góp ý và báo xấu |
+| `pages/AdminPage.jsx` | Sản phẩm, user, phản hồi |
+| `pages/AdminOrdersPage.jsx` | Trạng thái đơn hàng |
+| `services/*.js` | Gọi API |
 
 ## 5. Bản đồ backend
 
-| Route | Controller | Model/Dịch vụ |
+| Route | Controller | Dữ liệu |
 |---|---|---|
-| `/api/auth` | `authController` | `User`, bcrypt, JWT, nodemailer |
-| `/api/users/me` | `userController` | `User` |
-| `/api/products` | `productController` | `Product`, `Category` |
-| `/api/room-previews` | `roomPreviewController` | `cloudflareImageService` |
-| `/api/room-designs` | `roomDesignController` | `RoomDesign` |
-| `/api/feedback` | `feedbackController` | `Feedback` |
-| `/api/admin` | `adminController` | `User`, `Feedback` |
+| `/api/auth` | `authController` | User, bcrypt, JWT, OTP |
+| `/api/users` | `userController` | Hồ sơ |
+| `/api/products` | `productController` | Product, Category |
+| `/api/cart` | `cartController` | Cart, Product |
+| `/api/orders` | `orderController` | Order, Product |
+| `/api/reviews` | `reviewController` | Review, Order, Product |
+| `/api/room-previews` | `roomPreviewController` | Dịch vụ tạo ảnh |
+| `/api/room-designs` | `roomDesignController` | RoomDesign |
+| `/api/feedback` | `feedbackController` | Feedback |
+| `/api/admin` | `adminController` | User, Feedback |
 
-Các hàm backend cần giữ dễ nhận biết:
+Hàm quan trọng:
 
-- `register`, `login`: kiểm tra dữ liệu, bcrypt, User, JWT.
-- `requestPasswordReset`: tạo OTP, chỉ lưu hash và hạn 10 phút, gửi SMTP.
-- `resetPassword`: so sánh hash, kiểm tra hạn rồi hash mật khẩu mới.
-- `authenticate`: xác minh JWT và nạp user đang hoạt động.
-- `requireAdmin`, `requireSuperadmin`: kiểm tra quyền ở backend.
-- `productData`: làm sạch dữ liệu sản phẩm dùng cho create/update.
-- `cleanDesignInput`: giới hạn ảnh, text, điểm và đúng một sản phẩm.
-- `buildPrompt`: giữ kiến trúc phòng và nhận dạng sản phẩm.
-- `providerList`: chọn Pollinations rồi Cloudflare theo `.env`.
-- `generateRoomPreview`: thử từng provider và trả provider/model đã dùng.
+- `register`, `login`, `requestPasswordReset`, `resetPassword`: tài khoản và OTP.
+- `fetchProducts`: ưu tiên API, sau đó mới dùng JSON/cache.
+- `addItem`, `updateItem`, `removeItem`: giỏ hàng.
+- `createOrder`: kiểm tra lại sản phẩm, trừ tồn kho và tạo snapshot.
+- `cancelOrder`: kiểm tra trạng thái và hoàn tồn kho một lần.
+- `updateOrderStatus`: chỉ cho phép chuyển trạng thái hợp lệ.
+- `createReview`: chỉ người có đơn đã giao được đánh giá một lần.
+- `productData`: kiểm tra giá và tồn kho khi admin lưu.
+- `generate`: gọi Phòng thử từ giao diện.
+- `buildPrompt`, `generateRoomPreview`: mô tả yêu cầu và thử provider AI.
+- `saveRoomTemplate`: lưu ảnh đã tạo vào Bộ sưu tập.
+- `updateUser`: chỉ superadmin thay đổi role hoặc khóa tài khoản.
 
-## 6. Quy tắc dữ liệu
+## 6. Quy tắc nghiệp vụ
 
-- MongoDB là nguồn chung khi API hoạt động.
-- JSON trong `client/public/data_import` chỉ là dữ liệu sản phẩm dự phòng.
-- `localStorage` giữ sản phẩm yêu thích và bản mẫu nhẹ của khách; không giữ ảnh base64 sản phẩm lớn.
-- `sessionStorage` giữ phiên đang chỉnh trong Phòng thử; **Làm lại** xóa phiên.
-- Người đăng nhập lưu mẫu phòng lên MongoDB. Nếu API lưu lỗi, bản local vẫn còn.
-- Product ảnh base64 tối đa 5 MB chuỗi; RoomDesign kiểm tra kích thước từng trường.
-- Không tin role từ frontend. Mọi quyền admin/superadmin phải qua middleware backend.
+### Sản phẩm
 
-## 7. Sự thật về Phòng thử
+- Giá là số nguyên VND lớn hơn 0.
+- Tồn kho là số nguyên từ 0 trở lên.
+- Sản phẩm bị xóa được ẩn thay vì xóa cứng để đơn hàng cũ còn tham chiếu được.
+- JSON và ảnh trong `client/public` là bản dự phòng; MongoDB là nguồn chung của nhóm.
 
-1. Người dùng tải ảnh phòng; trình duyệt nén cạnh dài tối đa 1400 px.
-2. Người dùng chọn hoặc kéo một sản phẩm lên ảnh.
-3. Sản phẩm hiện ngay để kéo vị trí, đổi tỷ lệ và lật.
-4. `createRoomPreviewImages` thu ảnh tham chiếu còn dưới 512 px để phù hợp Cloudflare, đồng thời tạo guide và mask.
-5. Bản guide được hiển thị trước để demo không phụ thuộc API.
-6. Backend thử model Pollinations theo thứ tự, rồi Cloudflare.
-7. `compositeRoomPreview` chỉ lấy vùng mask từ kết quả AI và phủ nhẹ ảnh sản phẩm gốc để giữ nhận dạng.
-8. Người dùng so sánh **Ảnh gốc/Kết quả** và lưu.
+### Giỏ và đơn hàng
 
-## 8. Tài khoản và quyền
+- Giỏ khách lưu local; sau đăng nhập dùng giỏ MongoDB.
+- Backend bỏ qua giá và tổng tiền do client gửi.
+- Checkout đọc giá và tồn kho mới nhất từ Product.
+- Thanh toán của bản bảo vệ là COD.
+- Trạng thái: `Pending → Processing → Shipped → Delivered`.
+- Chỉ đơn `Pending` hoặc `Processing` được hủy.
+- Trừ kho có điều kiện để kho không âm; hủy đơn hoàn kho đúng một lần.
+- Order lưu snapshot tên, giá và ảnh sản phẩm.
 
-- Mật khẩu luôn được hash bằng bcrypt.
-- JWT hết hạn sau 7 ngày và được kiểm tra lại qua `/users/me` khi mở ứng dụng.
-- OTP quên mật khẩu có 6 số, hết hạn sau 10 phút; database chỉ giữ SHA-256 hash.
-- Localhost có thể trả `devOtp` để demo nếu chưa có SMTP; production không bao giờ làm vậy.
-- `customer` không vào API quản trị.
-- `admin` quản lý sản phẩm và phản hồi.
-- Chỉ `superadmin` đổi role hoặc khóa/mở tài khoản; không thay đổi chính mình hay superadmin khác.
+### Tài khoản
 
-## 9. Kiểm tra bắt buộc sau khi sửa
+- Mật khẩu hash bằng bcrypt; JWT kiểm tra ở middleware.
+- OTP có 6 số, lưu hash, hết hạn sau 10 phút.
+- Production không trả OTP về giao diện.
+- `admin` không được tự cấp superadmin.
+- `superadmin` không tự hạ quyền và không sửa superadmin khác.
 
-Không kết luận hoàn thành nếu chưa kiểm tra phần có liên quan:
+### Phòng thử
 
-1. Chạy `npm run build` trong `client`.
-2. Chạy `node --check` cho toàn bộ file JavaScript backend.
-3. Mở website và đi qua route vừa sửa.
-4. Kiểm tra trạng thái tải, rỗng, thành công, lỗi và nút bị vô hiệu hóa.
-5. Với xác thực: thử sai dữ liệu, user thường, admin và superadmin.
-6. Với Phòng thử: thử local fallback kể cả khi API AI lỗi.
-7. Với lưu dữ liệu: tải lại trang, đăng xuất/đăng nhập và mở lại mẫu.
-8. So sánh code/tài liệu/Fourgether; không để tên hàm hoặc hành vi bị lệch.
+1. Nhận ảnh JPG, PNG hoặc WebP dưới 10 MB.
+2. Chọn đúng một sản phẩm.
+3. `generate` gửi ảnh phòng và ảnh sản phẩm tới backend.
+4. Backend thử provider theo biến môi trường.
+5. Giao diện hiển thị kết quả, cho so sánh và lưu.
+6. Không có kéo, góc, resize, nhiều món hoặc 3D.
 
-## 10. Triển khai
+## 7. Dữ liệu mẫu
 
-- Client là Vite và deploy lên Cloudflare Pages bằng thư mục `client/dist`.
-- Backend deploy lên Render từ thư mục `server` với `npm start`.
-- MongoDB dùng Atlas.
-- Secret chỉ đặt trong biến môi trường Cloudflare/Render.
-- `_redirects` trong `client/public` giữ React Router hoạt động khi tải lại URL.
+- `client/public/data_import/data_import.json`: 101 sản phẩm có giá và tồn kho hợp lệ.
+- 99 sản phẩm có ảnh được bật; 2 sản phẩm thiếu ảnh đang ẩn.
+- `server/src/utils/seedData.js`: nạp JSON vào MongoDB và tạo tài khoản demo.
+- Seed tìm theo slug nên có thể chạy lại mà không tạo trùng sản phẩm.
+- Không chạy seed giữa lúc đang kiểm thử tồn kho đơn hàng vì seed đặt lại giá và tồn kho theo JSON.
 
-Fourgether là repo học riêng. Khi thay đổi chức năng thật, cập nhật Fourgether sau khi code và kiểm tra đã ổn định.
+## 8. Lưu trữ trình duyệt
+
+- `localStorage`: token/user, giỏ khách, sản phẩm đã lưu và cache sản phẩm nhẹ.
+- `sessionStorage`: ảnh phòng, sản phẩm và kết quả của phiên Phòng thử.
+- MongoDB: user, sản phẩm, giỏ đăng nhập, đơn, đánh giá, thiết kế và phản hồi.
+- Không lưu mật khẩu, OTP hoặc secret trong local/session storage.
+
+## 9. Kiểm tra bắt buộc
+
+Sau mỗi thay đổi, chạy phần liên quan:
+
+```powershell
+cd client
+npm run smoke
+npm run build
+```
+
+```powershell
+cd server
+npm run test:commerce
+```
+
+Kiểm tra thủ công trước khi bảo vệ:
+
+1. Sản phẩm có ảnh, giá, tồn kho; lọc và chi tiết hoạt động.
+2. Giỏ đổi số lượng đúng; checkout yêu cầu đăng nhập.
+3. Đặt COD tạo đơn, trừ kho; hủy đơn hoàn kho.
+4. Admin sửa giá/tồn kho và chuyển trạng thái đơn.
+5. Customer không vào được route/API admin.
+6. OTP local và Gmail production hoạt động theo cấu hình.
+7. Phòng thử có đủ ảnh phòng + sản phẩm, trạng thái tải, kết quả, so sánh và lưu.
+8. Tải lại URL trực tiếp không ra 404 ở Cloudflare.
+9. Fourgether khớp route, hàm và nghiệp vụ hiện tại.
+
+## 10. Deploy và Git
+
+- Cloudflare Pages build thư mục `client`, output `dist`.
+- Render chạy thư mục `server` bằng `npm start`.
+- MongoDB Atlas là database chung.
+- `.env` chỉ nằm local hoặc trong biến môi trường dịch vụ.
+- JSON và ảnh sản phẩm được commit để cả nhóm có bản dự phòng giống nhau.
+- Không dùng `git push --force`; merge `main` vào nhánh thành viên khi cần cập nhật.
+
+Fourgether là repo học riêng. Chỉ cập nhật Fourgether sau khi code thật và kiểm tra đã ổn định.

@@ -21,6 +21,10 @@ const orderService = {
     const response = await apiClient.put(`/orders/${id}/status`, { orderStatus });
     return response.data.data;
   },
+  async cancelOrder(id) {
+    const response = await apiClient.patch(`/orders/${id}/cancel`);
+    return response.data.data;
+  },
 };
 
 export default orderService;

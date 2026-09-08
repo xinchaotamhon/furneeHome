@@ -41,7 +41,7 @@ async function findCategory(value) {
   return Category.findOneAndUpdate(
     { slug },
     { $setOnInsert: { name, slug, isActive: true } },
-    { upsert: true, new: true },
+    { upsert: true, returnDocument: 'after' },
   );
 }
 
@@ -176,7 +176,7 @@ async function remove(req, res, next) {
   try {
     checkId(req.params.id);
     // Preserve order snapshots and the ability to restore stock if a pending order is cancelled.
-    const product = await Product.findByIdAndUpdate(req.params.id, { $set: { isActive: false } }, { new: true });
+    const product = await Product.findByIdAndUpdate(req.params.id, { $set: { isActive: false } }, { returnDocument: 'after' });
     if (!product) throw createError('Không tìm thấy sản phẩm.', 404);
     return res.json({ success: true, message: 'Đã ngừng bán sản phẩm.', data: null });
   } catch (error) {

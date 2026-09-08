@@ -36,8 +36,8 @@ export default function HomePage() {
 
       <section className="container fh-start-section">
         <div className="fh-section-intro">
-          <p className="eyebrow">INPUT → PROCESS → OUTPUT</p>
-          <h2>FurneeHome hoạt động trong ba bước</h2>
+          <p className="eyebrow">MUA HÀNG ĐƠN GIẢN</p>
+          <h2>Từ lựa chọn đến căn phòng của bạn</h2>
         </div>
         <div className="fh-step-grid">
           <article>
@@ -48,15 +48,15 @@ export default function HomePage() {
           </article>
           <article>
             <span>02</span>
-            <h3>Thử trong phòng</h3>
-            <p>Tải ảnh phòng, đặt sản phẩm và tạo ảnh xem trước.</p>
-            <Link to="/room-studio">Mở Phòng thử →</Link>
+            <h3>Đặt hàng</h3>
+            <p>Thêm vào giỏ, nhập địa chỉ và thanh toán COD.</p>
+            <Link to="/cart">Mở giỏ hàng →</Link>
           </article>
           <article>
             <span>03</span>
-            <h3>Lưu kết quả</h3>
-            <p>Lưu sản phẩm yêu thích và mẫu phòng để xem lại.</p>
-            <Link to="/collection">Mở Bộ sưu tập →</Link>
+            <h3>Thử trong phòng</h3>
+            <p>Tải ảnh phòng, chọn một món và tạo ảnh AI.</p>
+            <Link to="/room-studio">Mở Phòng thử →</Link>
           </article>
         </div>
       </section>
@@ -65,12 +65,12 @@ export default function HomePage() {
         <div>
           <p className="eyebrow">ĐIỂM NỔI BẬT</p>
           <h2>Xem sản phẩm ngay trong ảnh phòng thật</h2>
-          <p>Người dùng chủ động chọn sản phẩm và vị trí trước khi tạo ảnh.</p>
+          <p>Tải ảnh phòng, chọn một sản phẩm và tạo kết quả để so sánh.</p>
         </div>
         <ol className="fh-priority-list">
           <li><strong>1. Ảnh phòng</strong><span>Không gian thật của người dùng.</span></li>
-          <li><strong>2. Sản phẩm</strong><span>Ảnh, kích thước và công năng của món đồ.</span></li>
-          <li><strong>3. Vị trí</strong><span>Nơi người dùng muốn đặt sản phẩm.</span></li>
+          <li><strong>2. Sản phẩm</strong><span>Món đồ người dùng muốn thử.</span></li>
+          <li><strong>3. Kết quả</strong><span>Ảnh AI để so sánh với phòng gốc.</span></li>
         </ol>
       </section>
     </main>

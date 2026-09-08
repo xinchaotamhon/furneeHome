@@ -7,7 +7,7 @@ import userService from '../services/userService';
 import { formatPrice } from '../utils/formatPrice';
 
 const emptyForm = {
-  name: '', categoryName: 'Nội thất', price: '', description: '',
+  name: '', categoryName: 'Nội thất', price: '', stock: '20', description: '',
   width: '', depth: '', height: '', usageType: 'standard',
   placementSurface: 'floor', aiDescription: '',
 };
@@ -21,6 +21,7 @@ function formFromProduct(product) {
   const size = product.dimensionsCm || product.dimensions || {};
   return {
     name: product.name || '', categoryName: categoryName(product), price: product.price ?? '',
+    stock: product.stock ?? 0,
     description: product.description || '', width: size.width || size.widthCm || '',
     depth: size.depth || size.depthCm || '', height: size.height || size.heightCm || '',
     usageType: product.usageType || 'standard', placementSurface: product.placementSurface || 'floor',
@@ -31,6 +32,7 @@ function formFromProduct(product) {
 function productFromForm(form) {
   return {
     name: form.name.trim(), categoryName: form.categoryName.trim(), price: Number(form.price) || 0,
+    stock: Math.max(0, Math.round(Number(form.stock) || 0)),
     description: form.description.trim(), usageType: form.usageType,
     placementSurface: form.placementSurface, aiDescription: form.aiDescription.trim(),
     dimensionsCm: {
@@ -95,8 +97,8 @@ export default function AdminPage() {
 
   const visibleProducts = useMemo(() => {
     const search = query.trim().toLocaleLowerCase('vi');
-    return products.filter((product) => !search
-      || `${product.name} ${categoryName(product)}`.toLocaleLowerCase('vi').includes(search));
+    return products.filter((product) => product.isActive !== false && (!search
+      || `${product.name} ${categoryName(product)}`.toLocaleLowerCase('vi').includes(search)));
   }, [products, query]);
 
   useEffect(() => {
@@ -257,7 +259,8 @@ export default function AdminPage() {
             <div className="section-title"><h2>{editingId ? 'Sửa sản phẩm' : 'Thêm sản phẩm'}</h2></div>
             <label>Tên sản phẩm<input value={form.name} onChange={(event) => updateField('name', event.target.value)} required /></label>
             <label>Danh mục<input value={form.categoryName} onChange={(event) => updateField('categoryName', event.target.value)} required /></label>
-            <label>Giá<input type="number" min="0" value={form.price} onChange={(event) => updateField('price', event.target.value)} /></label>
+            <label>Giá<input type="number" min="1" step="1" value={form.price} onChange={(event) => updateField('price', event.target.value)} required /></label>
+            <label>Tồn kho<input type="number" min="0" step="1" value={form.stock} onChange={(event) => updateField('stock', event.target.value)} required /></label>
             <label>Mô tả<textarea rows="3" value={form.description} onChange={(event) => updateField('description', event.target.value)} /></label>
 
             <details className="admin-product-details">
@@ -286,7 +289,7 @@ export default function AdminPage() {
 
           <section className="admin-products panel-card">
             <div className="section-title">
-              <h2>Danh sách sản phẩm ({products.length})</h2>
+              <h2>Danh sách sản phẩm ({visibleProducts.length})</h2>
               <button className="text-button" type="button" onClick={refreshProducts} disabled={loading || isWorking}>{loading ? 'Đang tải…' : 'Tải lại'}</button>
             </div>
             <input className="admin-search" type="search" value={query} placeholder="Tìm tên hoặc danh mục" onChange={(event) => setQuery(event.target.value)} />
@@ -295,7 +298,7 @@ export default function AdminPage() {
                 const id = product._id || product.id;
                 return <article key={id}>
                   <div className="admin-thumb"><ProductArtwork product={product} /></div>
-                  <div><strong>{product.name}</strong><span>{categoryName(product)} · {formatPrice(product.price)}</span></div>
+                  <div><strong>{product.name}</strong><span>{categoryName(product)} · {formatPrice(product.price)} · Còn {product.stock ?? 0}</span></div>
                   <div className="row-actions">
                     <button className="text-button" type="button" onClick={() => startEditing(product)}>Sửa</button>
                     <label className="text-button">{uploadingId === id ? 'Đang lưu…' : 'Thêm ảnh'}<input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadImage(product, event.target.files?.[0])} /></label>

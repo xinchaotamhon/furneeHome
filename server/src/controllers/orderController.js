@@ -96,7 +96,7 @@ async function createOrder(req, res, next) {
       const product = await Product.findOneAndUpdate(
         { _id: item.productId, isActive: true, price: { $gt: 0 }, stock: { $gte: item.qty } },
         { $inc: { stock: -item.qty } },
-        { new: true },
+        { returnDocument: 'after' },
       );
       if (!product || !Number.isInteger(product.price) || !Number.isInteger(product.stock)) {
         throw createError('Có sản phẩm đã ngừng bán, hết hàng hoặc có giá không hợp lệ.', 409);
@@ -200,7 +200,7 @@ async function cancelOrder(orderId, extraFilter = {}) {
   const order = await Order.findOneAndUpdate(
     { _id: orderId, ...extraFilter, orderStatus: { $in: CUSTOMER_CANCELLABLE }, stockRestored: false },
     { $set: { orderStatus: 'Cancelled', stockRestored: true } },
-    { new: true },
+    { returnDocument: 'after' },
   );
   if (!order) throw createError('Đơn hàng vừa được thay đổi, vui lòng tải lại.', 409);
   const restored = [];
@@ -247,7 +247,7 @@ async function updateOrderStatus(req, res, next) {
       }
       const update = { orderStatus };
       if (orderStatus === 'Delivered') update.paymentStatus = 'Paid';
-      const result = await Order.findOneAndUpdate({ _id: order._id, orderStatus: order.orderStatus }, { $set: update }, { new: true });
+      const result = await Order.findOneAndUpdate({ _id: order._id, orderStatus: order.orderStatus }, { $set: update }, { returnDocument: 'after' });
       if (!result) throw createError('Đơn hàng vừa được thay đổi, vui lòng tải lại.', 409);
       return res.json({ success: true, message: 'Đã cập nhật trạng thái đơn hàng.', data: result });
     }
