@@ -1,122 +1,105 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import authService from '../../services/authService';
 
-const emptyForm = { name: '', email: '', identity: '', password: '', confirmPassword: '', code: '' };
+const REMEMBERED_IDENTITY_KEY = 'furneehome-login-identity';
+const emptyForm = { name: '', email: '', identity: '', otp: '', password: '', confirmPassword: '' };
+
+function rememberedIdentity() {
+  try { return String(localStorage.getItem(REMEMBERED_IDENTITY_KEY) || '').trim(); } catch { return ''; }
+}
+
+function saveRememberedIdentity(identity, remember) {
+  try {
+    if (remember) localStorage.setItem(REMEMBERED_IDENTITY_KEY, identity);
+    else localStorage.removeItem(REMEMBERED_IDENTITY_KEY);
+  } catch {}
+}
 
 export default function LoginModal() {
-  const {
-    isLoginOpen, authMode, closeLogin, login, requestRegistration,
-    verifyRegistration, completeRegistration, switchAuthMode,
-  } = useAuth();
+  const navigate = useNavigate();
+  const { isLoginOpen, authMode, closeLogin, login, requestRegistration, completeRegistration, switchAuthMode } = useAuth();
+  const [view, setView] = useState('login');
   const [form, setForm] = useState(emptyForm);
-  const [registerStep, setRegisterStep] = useState('email');
-  const [registrationToken, setRegistrationToken] = useState('');
-  const [error, setError] = useState('');
+  const [remember, setRemember] = useState(() => Boolean(rememberedIdentity()));
   const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const isRegister = authMode === 'register';
 
   useEffect(() => {
-    setError('');
+    const nextView = authMode === 'register' ? 'register-email' : authMode;
+    setView(nextView);
+    setForm({ ...emptyForm, identity: nextView === 'login' ? rememberedIdentity() : '' });
     setNotice('');
-    if (authMode === 'login' || !isLoginOpen) {
-      setRegisterStep('email');
-      setRegistrationToken('');
-      setForm(emptyForm);
-    }
+    setError('');
   }, [authMode, isLoginOpen]);
 
   if (!isLoginOpen) return null;
-
-  const update = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
+  const updateField = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
+  const toLogin = () => {
+    switchAuthMode('login');
+    setView('login');
+    setForm({ ...emptyForm, identity: rememberedIdentity() });
+  };
 
   const submit = async (event) => {
     event.preventDefault();
-    setError('');
     setNotice('');
+    setError('');
+    if ((view === 'register-complete' || view === 'reset') && form.password !== form.confirmPassword) {
+      setError('Mật khẩu nhập lại chưa khớp.');
+      return;
+    }
     setIsSubmitting(true);
     try {
-      if (!isRegister) {
-        const identity = form.identity.trim();
-        await login({ identity, email: identity, password: form.password });
-      } else if (registerStep === 'email') {
+      if (view === 'register-email') {
         const result = await requestRegistration(form.email.trim());
-        setForm((current) => ({ ...current, email: result.email, code: result.devOtp || '' }));
-        setRegisterStep('code');
-        setNotice(result.devOtp ? `Mã thử localhost: ${result.devOtp}` : 'Mã xác minh đã được gửi. Kiểm tra hộp thư của bạn.');
-      } else if (registerStep === 'code') {
-        const result = await verifyRegistration(form.email.trim(), form.code.trim());
-        setRegistrationToken(result.registrationToken);
-        setRegisterStep('profile');
-        setNotice('Email đã xác minh. Hãy tạo tên và mật khẩu.');
+        setForm((current) => ({ ...current, email: result.email || current.email.trim(), otp: result.devOtp || '' }));
+        setView('register-complete');
+        setNotice(result.devOtp ? `Mã thử localhost: ${result.devOtp}` : 'Mã xác minh đã được gửi đến email.');
+      } else if (view === 'register-complete') {
+        await completeRegistration({ name: form.name.trim(), email: form.email.trim(), otp: form.otp.trim(), password: form.password });
+      } else if (view === 'forgot') {
+        const result = await authService.requestPasswordReset(form.email.trim());
+        setView('reset');
+        setForm((current) => ({ ...current, otp: result?.devOtp || '' }));
+        setNotice(result?.devOtp ? `Mã thử localhost: ${result.devOtp}` : 'Mã xác minh đã được gửi đến email.');
+      } else if (view === 'reset') {
+        await authService.resetPassword({ email: form.email.trim(), otp: form.otp.trim(), password: form.password });
+        toLogin();
+        setNotice('Đã đổi mật khẩu. Bạn có thể đăng nhập.');
       } else {
-        if (form.password !== form.confirmPassword) throw new Error('Mật khẩu nhập lại chưa khớp.');
-        await completeRegistration({
-          email: form.email.trim(), registrationToken, name: form.name.trim(), password: form.password,
-        });
+        const identity = form.identity.trim();
+        const loggedInUser = await login({ identity, password: form.password });
+        saveRememberedIdentity(identity, remember);
+        if (loggedInUser.role === 'admin' || loggedInUser.role === 'superadmin') navigate('/admin');
       }
     } catch (submitError) {
-      setError(submitError.message || 'Không thể thực hiện yêu cầu.');
-      if (!isRegister || registerStep === 'profile') {
-        setForm((current) => ({ ...current, password: '', confirmPassword: '' }));
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+      setError(submitError.response?.data?.message || submitError.message || 'Không thể thực hiện yêu cầu.');
+    } finally { setIsSubmitting(false); }
   };
 
-  const resend = async () => {
-    setError('');
-    setNotice('');
-    setIsSubmitting(true);
-    try {
-      const result = await requestRegistration(form.email.trim());
-      setForm((current) => ({ ...current, code: result.devOtp || '' }));
-      setNotice(result.devOtp ? `Mã thử localhost: ${result.devOtp}` : 'Đã gửi mã mới. Vui lòng kiểm tra email.');
-    } catch (submitError) {
-      setError(submitError.message || 'Không thể gửi lại mã.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const title = { login: 'Đăng nhập', 'register-email': 'Xác minh email', 'register-complete': 'Tạo tài khoản', forgot: 'Quên mật khẩu', reset: 'Đặt mật khẩu mới' }[view];
+  const submitText = { login: 'Đăng nhập', 'register-email': 'Gửi mã xác minh', 'register-complete': 'Tạo tài khoản', forgot: 'Gửi mã xác minh', reset: 'Đổi mật khẩu' }[view];
 
-  const registerTitle = registerStep === 'email' ? 'Xác minh email FurneeHome' : registerStep === 'code' ? 'Nhập mã xác minh' : 'Hoàn tất tài khoản';
-  return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={closeLogin}>
-      <form className="login-card" aria-labelledby="auth-modal-title" onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
-        <button className="modal-close" type="button" aria-label="Đóng" onClick={closeLogin}>×</button>
-        <h2 id="auth-modal-title">{isRegister ? registerTitle : 'Đăng nhập FurneeHome'}</h2>
-        {isRegister && registerStep === 'email' && <p>Nhập email để nhận mã xác minh trước khi tạo tài khoản.</p>}
-        {isRegister && registerStep === 'profile' && <p>Email <strong>{form.email}</strong> đã được xác minh.</p>}
-        {!isRegister && <label>Email hoặc tên đăng nhập
-          <input type="text" placeholder="admin hoặc ban@example.com" autoComplete="username" required value={form.identity} onChange={update('identity')} onBlur={(event) => setForm((current) => ({ ...current, identity: event.target.value.trim() }))} />
-        </label>}
-        {isRegister && registerStep === 'email' && <label>Email
-          <input type="email" placeholder="ban@example.com" autoComplete="email" required value={form.email} onChange={update('email')} />
-        </label>}
-        {isRegister && registerStep === 'code' && <label>Mã xác minh 6 số
-          <input inputMode="numeric" pattern="[0-9]{6}" maxLength="6" autoComplete="one-time-code" required value={form.code} onChange={update('code')} />
-        </label>}
-        {isRegister && registerStep === 'profile' && <>
-          <label>Họ và tên
-            <input type="text" placeholder="Nguyễn Văn A" required maxLength="80" autoComplete="name" value={form.name} onChange={update('name')} />
-          </label>
-          <label>Mật khẩu
-            <input type="password" placeholder="Tối thiểu 6 ký tự" minLength="6" required autoComplete="new-password" value={form.password} onChange={update('password')} />
-          </label>
-          <label>Nhập lại mật khẩu
-            <input type="password" placeholder="Nhập lại mật khẩu" minLength="6" required autoComplete="new-password" value={form.confirmPassword} onChange={update('confirmPassword')} />
-          </label>
-        </>}
-        {!isRegister && <label>Mật khẩu
-          <input type="password" placeholder="Nhập mật khẩu" required autoComplete="current-password" value={form.password} onChange={update('password')} />
-        </label>}
-        {notice && <p className="form-notice">{notice}</p>}
-        {error && <p className="form-error">{error}</p>}
-        <button className="button" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Đang xử lý…' : (!isRegister ? 'Đăng nhập' : registerStep === 'email' ? 'Gửi mã xác minh' : registerStep === 'code' ? 'Xác minh email' : 'Tạo tài khoản')}</button>
-        {isRegister && registerStep === 'code' && <button className="auth-switch" type="button" onClick={resend} disabled={isSubmitting}>Gửi lại mã</button>}
-        <button className="auth-switch" type="button" onClick={() => switchAuthMode(isRegister ? 'login' : 'register')} disabled={isSubmitting}>{isRegister ? 'Đã có tài khoản? Đăng nhập' : 'Chưa có tài khoản? Bắt đầu miễn phí'}</button>
-      </form>
-    </div>
-  );
+  return <div className="modal-backdrop" role="presentation" onMouseDown={closeLogin}>
+    <form className="login-card" aria-labelledby="auth-modal-title" onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
+      <button className="modal-close" type="button" aria-label="Đóng" onClick={closeLogin}>×</button>
+      <h2 id="auth-modal-title">{title}</h2>
+      {view === 'register-email' && <label>Email<input type="email" value={form.email} onChange={updateField('email')} autoComplete="email" required /></label>}
+      {view === 'register-complete' && <><p className="muted">Email {form.email}</p><label>Họ và tên<input type="text" value={form.name} onChange={updateField('name')} autoComplete="name" maxLength="80" required /></label><label>Mã xác minh<input inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={form.otp} onChange={updateField('otp')} autoComplete="one-time-code" required /></label></>}
+      {view === 'login' && <label>Email hoặc tên đăng nhập<input type="text" value={form.identity} onChange={updateField('identity')} autoComplete="username" required /></label>}
+      {(view === 'forgot' || view === 'reset') && <label>Email<input type="email" value={form.email} onChange={updateField('email')} autoComplete="email" readOnly={view === 'reset'} required /></label>}
+      {view === 'reset' && <label>Mã xác minh<input inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={form.otp} onChange={updateField('otp')} autoComplete="one-time-code" required /></label>}
+      {(view === 'login' || view === 'register-complete' || view === 'reset') && <label>{view === 'reset' ? 'Mật khẩu mới' : 'Mật khẩu'}<input type="password" value={form.password} onChange={updateField('password')} autoComplete={view === 'login' ? 'current-password' : 'new-password'} minLength={view === 'login' ? 1 : 6} required /></label>}
+      {(view === 'register-complete' || view === 'reset') && <label>Nhập lại mật khẩu<input type="password" value={form.confirmPassword} onChange={updateField('confirmPassword')} autoComplete="new-password" minLength="6" required /></label>}
+      {view === 'login' && <label className="remember-login"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /><span>Ghi nhớ email hoặc tên đăng nhập</span></label>}
+      {notice && <p className="form-success" role="status">{notice}</p>}
+      {error && <p className="form-error" role="alert">{error}</p>}
+      <button className="button" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Đang xử lý…' : submitText}</button>
+      {view === 'login' && <><button className="auth-switch" type="button" onClick={() => setView('forgot')}>Quên mật khẩu?</button><button className="auth-switch" type="button" onClick={() => switchAuthMode('register')}>Chưa có tài khoản? Đăng ký</button></>}
+      {(view === 'forgot' || view === 'reset' || view === 'register-email' || view === 'register-complete') && <button className="auth-switch" type="button" onClick={toLogin}>Quay lại đăng nhập</button>}
+    </form>
+  </div>;
 }

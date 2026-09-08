@@ -6,9 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "seed": "node src/utils/seedData.js",
-    "sync:to-mongo": "node ../tools/syncJsonToMongo.js",
-    "sync:to-json": "node ../tools/syncMongoToJson.js"
+    "seed": "node src/utils/seedData.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -17,6 +15,6 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.2",
-    "nodemailer": "^10.0.0"
+    "nodemailer": "^10.0.1"
   }
 }

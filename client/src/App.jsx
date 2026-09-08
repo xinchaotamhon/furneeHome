@@ -1,6 +1,6 @@
 import { RouterProvider } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import { CollectionProvider } from './context/CollectionContext';
+import { CartProvider } from './context/CartContext';
 import { ProductProvider } from './context/ProductContext';
 import router from './router';
 
@@ -8,9 +8,9 @@ export default function App() {
   return (
     <AuthProvider>
       <ProductProvider>
-        <CollectionProvider>
+        <CartProvider>
           <RouterProvider router={router} />
-        </CollectionProvider>
+        </CartProvider>
       </ProductProvider>
     </AuthProvider>
   );

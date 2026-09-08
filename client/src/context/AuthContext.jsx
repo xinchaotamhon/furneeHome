@@ -1,5 +1,6 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import authService from '../services/authService';
+import userService from '../services/userService';
 
 const AuthContext = createContext(null);
 const USER_KEY = 'furneehome-user';
@@ -22,10 +23,28 @@ function saveSession(session) {
   localStorage.setItem(USER_KEY, JSON.stringify(session.user));
 }
 
+function saveUser(user) {
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(readUser);
   const [isLoginOpen, setLoginOpen] = useState(false);
   const [authMode, setAuthMode] = useState('login');
+
+  useEffect(() => {
+    if (!localStorage.getItem(TOKEN_KEY)) return;
+    userService.getMe()
+      .then((profile) => {
+        saveUser(profile);
+        setUser(profile);
+      })
+      .catch(() => {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+        setUser(null);
+      });
+  }, []);
 
   const login = async (credentials) => {
     try {
@@ -47,14 +66,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const verifyRegistration = async (email, code) => {
-    try {
-      return await authService.verifyRegistration(email, code);
-    } catch (error) {
-      throw new Error(getErrorMessage(error));
-    }
-  };
-
   const completeRegistration = async (profile) => {
     try {
       const session = await authService.completeRegistration(profile);
@@ -62,6 +73,18 @@ export function AuthProvider({ children }) {
       setUser(session.user);
       setLoginOpen(false);
       return session.user;
+    } catch (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  };
+
+  const updateProfile = async (profile) => {
+    try {
+      const response = await userService.updateMe(profile);
+      const updatedUser = response?.user || response;
+      saveUser(updatedUser);
+      setUser(updatedUser);
+      return updatedUser;
     } catch (error) {
       throw new Error(getErrorMessage(error));
     }
@@ -89,8 +112,8 @@ export function AuthProvider({ children }) {
     closeLogin: () => setLoginOpen(false),
     login,
     requestRegistration,
-    verifyRegistration,
     completeRegistration,
+    updateProfile,
     logout,
   };
 

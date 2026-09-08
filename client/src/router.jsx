@@ -1,36 +1,49 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
 import { useAuth } from './context/AuthContext';
 import AdminPage from './pages/AdminPage';
-import CollectionPage from './pages/CollectionPage';
+import CartPage from './pages/CartPage';
+import CheckoutPage from './pages/CheckoutPage';
+import FeedbackPage from './pages/FeedbackPage';
 import HomePage from './pages/HomePage';
 import NotFoundPage from './pages/NotFoundPage';
+import OrderHistoryPage from './pages/OrderHistoryPage';
+import ProductDetailPage from './pages/ProductDetailPage';
 import ProductListPage from './pages/ProductListPage';
-import PublicCollectionDetailPage from './pages/PublicCollectionDetailPage';
-import PublicCollectionsPage from './pages/PublicCollectionsPage';
+import ProfilePage from './pages/ProfilePage';
 import RoomStudioPage from './pages/RoomStudioPage';
 
 function AdminRoute() {
   const { user, openLogin } = useAuth();
-  if (user?.role === 'admin') return <AdminPage />;
-  return <main className="container page access-denied"><span>🔒</span><h1>Khu vực quản trị</h1><p>Bạn cần đăng nhập bằng vai trò Admin để mở trang này.</p><button className="button" type="button" onClick={openLogin}>Mở đăng nhập</button></main>;
+  if (user?.role === 'admin' || user?.role === 'superadmin') return <AdminPage />;
+  return (
+    <main className="container page access-denied">
+      <h1>Khu vực quản trị</h1>
+      <p>Đăng nhập bằng tài khoản quản trị để tiếp tục.</p>
+      <button className="button" type="button" onClick={() => openLogin('login')}>
+        Đăng nhập
+      </button>
+    </main>
+  );
 }
 
-const router = createBrowserRouter([{
-  element: <MainLayout />,
-  children: [
-    { path: '/', element: <HomePage /> },
-    { path: '/products', element: <ProductListPage /> },
-    { path: '/collection', element: <CollectionPage /> },
-    { path: '/collections/public', element: <PublicCollectionsPage /> },
-    { path: '/collections/public/creator/:creatorId', element: <PublicCollectionsPage /> },
-    { path: '/collections/public/:shareSlug', element: <PublicCollectionDetailPage /> },
-    { path: '/room-studio', element: <RoomStudioPage /> },
-    { path: '/cart', element: <Navigate to="/collection" replace /> },
-    { path: '/room-3d', element: <Navigate to="/room-studio" replace /> },
-    { path: '/admin', element: <AdminRoute /> },
-    { path: '*', element: <NotFoundPage /> },
-  ],
-}]);
+const router = createBrowserRouter([
+  {
+    element: <MainLayout />,
+    children: [
+      { path: '/', element: <HomePage /> },
+      { path: '/products', element: <ProductListPage /> },
+      { path: '/products/:id', element: <ProductDetailPage /> },
+      { path: '/cart', element: <CartPage /> },
+      { path: '/checkout', element: <CheckoutPage /> },
+      { path: '/orders', element: <OrderHistoryPage /> },
+      { path: '/room-studio', element: <RoomStudioPage /> },
+      { path: '/profile', element: <ProfilePage /> },
+      { path: '/feedback', element: <FeedbackPage /> },
+      { path: '/admin', element: <AdminRoute /> },
+      { path: '*', element: <NotFoundPage /> },
+    ],
+  },
+]);
 
 export default router;
