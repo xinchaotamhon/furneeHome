@@ -13,7 +13,6 @@ const userSchema = new mongoose.Schema({
   resetOtpHash: { type: String, select: false },
   resetOtpExpiresAt: { type: Date, select: false },
   role: { type: String, enum: ['customer', 'admin', 'superadmin'], default: 'customer' },
-  localOnly: { type: Boolean, default: false },
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 

@@ -8,7 +8,7 @@ export default function HomePage() {
           <div className="fh-hero-copy">
             <p className="eyebrow">NỘI THẤT CHO KHÔNG GIAN SỐNG</p>
             <h1>Chọn đúng sản phẩm cho căn phòng của bạn.</h1>
-            <p>Tìm sản phẩm, thử trên ảnh phòng và lưu lại kết quả trong một quy trình đơn giản.</p>
+            <p>Tìm sản phẩm, đặt hàng và thử trực tiếp trên ảnh phòng.</p>
             <div className="hero-actions">
               <Link className="button" to="/products">Xem sản phẩm</Link>
               <Link className="button button-secondary" to="/room-studio">Mở Phòng thử</Link>
@@ -55,7 +55,7 @@ export default function HomePage() {
           <article>
             <span>03</span>
             <h3>Thử trong phòng</h3>
-            <p>Tải ảnh phòng, chọn một món và tạo ảnh AI.</p>
+            <p>Chọn tối đa 3 món, tải ảnh phòng và tạo ảnh AI.</p>
             <Link to="/room-studio">Mở Phòng thử →</Link>
           </article>
         </div>

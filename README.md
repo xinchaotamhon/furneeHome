@@ -1,50 +1,88 @@
 # FurneeHome
 
-FurneeHome là website bán nội thất của nhóm 4 thành viên. Người dùng có thể mua hàng và thử tối đa 3 sản phẩm trong ảnh phòng bằng AI.
+FurneeHome là website bán nội thất và trang trí dành cho sinh viên, học sinh, công nhân và gia đình phổ thông. Đây là đồ án tốt nghiệp của nhóm 4 thành viên.
 
-## Chức năng
+## Đặt vấn đề
 
-| Trang | Chức năng |
-|---|---|
-| Trang chủ | Giới thiệu và dẫn tới sản phẩm, Phòng thử |
-| Sản phẩm | Tìm kiếm, lọc, xem chi tiết, đánh giá |
-| Giỏ hàng | Thêm, đổi số lượng, xóa sản phẩm |
-| Thanh toán | Đặt hàng COD, kiểm tra lại giá và tồn kho |
-| Đơn hàng | Xem trạng thái, hủy đơn chưa giao |
-| Phòng thử | Chọn tối đa 3 sản phẩm, tải ảnh phòng, nhập vị trí và tạo ảnh AI |
-| Tài khoản | Đăng ký, đăng nhập, quên mật khẩu OTP, sửa hồ sơ |
-| Liên hệ | Gửi góp ý hoặc báo nội dung xấu |
-| Quản trị | Quản lý sản phẩm, tồn kho, đơn hàng, người dùng và phản hồi |
+Người mua thường chỉ thấy ảnh, kích thước và giá sản phẩm nhưng khó hình dung món đồ có phù hợp với căn phòng thật hay không. Việc lựa chọn sai có thể làm tốn thời gian, chi phí và diện tích sử dụng.
 
-Quyền tài khoản:
+## Mục tiêu
 
-- `customer`: mua hàng, dùng Phòng thử và gửi phản hồi.
-- `admin`: quản lý sản phẩm, đơn hàng và phản hồi.
-- `superadmin`: có quyền admin và cấp quyền hoặc khóa tài khoản khác.
+- Xây dựng website bán nội thất dễ hiểu và dễ sử dụng.
+- Hỗ trợ tìm kiếm, lọc, xem chi tiết, đánh giá và đặt hàng COD.
+- Cho phép người dùng thử tối đa 3 sản phẩm trên ảnh phòng bằng AI.
+- Quản lý sản phẩm, khách hàng, đơn hàng và liên hệ trong một trang quản trị riêng.
+- Giữ mã nguồn đơn giản để nhóm có thể học, trình bày và bảo trì.
 
-## Chạy trên máy
+## Người sử dụng
 
-Yêu cầu Node.js, npm và MongoDB.
+- Khách: xem và tìm sản phẩm.
+- Khách hàng: mua hàng, theo dõi đơn, đánh giá, sửa hồ sơ, gửi liên hệ và dùng Phòng thử.
+- Admin: quản lý sản phẩm, khách hàng, đơn hàng và liên hệ.
+- Orchestra Admin: có toàn bộ quyền admin và được phân quyền admin cấp dưới.
 
-1. Cài thư viện:
+## Chức năng chính
+
+- Đăng ký bằng OTP email, đăng nhập, ghi nhớ tên đăng nhập và đặt lại mật khẩu.
+- Danh sách sản phẩm, tìm kiếm, lọc danh mục và xem chi tiết.
+- Giỏ hàng, thanh toán COD, lịch sử đơn và hủy đơn chưa giao.
+- Đánh giá sản phẩm, báo nội dung và gửi góp ý.
+- Phòng thử AI: chọn 1–3 sản phẩm, tải ảnh phòng, nhập vị trí từng món và tạo ảnh.
+- Quản trị sản phẩm, ảnh, tồn kho, khách hàng, đơn hàng, liên hệ và quyền admin.
+
+## Công nghệ
+
+- Frontend: React, HTML, CSS.
+- Backend: Node.js, Express.
+- Database: MongoDB.
+- Tạo ảnh: Pollinations và Cloudflare Workers AI.
+- Gửi OTP: SMTP Gmail.
+
+## Tải và chạy
+
+Yêu cầu: Node.js, npm và MongoDB.
 
 ```powershell
+git clone https://github.com/xinchaotamhon/furneeHome.git
+cd furneeHome
 cd client
 npm install
 cd ..\server
 npm install
 ```
 
-2. Tạo file `.env` ở thư mục gốc.
+Tạo file `.env` ở thư mục gốc:
 
-3. Nạp dữ liệu mẫu:
+```env
+MONGO_URI=mongodb_connection_string
+JWT_SECRET=random_secret
+CLIENT_URL=http://localhost:5173
+
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=gmail_address
+SMTP_PASS=gmail_app_password
+EMAIL_FROM=gmail_address
+
+POLLINATIONS_API_KEY=api_key
+CLOUDFLARE_ACCOUNT_ID=account_id
+CLOUDFLARE_API_TOKEN=api_token
+
+ADMIN_USERNAME=admin
+ADMIN_EMAIL=admin@furneehome.vn
+ADMIN_PASSWORD=123
+TEAM_ADMIN_PASSWORD=123
+```
+
+Nạp sản phẩm và tài khoản mẫu:
 
 ```powershell
 cd server
 npm run seed
 ```
 
-4. Chạy `start-furneehome.bat`, hoặc mở hai terminal:
+Sau đó chạy `start-furneehome.bat`, hoặc mở hai terminal:
 
 ```powershell
 cd server
@@ -58,129 +96,23 @@ npm run dev
 
 - Website: `http://localhost:5173`
 - API: `http://localhost:5000`
-- Kiểm tra API: `http://localhost:5000/api/health`
 
-Tài khoản demo sau khi seed:
+## Tài khoản mẫu
 
 | Quyền | Tên đăng nhập | Mật khẩu |
 |---|---|---|
-| Superadmin | `admin` | `admin123456` |
+| Orchestra Admin | `admin` | `123` |
+| Admin | `phuc` | `123` |
+| Admin | `trieu` | `123` |
+| Admin | `dung` | `123` |
 | Khách hàng | `customer` | `user123456` |
 
-Có thể đổi tài khoản superadmin bằng `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` trước khi chạy seed.
-
-## Biến môi trường
-
-### Bắt buộc
-
-| Biến | Mục đích |
-|---|---|
-| `MONGO_URI` | Kết nối MongoDB Atlas |
-| `JWT_SECRET` | Ký token đăng nhập |
-| `CLIENT_URL` | URL frontend được phép gọi API |
-
-### OTP Gmail
-
-| Biến | Mục đích |
-|---|---|
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Máy chủ SMTP |
-| `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | Tài khoản gửi email |
-| `AUTH_OTP_DEV_MODE` | Cho phép hiện OTP khi chạy local |
-
-Gmail dùng App Password. Khi deploy, đặt `AUTH_OTP_DEV_MODE=false`.
-
-### Tạo ảnh AI
-
-| Biến | Mục đích |
-|---|---|
-| `POLLINATIONS_API_KEY` | Khóa Pollinations |
-| `POLLINATIONS_IMAGE_MODELS` | Danh sách model theo thứ tự |
-| `CLOUDFLARE_ACCOUNT_ID` | Account Cloudflare |
-| `CLOUDFLARE_API_TOKEN` | Token Workers AI |
-| `CLOUDFLARE_IMAGE_MODEL` | Model Cloudflare |
-| `ROOM_IMAGE_PROVIDER_ORDER` | Thứ tự provider |
-
-## Dữ liệu
-
-- MongoDB là dữ liệu chung của nhóm.
-- `client/public/data_import/data_import.json` chứa 101 sản phẩm dự phòng.
-- `npm run seed` đồng bộ file JSON vào MongoDB.
-- Ảnh sản phẩm nằm trong `client/public/images/products`.
-- Hai sản phẩm chưa có ảnh được ẩn cho đến khi admin thêm ảnh.
-- Giá và tồn kho của đơn hàng luôn được backend đọc lại từ MongoDB.
-- Đơn hàng lưu tên, giá và ảnh tại thời điểm mua để lịch sử không đổi khi sản phẩm được sửa.
-- Quản trị viên có thể nhập sản phẩm từ URL Shopee khi backend chạy trên localhost.
-
-## Luồng chính
-
-### Mua hàng
-
-Chọn sản phẩm → thêm giỏ → đăng nhập → nhập địa chỉ → đặt COD → backend kiểm tra giá và tồn kho → trừ kho → tạo đơn → admin cập nhật trạng thái.
-
-Khách chỉ hủy khi đơn đang `Pending` hoặc `Processing`. Khi hủy, tồn kho được hoàn lại một lần.
-
-### Phòng thử
-
-Chọn 1–3 sản phẩm → tải ảnh phòng → nhập vị trí cho từng món → bấm **Tạo ảnh** → so sánh kết quả với ảnh gốc.
-
-### Quên mật khẩu
-
-Nhập email → server tạo OTP có hạn 10 phút → gửi email → nhập OTP và mật khẩu mới → server kiểm tra hash OTP → lưu mật khẩu đã hash.
-
-## Kiểm tra trước khi bảo vệ
-
-```powershell
-cd client
-npm run build
-```
-
-Sau đó demo theo thứ tự:
-
-1. Xem và lọc sản phẩm.
-2. Mở chi tiết, thêm giỏ và đặt đơn COD.
-3. Mở lịch sử, hủy một đơn mới.
-4. Đăng nhập admin, sửa tồn kho và cập nhật đơn hàng.
-5. Quên mật khẩu bằng OTP.
-6. Phòng thử: chọn 1–3 món, tải ảnh, nhập vị trí, tạo ảnh và so sánh.
-7. Sửa hồ sơ, gửi phản hồi, xử lý phản hồi ở admin.
+Có thể đổi mật khẩu quản trị bằng `ADMIN_PASSWORD` và `TEAM_ADMIN_PASSWORD` trước khi chạy seed.
 
 ## Deploy
 
-- Client: Cloudflare Pages, build trong `client`, lệnh `npm run build`, thư mục kết quả `dist`.
-- Server: Render, root `server`, lệnh chạy `npm start`.
+- Frontend: Cloudflare Pages, thư mục `client`, lệnh `npm run build`, kết quả `dist`.
+- Backend: Render, thư mục `server`, lệnh `npm start`.
 - Database: MongoDB Atlas.
-- Secret chỉ đặt trong biến môi trường Cloudflare và Render, không đưa lên Git.
-
-## Git cho nhóm
-
-Tạo nhánh mới từ `main`:
-
-```powershell
-git fetch origin
-git switch main
-git pull --ff-only origin main
-git switch -c feature/ten-thanh-vien-cong-viec
-```
-
-Cập nhật `main` vào nhánh đang làm:
-
-```powershell
-git status
-git switch main
-git pull --ff-only origin main
-git switch feature/ten-thanh-vien-cong-viec
-git merge main
-```
-
-Đẩy thay đổi:
-
-```powershell
-git add .
-git status
-git commit -m "feat: mo ta ngan gon"
-git push -u origin feature/ten-thanh-vien-cong-viec
-```
-
-Nếu có conflict, dùng `git merge --abort` rồi nhờ trưởng nhóm xử lý. Không dùng `git push --force`. File `.env` và khóa bí mật gửi riêng; mã nguồn, package lock, JSON và ảnh sản phẩm được đưa lên Git.
-
-Trang học của nhóm: [Fourgether](https://github.com/xinchaotamhon/fourgether).
+- Đặt `VITE_API_URL` trên Cloudflare theo dạng `https://ten-server.onrender.com/api`.
+- Chỉ lưu `.env` và API key trong máy cá nhân hoặc biến môi trường của dịch vụ deploy.

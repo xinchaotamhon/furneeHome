@@ -1,7 +1,6 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
 import { useAuth } from './context/AuthContext';
-import AdminOrdersPage from './pages/AdminOrdersPage';
 import AdminPage from './pages/AdminPage';
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
@@ -28,20 +27,6 @@ function AdminRoute() {
   );
 }
 
-function AdminOrdersRoute() {
-  const { user, openLogin } = useAuth();
-  if (user?.role === 'admin' || user?.role === 'superadmin') return <AdminOrdersPage />;
-  return (
-    <main className="container page access-denied">
-      <h1>Khu vực quản trị đơn hàng</h1>
-      <p>Đăng nhập bằng tài khoản quản trị để tiếp tục.</p>
-      <button className="button" type="button" onClick={() => openLogin('login')}>
-        Đăng nhập
-      </button>
-    </main>
-  );
-}
-
 const router = createBrowserRouter([
   {
     element: <MainLayout />,
@@ -56,8 +41,6 @@ const router = createBrowserRouter([
       { path: '/profile', element: <ProfilePage /> },
       { path: '/feedback', element: <FeedbackPage /> },
       { path: '/admin', element: <AdminRoute /> },
-      { path: '/admin/orders', element: <AdminOrdersRoute /> },
-      { path: '/room-3d', element: <Navigate to="/room-studio" replace /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

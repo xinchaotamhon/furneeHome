@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const env = require('../config/env');
 const User = require('../models/User');
-const { isLocalRequest, localOnlyAccountAllowed } = require('../middleware/authMiddleware');
+const { isLocalRequest } = require('../middleware/authMiddleware');
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 
@@ -39,7 +39,7 @@ async function registerRequest(req, res, next) {
     let user = await User.findOne({ email }).select('+registrationOtpHash +registrationOtpExpiresAt +registrationOtpAttempts');
     if (user?.emailVerified !== false) return res.status(409).json({ success: false, message: 'Email đã được sử dụng. Hãy đăng nhập.', data: null });
     if (!user) {
-      user = new User({ name: email.split('@')[0].slice(0, 80), email, password: await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10), emailVerified: false, role: 'customer', isActive: true, localOnly: false });
+      user = new User({ name: email.split('@')[0].slice(0, 80), email, password: await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10), emailVerified: false, role: 'customer', isActive: true });
     }
 
     const otp = createOtp();
@@ -100,7 +100,7 @@ async function login(req, res, next) {
     if (!identity || !password) return res.status(400).json({ success: false, message: 'Vui lòng nhập email hoặc tên đăng nhập và mật khẩu.', data: null });
     const user = await User.findOne({ isActive: true, $or: [{ email: identity }, { username: identity }] });
     const passwordMatches = user ? await bcrypt.compare(password, user.password) : false;
-    if (!user || !passwordMatches || user.emailVerified === false || !localOnlyAccountAllowed(req, user)) {
+    if (!user || !passwordMatches || user.emailVerified === false) {
       return res.status(401).json({ success: false, message: 'Email/tên đăng nhập hoặc mật khẩu không chính xác.', data: null });
     }
     return res.json({ success: true, message: 'Đăng nhập thành công.', data: authResponse(user) });

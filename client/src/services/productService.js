@@ -5,10 +5,6 @@ const productService = {
     const response = await apiClient.get('/products', { params });
     return response.data.data;
   },
-  async getById(id) {
-    const response = await apiClient.get(`/products/${id}`);
-    return response.data.data;
-  },
   async create(data) {
     const response = await apiClient.post('/products', data);
     return response.data.data;

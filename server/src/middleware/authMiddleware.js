@@ -7,24 +7,13 @@ function isLocalRequest(req) {
   return address === '127.0.0.1' || address === '::1';
 }
 
-function localOnlyAccountAllowed(req, user, isProduction = env.isProduction) {
-  return !user?.localOnly || (!isProduction && isLocalRequest(req));
-}
-
-function requireLocalShopeeImport(req, res, next) {
-  if (env.isProduction || !isLocalRequest(req)) {
-    return res.status(403).json({ success: false, message: 'Chỉ có thể import Shopee từ máy local.', data: null });
-  }
-  return next();
-}
-
 async function authenticate(req, res, next) {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) return res.status(401).json({ success: false, message: 'Login required', data: null });
     const payload = jwt.verify(token, env.jwtSecret);
     req.user = await User.findById(payload.userId).select('-password');
-    if (!req.user?.isActive || !localOnlyAccountAllowed(req, req.user)) return res.status(401).json({ success: false, message: 'Invalid account', data: null });
+    if (!req.user?.isActive) return res.status(401).json({ success: false, message: 'Invalid account', data: null });
     return next();
   } catch {
     return res.status(401).json({ success: false, message: 'Invalid session', data: null });
@@ -37,7 +26,7 @@ async function optionalAuthenticate(req, res, next) {
     if (!token) return next();
     const payload = jwt.verify(token, env.jwtSecret);
     const user = await User.findById(payload.userId).select('-password');
-    if (!user?.isActive || !localOnlyAccountAllowed(req, user)) return res.status(401).json({ success: false, message: 'Invalid session', data: null });
+    if (!user?.isActive) return res.status(401).json({ success: false, message: 'Invalid session', data: null });
     req.user = user;
   } catch {
     return res.status(401).json({ success: false, message: 'Invalid session', data: null });
@@ -52,19 +41,9 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
-function requireSuperadmin(req, res, next) {
-  if (req.user?.role !== 'superadmin') {
-    return res.status(403).json({ success: false, message: 'Chỉ quản trị cao nhất được thực hiện thao tác này.', data: null });
-  }
-  return next();
-}
-
 module.exports = {
   authenticate,
   optionalAuthenticate,
   requireAdmin,
-  requireSuperadmin,
-  requireLocalShopeeImport,
   isLocalRequest,
-  localOnlyAccountAllowed,
 };

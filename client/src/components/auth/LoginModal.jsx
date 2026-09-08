@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import authService from '../../services/authService';
 
@@ -17,6 +18,7 @@ function saveRememberedIdentity(identity, remember) {
 }
 
 export default function LoginModal() {
+  const navigate = useNavigate();
   const { isLoginOpen, authMode, closeLogin, login, requestRegistration, completeRegistration, switchAuthMode } = useAuth();
   const [view, setView] = useState('login');
   const [form, setForm] = useState(emptyForm);
@@ -69,8 +71,9 @@ export default function LoginModal() {
         setNotice('Đã đổi mật khẩu. Bạn có thể đăng nhập.');
       } else {
         const identity = form.identity.trim();
-        await login({ identity, password: form.password });
+        const loggedInUser = await login({ identity, password: form.password });
         saveRememberedIdentity(identity, remember);
+        if (loggedInUser.role === 'admin' || loggedInUser.role === 'superadmin') navigate('/admin');
       }
     } catch (submitError) {
       setError(submitError.response?.data?.message || submitError.message || 'Không thể thực hiện yêu cầu.');
@@ -89,7 +92,7 @@ export default function LoginModal() {
       {view === 'login' && <label>Email hoặc tên đăng nhập<input type="text" value={form.identity} onChange={updateField('identity')} autoComplete="username" required /></label>}
       {(view === 'forgot' || view === 'reset') && <label>Email<input type="email" value={form.email} onChange={updateField('email')} autoComplete="email" readOnly={view === 'reset'} required /></label>}
       {view === 'reset' && <label>Mã xác minh<input inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={form.otp} onChange={updateField('otp')} autoComplete="one-time-code" required /></label>}
-      {(view === 'login' || view === 'register-complete' || view === 'reset') && <label>{view === 'reset' ? 'Mật khẩu mới' : 'Mật khẩu'}<input type="password" value={form.password} onChange={updateField('password')} autoComplete={view === 'login' ? 'current-password' : 'new-password'} minLength="6" required /></label>}
+      {(view === 'login' || view === 'register-complete' || view === 'reset') && <label>{view === 'reset' ? 'Mật khẩu mới' : 'Mật khẩu'}<input type="password" value={form.password} onChange={updateField('password')} autoComplete={view === 'login' ? 'current-password' : 'new-password'} minLength={view === 'login' ? 1 : 6} required /></label>}
       {(view === 'register-complete' || view === 'reset') && <label>Nhập lại mật khẩu<input type="password" value={form.confirmPassword} onChange={updateField('confirmPassword')} autoComplete="new-password" minLength="6" required /></label>}
       {view === 'login' && <label className="remember-login"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /><span>Ghi nhớ email hoặc tên đăng nhập</span></label>}
       {notice && <p className="form-success" role="status">{notice}</p>}

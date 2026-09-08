@@ -1,59 +1,15 @@
 const mongoose = require('mongoose');
 const Feedback = require('../models/Feedback');
 const User = require('../models/User');
-const Product = require('../models/Product');
-const Order = require('../models/Order');
 
 function validId(id) {
   return mongoose.isValidObjectId(id);
 }
 
-async function getDashboardStats(req, res, next) {
-  try {
-    const totalUsers = await User.countDocuments({ role: 'customer' });
-    const totalProducts = await Product.countDocuments();
-    const totalOrders = await Order.countDocuments();
-
-    const deliveredOrders = await Order.find({ orderStatus: 'Delivered' });
-    const totalRevenue = deliveredOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-
-    const pendingOrders = await Order.countDocuments({ orderStatus: 'Pending' });
-    const processingOrders = await Order.countDocuments({ orderStatus: 'Processing' });
-    const shippedOrders = await Order.countDocuments({ orderStatus: 'Shipped' });
-    const cancelledOrders = await Order.countDocuments({ orderStatus: 'Cancelled' });
-
-    const recentOrders = await Order.find()
-      .populate('user', 'name email')
-      .sort({ createdAt: -1 })
-      .limit(5);
-
-    return res.json({
-      success: true,
-      message: 'Đã tải số liệu thống kê.',
-      data: {
-        totalRevenue,
-        totalOrders,
-        totalProducts,
-        totalUsers,
-        ordersByStatus: {
-          pending: pendingOrders,
-          processing: processingOrders,
-          shipped: shippedOrders,
-          delivered: deliveredOrders.length,
-          cancelled: cancelledOrders,
-        },
-        recentOrders,
-      },
-    });
-  } catch (error) {
-    return next(error);
-  }
-}
-
 async function listUsers(req, res, next) {
   try {
     const users = await User.find()
-      .select('name email avatarUrl role isActive createdAt')
+      .select('name username email avatarUrl role isActive createdAt')
       .sort({ createdAt: -1 });
     return res.json({ success: true, message: 'Đã tải người dùng.', data: users });
   } catch (error) {
@@ -138,4 +94,4 @@ async function updateFeedback(req, res, next) {
   }
 }
 
-module.exports = { getDashboardStats, listUsers, updateUser, listFeedback, updateFeedback };
+module.exports = { listUsers, updateUser, listFeedback, updateFeedback };

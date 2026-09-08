@@ -30,8 +30,6 @@ const orderSchema = new mongoose.Schema({
   subtotal: { type: Number, required: true, min: 0 },
   shippingFee: { type: Number, required: true, min: 0, default: 0 },
   totalAmount: { type: Number, required: true, min: 0 },
-  discountAmount: { type: Number, default: 0, min: 0 },
-  couponCode: { type: String, default: '', trim: true },
   // Set in the same conditional update that changes status to Cancelled.
   // This makes stock restoration idempotent without requiring Mongo transactions.
   stockRestored: { type: Boolean, default: false },

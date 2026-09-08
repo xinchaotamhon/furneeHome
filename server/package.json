@@ -6,9 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "seed": "node src/utils/seedData.js",
-    "admin:local": "node src/utils/bootstrapLocalAdmin.js --create-or-update-local-admin",
-    "admin:reset": "node src/utils/bootstrapLocalAdmin.js --create-or-update-local-admin --reset-password"
+    "seed": "node src/utils/seedData.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

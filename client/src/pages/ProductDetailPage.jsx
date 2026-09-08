@@ -89,7 +89,11 @@ export default function ProductDetailPage() {
         {Array.isArray(product.specifications) && product.specifications.length > 0 && <dl>{product.specifications.map((specification) => <div key={`${specification.name}-${specification.value}`}><dt>{specification.name}</dt><dd>{specification.value}</dd></div>)}</dl>}
         <p className={stock ? 'stock-badge in-stock' : 'stock-badge'}>{stock ? `Còn ${stock} sản phẩm` : 'Tạm hết hàng'}</p>
         {stock > 0 && <div className="detail-action-box"><label>Số lượng<input type="number" min="1" max={stock} value={quantity} onChange={(event) => setQuantity(Math.min(stock, Math.max(1, Number(event.target.value) || 1)))} /></label><button className="button" type="button" onClick={add}>Thêm vào giỏ</button></div>}
-        {notice && <p className="form-success" role="status">{notice}</p>}<Link className="text-button" to="/room-studio" state={{ product }}>Thử sản phẩm trong phòng →</Link>
+        {notice && <p className="form-success" role="status">{notice}</p>}
+        <div className="detail-links">
+          <Link className="text-button" to="/room-studio" state={{ product }}>Thử sản phẩm trong phòng →</Link>
+          <Link className="text-button" to="/feedback" state={{ type: 'report', product }}>Báo nội dung</Link>
+        </div>
       </div>
     </section>
     <section className="product-reviews" aria-labelledby="reviews-heading">

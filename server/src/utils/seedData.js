@@ -78,14 +78,7 @@ function productData(item, category) {
     images: Array.isArray(item.images) ? item.images : [],
     transparentImage: item.transparentImage || item.image || '',
     sourceImages: Array.isArray(item.sourceImages) ? item.sourceImages : [],
-    sourceUrl: item.sourceUrl || '',
-    sourcePlatform: item.sourcePlatform || '',
-    shopeeShopId: String(item.shopeeShopId || ''),
-    shopeeItemId: String(item.shopeeItemId || ''),
-    sourceCategoryName: item.sourceCategoryName || '',
-    sellerName: item.sellerName || '',
     specifications: Array.isArray(item.specifications) ? item.specifications : [],
-    importedAt: item.importedAt ? new Date(item.importedAt) : undefined,
     usageType: ['floor-seating', 'standard', 'unknown'].includes(item.usageType) ? item.usageType : 'unknown',
     placementSurface: ['floor', 'wall', 'tabletop', 'unknown'].includes(item.placementSurface) ? item.placementSurface : 'unknown',
     aiDescription: String(item.aiDescription || item.name).slice(0, 300),
@@ -113,19 +106,38 @@ async function seedProducts(categories) {
 }
 
 async function seedAccounts() {
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123456';
+  const adminPassword = process.env.ADMIN_PASSWORD || '123';
+  const teamAdminPassword = process.env.TEAM_ADMIN_PASSWORD || adminPassword;
   const adminEmail = String(process.env.ADMIN_EMAIL || 'admin@furneehome.vn').toLowerCase();
   const adminUsername = String(process.env.ADMIN_USERNAME || 'admin').toLowerCase();
 
-  let admin = await User.findOne({ username: adminUsername });
-  if (!admin) admin = await User.findOne({ email: adminEmail });
-  if (!admin) admin = new User({ username: adminUsername, email: adminEmail });
-  admin.name = 'Quản trị viên FurneeHome';
-  admin.password = await bcrypt.hash(adminPassword, 10);
-  admin.role = 'superadmin';
-  admin.emailVerified = true;
-  admin.isActive = true;
-  await admin.save();
+  const adminAccounts = [
+    { name: 'Hiệp - Orchestra Admin', username: adminUsername, email: adminEmail, password: adminPassword, role: 'superadmin' },
+    { name: 'Phúc - Admin', username: 'phuc', email: 'phuc@furneehome.vn', password: teamAdminPassword, role: 'admin' },
+    { name: 'Triều - Admin', username: 'trieu', email: 'trieu@furneehome.vn', password: teamAdminPassword, role: 'admin' },
+    { name: 'Dũng - Admin', username: 'dung', email: 'dung@furneehome.vn', password: teamAdminPassword, role: 'admin' },
+  ];
+
+  for (const account of adminAccounts) {
+    const byUsername = await User.findOne({ username: account.username });
+    const byEmail = await User.findOne({ email: account.email });
+    let admin = byUsername || byEmail;
+    const emailBelongsToAnotherAccount = byUsername && byEmail && String(byUsername._id) !== String(byEmail._id);
+    if (emailBelongsToAnotherAccount) {
+      byEmail.role = 'customer';
+      byEmail.isActive = false;
+      await byEmail.save();
+    }
+    if (!admin) admin = new User({ username: account.username, email: account.email });
+    admin.name = account.name;
+    admin.username = account.username;
+    if (!emailBelongsToAnotherAccount) admin.email = account.email;
+    admin.password = await bcrypt.hash(account.password, 10);
+    admin.role = account.role;
+    admin.emailVerified = true;
+    admin.isActive = true;
+    await admin.save();
+  }
 
   let customer = await User.findOne({ username: 'customer' });
   if (!customer) customer = await User.findOne({ email: 'customer@furneehome.vn' });

@@ -9,10 +9,6 @@ const orderService = {
     const response = await apiClient.get('/orders/my-orders');
     return response.data.data;
   },
-  async getOrderById(id) {
-    const response = await apiClient.get(`/orders/${id}`);
-    return response.data.data;
-  },
   async getAllOrders(params = {}) {
     const response = await apiClient.get('/orders', { params });
     return response.data.data;

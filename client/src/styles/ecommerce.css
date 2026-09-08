@@ -480,10 +480,6 @@
   font-size: 0.95rem;
 }
 
-.discount-row {
-  color: #046c4e;
-}
-
 .shipping-hint {
   font-size: 0.82rem;
   color: #b45309;
@@ -491,42 +487,6 @@
   padding: 8px 12px;
   border-radius: 4px;
   margin: 0;
-}
-
-.coupon-form {
-  display: flex;
-  gap: 8px;
-}
-
-.coupon-msg {
-  font-size: 0.82rem;
-  margin-top: 6px;
-}
-
-.coupon-msg.ok {
-  color: #046c4e;
-}
-
-.coupon-msg.err {
-  color: #c53030;
-}
-
-.active-coupon-tag {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 10px;
-  background: #def7ec;
-  border-radius: 4px;
-  font-size: 0.84rem;
-}
-
-.active-coupon-tag button {
-  background: none;
-  border: none;
-  color: #c53030;
-  cursor: pointer;
-  font-size: 0.78rem;
 }
 
 .summary-total-divider {

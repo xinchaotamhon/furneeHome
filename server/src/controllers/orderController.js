@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Cart = require('../models/Cart');
-const Coupon = require('../models/Coupon');
 
 const CUSTOMER_CANCELLABLE = ['Pending', 'Processing'];
 const ADMIN_TRANSITIONS = {
@@ -64,16 +63,6 @@ async function sourceItems(userId, body) {
   return { items: requestedProductIds(cart?.items || []), fromCart: true };
 }
 
-async function calculateCoupon(code, subtotal) {
-  const normalized = String(code || '').trim().toUpperCase();
-  if (!normalized) return { couponCode: '', discountAmount: 0 };
-  const coupon = await Coupon.findOne({ code: normalized, isActive: true });
-  if (!coupon || subtotal < coupon.minOrder) return { couponCode: '', discountAmount: 0 };
-  let discountAmount = Math.round((subtotal * coupon.discountPercent) / 100);
-  if (coupon.maxDiscount > 0) discountAmount = Math.min(discountAmount, coupon.maxDiscount);
-  return { couponCode: coupon.code, discountAmount };
-}
-
 async function restoreReservedStock(reserved) {
   for (const item of [...reserved].reverse()) {
     await Product.updateOne({ _id: item.product }, { $inc: { stock: item.qty } });
@@ -84,7 +73,7 @@ async function createOrder(req, res, next) {
   const reserved = [];
   let persisted = false;
   try {
-    const { shippingAddress, paymentMethod = 'COD', couponCode } = req.body;
+    const { shippingAddress, paymentMethod = 'COD' } = req.body;
     if (paymentMethod !== 'COD') throw createError('Hiện chỉ hỗ trợ thanh toán khi nhận hàng (COD).');
     const address = cleanAddress(shippingAddress);
     const source = await sourceItems(req.user._id, req.body);
@@ -114,7 +103,6 @@ async function createOrder(req, res, next) {
       });
     }
 
-    const { couponCode: validCouponCode, discountAmount } = await calculateCoupon(couponCode, subtotal);
     const shippingFee = 0;
     const order = await Order.create({
       orderNumber: orderNumber(),
@@ -126,9 +114,7 @@ async function createOrder(req, res, next) {
       orderStatus: 'Pending',
       subtotal,
       shippingFee,
-      discountAmount,
-      totalAmount: subtotal + shippingFee - discountAmount,
-      couponCode: validCouponCode,
+      totalAmount: subtotal + shippingFee,
     });
     persisted = true;
     if (source.fromCart) await Cart.findOneAndUpdate({ user: req.user._id }, { $set: { items: [] } });
@@ -150,20 +136,6 @@ async function getMyOrders(req, res, next) {
   try {
     const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
     return res.json({ success: true, message: 'Đã tải danh sách đơn hàng.', data: orders });
-  } catch (error) {
-    return next(error);
-  }
-}
-
-async function getOrderById(req, res, next) {
-  try {
-    checkId(req.params.id);
-    const order = await Order.findById(req.params.id).populate('user', 'name email');
-    if (!order) throw createError('Không tìm thấy đơn hàng.', 404);
-    const isOwner = String(order.user?._id || order.user) === String(req.user._id);
-    const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
-    if (!isOwner && !isAdmin) throw createError('Bạn không có quyền xem đơn hàng này.', 403);
-    return res.json({ success: true, message: 'Đã tải chi tiết đơn hàng.', data: order });
   } catch (error) {
     return next(error);
   }
@@ -262,4 +234,4 @@ async function updateOrderStatus(req, res, next) {
   }
 }
 
-module.exports = { createOrder, getMyOrders, getOrderById, getAllOrders, updateOrderStatus, cancelMyOrder, cleanAddress, requestedProductIds, calculateCoupon, ADMIN_TRANSITIONS };
+module.exports = { createOrder, getMyOrders, getAllOrders, updateOrderStatus, cancelMyOrder, cleanAddress, requestedProductIds, ADMIN_TRANSITIONS };
