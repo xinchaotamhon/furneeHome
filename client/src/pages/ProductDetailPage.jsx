@@ -85,10 +85,31 @@ export default function ProductDetailPage() {
       <div className="main-image-wrap"><ProductArtwork product={product} /></div>
       <div className="detail-info">
         <span className="category-tag">{category}</span><h1>{product.name}</h1><p className="current-price">{formatPrice(product.price)}</p>
-        <p>{product.description || 'Sản phẩm nội thất thiết kế gọn gàng, phù hợp cho không gian sống hiện đại.'}</p>
+        <p style={{ whiteSpace: 'pre-line' }}>
+          {product.description || 'Sản phẩm nội thất thiết kế gọn gàng, phù hợp cho không gian sống hiện đại.'}
+        </p>
         {Array.isArray(product.specifications) && product.specifications.length > 0 && <dl>{product.specifications.map((specification) => <div key={`${specification.name}-${specification.value}`}><dt>{specification.name}</dt><dd>{specification.value}</dd></div>)}</dl>}
         <p className={stock ? 'stock-badge in-stock' : 'stock-badge'}>{stock ? `Còn ${stock} sản phẩm` : 'Tạm hết hàng'}</p>
-        {stock > 0 && <div className="detail-action-box"><label>Số lượng<input type="number" min="1" max={stock} value={quantity} onChange={(event) => setQuantity(Math.min(stock, Math.max(1, Number(event.target.value) || 1)))} /></label><button className="button" type="button" onClick={add}>Thêm vào giỏ</button></div>}
+        {stock > 0 && <div className="detail-action-box">
+          <label className="quantity-label">
+            <span>Số lượng</span>
+            <input
+              type="number"
+              min="1"
+              max={stock}
+              value={quantity}
+              onChange={(event) =>
+                setQuantity(
+                  Math.min(stock, Math.max(1, Number(event.target.value) || 1))
+                )
+              }
+            />
+          </label>
+
+          <button className="button add-cart-button" type="button" onClick={add}>
+            Thêm vào giỏ
+          </button>
+        </div>}
         {notice && <p className="form-success" role="status">{notice}</p>}
         <div className="detail-links">
           <Link className="text-button" to="/room-studio" state={{ product }}>Thử sản phẩm trong phòng →</Link>
