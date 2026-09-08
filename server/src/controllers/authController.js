@@ -1,7 +1,9 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 const User = require('../models/User');
+const emailService = require('../services/emailService');
 
 function userData(user) {
   return { id: user._id, name: user.name, email: user.email, role: user.role };
@@ -62,4 +64,88 @@ async function register(req, res, next) {
   } catch (error) { next(error); }
 }
 
-module.exports = { login, register };
+async function forgotPassword(req, res, next) {
+  try {
+    const { email } = req.body;
+    if (!email || !email.trim()) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập địa chỉ email.', data: null });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail, isActive: true });
+
+    if (user) {
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+      // Token có hiệu lực 15 phút
+      user.resetPasswordToken = hashedToken;
+      user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000);
+      await user.save();
+
+      const resetUrl = `${env.clientUrl}/reset-password?token=${rawToken}`;
+      await emailService.sendResetPasswordEmail(user.email, resetUrl);
+    }
+
+    // Trả về phản hồi đồng nhất (chống user enumeration)
+    return res.json({
+      success: true,
+      message: 'Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi đến hộp thư của bạn.',
+      data: null,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function resetPassword(req, res, next) {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng cung cấp mã xác thực và mật khẩu mới.',
+        data: null,
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu mới phải có ít nhất 6 ký tự.',
+        data: null,
+      });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token.trim()).digest('hex');
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+      isActive: true,
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu lại.',
+        data: null,
+      });
+    }
+
+    // Cập nhật mật khẩu và hủy token (chỉ dùng 1 lần)
+    user.password = await bcrypt.hash(password, 12);
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới.',
+      data: null,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { login, register, forgotPassword, resetPassword };

@@ -3,11 +3,13 @@ import MainLayout from './components/layout/MainLayout';
 import { useAuth } from './context/AuthContext';
 import AdminPage from './pages/AdminPage';
 import CollectionPage from './pages/CollectionPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import HomePage from './pages/HomePage';
 import NotFoundPage from './pages/NotFoundPage';
 import ProductListPage from './pages/ProductListPage';
 import PublicCollectionDetailPage from './pages/PublicCollectionDetailPage';
 import PublicCollectionsPage from './pages/PublicCollectionsPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import RoomStudioPage from './pages/RoomStudioPage';
 
 function AdminRoute() {
@@ -25,6 +27,8 @@ const router = createBrowserRouter([{
     { path: '/collections/public', element: <PublicCollectionsPage /> },
     { path: '/collections/public/:shareSlug', element: <PublicCollectionDetailPage /> },
     { path: '/room-studio', element: <RoomStudioPage /> },
+    { path: '/forgot-password', element: <ForgotPasswordPage /> },
+    { path: '/reset-password', element: <ResetPasswordPage /> },
     { path: '/cart', element: <Navigate to="/collection" replace /> },
     { path: '/room-3d', element: <Navigate to="/room-studio" replace /> },
     { path: '/admin', element: <AdminRoute /> },

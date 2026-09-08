@@ -20,4 +20,9 @@ module.exports = {
   huggingFaceToken: process.env.HF_TOKEN,
   // HF_TOKEN alone is intentionally insufficient: set an image-to-image model served by hf-inference.
   huggingFaceImageModel: process.env.HUGGINGFACE_IMAGE_MODEL,
+  smtpHost: process.env.SMTP_HOST,
+  smtpPort: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587,
+  smtpUser: process.env.SMTP_USER,
+  smtpPass: process.env.SMTP_PASS,
+  emailFrom: process.env.EMAIL_FROM || '"FurneeHome" <no-reply@furneehome.com>',
 };
