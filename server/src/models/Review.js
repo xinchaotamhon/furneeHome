@@ -7,4 +7,6 @@ const reviewSchema = new mongoose.Schema({
   comment: { type: String, required: true, trim: true },
 }, { timestamps: true });
 
+reviewSchema.index({ user: 1, product: 1 }, { unique: true });
+
 module.exports = mongoose.model('Review', reviewSchema);

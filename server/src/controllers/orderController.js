@@ -1,8 +1,18 @@
+const crypto = require('node:crypto');
 const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Cart = require('../models/Cart');
 const Coupon = require('../models/Coupon');
+
+const CUSTOMER_CANCELLABLE = ['Pending', 'Processing'];
+const ADMIN_TRANSITIONS = {
+  Pending: ['Processing', 'Cancelled'],
+  Processing: ['Shipped', 'Cancelled'],
+  Shipped: ['Delivered'],
+  Delivered: [],
+  Cancelled: [],
+};
 
 function createError(message, status = 400) {
   const error = new Error(message);
@@ -14,101 +24,131 @@ function checkId(id) {
   if (!mongoose.isValidObjectId(id)) throw createError('Mã đơn hàng không hợp lệ.');
 }
 
+function readQuantity(value) {
+  const quantity = Number(value);
+  if (!Number.isInteger(quantity) || quantity < 1) throw createError('Số lượng sản phẩm không hợp lệ.');
+  return quantity;
+}
+
+function cleanAddress(input) {
+  const fullName = String(input?.fullName || '').trim();
+  const phone = String(input?.phone || '').trim().replace(/[.\s-]/g, '');
+  const address = String(input?.address || '').trim();
+  const note = String(input?.note || '').trim();
+  if (fullName.length < 2 || fullName.length > 100 || !/^\+?\d{9,15}$/.test(phone) || address.length < 8 || address.length > 300 || note.length > 500) {
+    throw createError('Thông tin giao hàng không hợp lệ.');
+  }
+  return { fullName, phone, address, note };
+}
+
+function orderNumber() {
+  return `FUR-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+}
+
+function requestedProductIds(rawItems) {
+  if (!Array.isArray(rawItems) || rawItems.length === 0) throw createError('Đơn hàng phải có ít nhất một sản phẩm.');
+  const quantities = new Map();
+  for (const item of rawItems) {
+    const productId = item?.productId || item?.product?._id || item?.product;
+    if (!mongoose.isValidObjectId(productId)) throw createError('Mã sản phẩm trong đơn không hợp lệ.');
+    const qty = readQuantity(item?.qty ?? item?.quantity ?? 1);
+    quantities.set(String(productId), (quantities.get(String(productId)) || 0) + qty);
+  }
+  return [...quantities.entries()].map(([productId, qty]) => ({ productId, qty }));
+}
+
+async function sourceItems(userId, body) {
+  const requested = body.items || body.orderItems;
+  if (requested) return { items: requestedProductIds(requested), fromCart: false };
+  const cart = await Cart.findOne({ user: userId });
+  return { items: requestedProductIds(cart?.items || []), fromCart: true };
+}
+
+async function calculateCoupon(code, subtotal) {
+  const normalized = String(code || '').trim().toUpperCase();
+  if (!normalized) return { couponCode: '', discountAmount: 0 };
+  const coupon = await Coupon.findOne({ code: normalized, isActive: true });
+  if (!coupon || subtotal < coupon.minOrder) return { couponCode: '', discountAmount: 0 };
+  let discountAmount = Math.round((subtotal * coupon.discountPercent) / 100);
+  if (coupon.maxDiscount > 0) discountAmount = Math.min(discountAmount, coupon.maxDiscount);
+  return { couponCode: coupon.code, discountAmount };
+}
+
+async function restoreReservedStock(reserved) {
+  for (const item of [...reserved].reverse()) {
+    await Product.updateOne({ _id: item.product }, { $inc: { stock: item.qty } });
+  }
+}
+
 async function createOrder(req, res, next) {
+  const reserved = [];
+  let persisted = false;
   try {
-    const { items, orderItems, shippingAddress, paymentMethod = 'COD', couponCode } = req.body;
-    const rawItems = items || orderItems;
-
-    if (!Array.isArray(rawItems) || rawItems.length === 0) {
-      throw createError('Đơn hàng phải có ít nhất một sản phẩm.');
-    }
-
-    if (!shippingAddress || !shippingAddress.fullName || !shippingAddress.phone || !shippingAddress.address) {
-      throw createError('Vui lòng điền đầy đủ thông tin giao hàng.');
-    }
-
-    const processedItems = [];
+    const { shippingAddress, paymentMethod = 'COD', couponCode } = req.body;
+    if (paymentMethod !== 'COD') throw createError('Hiện chỉ hỗ trợ thanh toán khi nhận hàng (COD).');
+    const address = cleanAddress(shippingAddress);
+    const source = await sourceItems(req.user._id, req.body);
+    const orderItems = [];
     let subtotal = 0;
 
-    for (const rawItem of rawItems) {
-      const productId = rawItem.productId || rawItem.product?._id || rawItem.product;
-      const qty = Number(rawItem.qty || rawItem.quantity || 1);
-
-      if (!mongoose.isValidObjectId(productId)) throw createError('Mã sản phẩm trong đơn không hợp lệ.');
-      if (!Number.isInteger(qty) || qty < 1) throw createError('Số lượng sản phẩm không hợp lệ.');
-
-      const product = await Product.findById(productId);
-      if (!product || !product.isActive) {
-        throw createError(`Sản phẩm "${rawItem.name || productId}" không tồn tại hoặc đã ngừng bán.`);
+    for (const item of source.items) {
+      // This conditional update is the stock reservation: it cannot make stock negative.
+      const product = await Product.findOneAndUpdate(
+        { _id: item.productId, isActive: true, price: { $gt: 0 }, stock: { $gte: item.qty } },
+        { $inc: { stock: -item.qty } },
+        { new: true },
+      );
+      if (!product || !Number.isInteger(product.price) || !Number.isInteger(product.stock)) {
+        throw createError('Có sản phẩm đã ngừng bán, hết hàng hoặc có giá không hợp lệ.', 409);
       }
-
-      if (product.stock < qty) {
-        throw createError(`Sản phẩm "${product.name}" chỉ còn ${product.stock} món trong kho.`);
-      }
-
-      product.stock -= qty;
-      await product.save();
-
-      const itemTotal = product.price * qty;
-      subtotal += itemTotal;
-
-      processedItems.push({
+      reserved.push({ product: product._id, qty: item.qty });
+      subtotal += product.price * item.qty;
+      orderItems.push({
         product: product._id,
         name: product.name,
-        qty,
+        slug: product.slug,
+        categoryName: product.categoryName,
+        qty: item.qty,
         price: product.price,
-        image: product.image || product.transparentImage || (product.sourceImages && product.sourceImages[0]) || '',
+        image: product.image || product.transparentImage || product.sourceImages?.[0] || '',
       });
     }
 
-    let discountAmount = 0;
-    let validCouponCode = '';
-
-    if (couponCode && typeof couponCode === 'string' && couponCode.trim()) {
-      const normalizedCode = couponCode.trim().toUpperCase();
-      const coupon = await Coupon.findOne({ code: normalizedCode, isActive: true });
-      if (coupon && subtotal >= coupon.minOrder) {
-        validCouponCode = coupon.code;
-        discountAmount = Math.round((subtotal * coupon.discountPercent) / 100);
-        if (coupon.maxDiscount > 0 && discountAmount > coupon.maxDiscount) {
-          discountAmount = coupon.maxDiscount;
-        }
-      }
-    }
-
-    const totalAmount = Math.max(0, subtotal - discountAmount);
-
+    const { couponCode: validCouponCode, discountAmount } = await calculateCoupon(couponCode, subtotal);
+    const shippingFee = 0;
     const order = await Order.create({
+      orderNumber: orderNumber(),
       user: req.user._id,
-      orderItems: processedItems,
-      shippingAddress: {
-        fullName: String(shippingAddress.fullName).trim(),
-        phone: String(shippingAddress.phone).trim(),
-        address: String(shippingAddress.address).trim(),
-        note: String(shippingAddress.note || '').trim(),
-      },
-      paymentMethod: ['COD', 'VietQR'].includes(paymentMethod) ? paymentMethod : 'COD',
+      orderItems,
+      shippingAddress: address,
+      paymentMethod: 'COD',
       paymentStatus: 'Pending',
       orderStatus: 'Pending',
-      totalAmount,
+      subtotal,
+      shippingFee,
       discountAmount,
+      totalAmount: subtotal + shippingFee - discountAmount,
       couponCode: validCouponCode,
     });
-
-    await Cart.findOneAndUpdate({ user: req.user._id }, { $set: { items: [] } });
-
+    persisted = true;
+    if (source.fromCart) await Cart.findOneAndUpdate({ user: req.user._id }, { $set: { items: [] } });
     return res.status(201).json({ success: true, message: 'Đặt hàng thành công.', data: order });
   } catch (error) {
+    if (!persisted && reserved.length) {
+      try {
+        await restoreReservedStock(reserved);
+      } catch {
+        error.message = 'Không thể hoàn tất đơn hàng; hệ thống đang khôi phục tồn kho. Vui lòng thử lại sau.';
+        error.status = 503;
+      }
+    }
     return next(error);
   }
 }
 
 async function getMyOrders(req, res, next) {
   try {
-    const orders = await Order.find({ user: req.user._id })
-      .populate('orderItems.product', 'name slug image transparentImage price categoryName')
-      .sort({ createdAt: -1 });
-
+    const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
     return res.json({ success: true, message: 'Đã tải danh sách đơn hàng.', data: orders });
   } catch (error) {
     return next(error);
@@ -118,19 +158,11 @@ async function getMyOrders(req, res, next) {
 async function getOrderById(req, res, next) {
   try {
     checkId(req.params.id);
-    const order = await Order.findById(req.params.id)
-      .populate('user', 'name email')
-      .populate('orderItems.product', 'name slug image transparentImage price categoryName');
-
+    const order = await Order.findById(req.params.id).populate('user', 'name email');
     if (!order) throw createError('Không tìm thấy đơn hàng.', 404);
-
-    const isOwner = order.user && (order.user._id || order.user).toString() === req.user._id.toString();
+    const isOwner = String(order.user?._id || order.user) === String(req.user._id);
     const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
-
-    if (!isOwner && !isAdmin) {
-      throw createError('Bạn không có quyền xem đơn hàng này.', 403);
-    }
-
+    if (!isOwner && !isAdmin) throw createError('Bạn không có quyền xem đơn hàng này.', 403);
     return res.json({ success: true, message: 'Đã tải chi tiết đơn hàng.', data: order });
   } catch (error) {
     return next(error);
@@ -141,25 +173,59 @@ async function getAllOrders(req, res, next) {
   try {
     const { status, search } = req.query;
     const filter = {};
-
-    if (status && status !== 'All') {
-      filter.orderStatus = status;
-    }
-
+    if (status && Object.hasOwn(ADMIN_TRANSITIONS, status)) filter.orderStatus = status;
     if (search) {
+      const value = String(search).trim();
       filter.$or = [
-        { 'shippingAddress.fullName': { $regex: String(search).trim(), $options: 'i' } },
-        { 'shippingAddress.phone': { $regex: String(search).trim(), $options: 'i' } },
-        { 'shippingAddress.address': { $regex: String(search).trim(), $options: 'i' } },
+        { orderNumber: { $regex: value, $options: 'i' } },
+        { 'shippingAddress.fullName': { $regex: value, $options: 'i' } },
+        { 'shippingAddress.phone': { $regex: value, $options: 'i' } },
       ];
     }
-
-    const orders = await Order.find(filter)
-      .populate('user', 'name email')
-      .populate('orderItems.product', 'name slug price image')
-      .sort({ createdAt: -1 });
-
+    const orders = await Order.find(filter).populate('user', 'name email').sort({ createdAt: -1 });
     return res.json({ success: true, message: 'Đã tải toàn bộ đơn hàng.', data: orders });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function cancelOrder(orderId, extraFilter = {}) {
+  const existing = await Order.findOne({
+    _id: orderId,
+    ...extraFilter,
+    orderStatus: { $in: CUSTOMER_CANCELLABLE },
+    stockRestored: false,
+  });
+  if (!existing) throw createError('Đơn hàng không còn có thể hủy hoặc đã được xử lý.', 409);
+  const order = await Order.findOneAndUpdate(
+    { _id: orderId, ...extraFilter, orderStatus: { $in: CUSTOMER_CANCELLABLE }, stockRestored: false },
+    { $set: { orderStatus: 'Cancelled', stockRestored: true } },
+    { new: true },
+  );
+  if (!order) throw createError('Đơn hàng vừa được thay đổi, vui lòng tải lại.', 409);
+  const restored = [];
+  try {
+    for (const item of order.orderItems) {
+      await Product.updateOne({ _id: item.product }, { $inc: { stock: item.qty } });
+      restored.push(item);
+    }
+    return order;
+  } catch (error) {
+    for (const item of restored.reverse()) {
+      await Product.updateOne({ _id: item.product, stock: { $gte: item.qty } }, { $inc: { stock: -item.qty } });
+    }
+    await Order.updateOne({ _id: order._id, orderStatus: 'Cancelled', stockRestored: true }, {
+      $set: { orderStatus: existing.orderStatus, stockRestored: false },
+    });
+    throw error;
+  }
+}
+
+async function cancelMyOrder(req, res, next) {
+  try {
+    checkId(req.params.id);
+    const order = await cancelOrder(req.params.id, { user: req.user._id });
+    return res.json({ success: true, message: 'Đã hủy đơn hàng và hoàn lại tồn kho.', data: order });
   } catch (error) {
     return next(error);
   }
@@ -169,32 +235,31 @@ async function updateOrderStatus(req, res, next) {
   try {
     checkId(req.params.id);
     const { orderStatus, paymentStatus } = req.body;
-
     const order = await Order.findById(req.params.id);
     if (!order) throw createError('Không tìm thấy đơn hàng.', 404);
-
-    const validStatuses = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
-    if (orderStatus && !validStatuses.includes(orderStatus)) {
-      throw createError('Trạng thái đơn hàng không hợp lệ.');
+    if (orderStatus === 'Cancelled') {
+      const cancelled = await cancelOrder(req.params.id);
+      return res.json({ success: true, message: 'Đã hủy đơn hàng và hoàn lại tồn kho.', data: cancelled });
     }
-
-    if (orderStatus === 'Cancelled' && order.orderStatus !== 'Cancelled') {
-      for (const item of order.orderItems) {
-        if (item.product) {
-          await Product.findByIdAndUpdate(item.product, { $inc: { stock: item.qty } });
-        }
+    if (orderStatus) {
+      if (!Object.hasOwn(ADMIN_TRANSITIONS, orderStatus) || !ADMIN_TRANSITIONS[order.orderStatus]?.includes(orderStatus)) {
+        throw createError('Chuyển trạng thái đơn hàng không hợp lệ.', 409);
       }
+      const update = { orderStatus };
+      if (orderStatus === 'Delivered') update.paymentStatus = 'Paid';
+      const result = await Order.findOneAndUpdate({ _id: order._id, orderStatus: order.orderStatus }, { $set: update }, { new: true });
+      if (!result) throw createError('Đơn hàng vừa được thay đổi, vui lòng tải lại.', 409);
+      return res.json({ success: true, message: 'Đã cập nhật trạng thái đơn hàng.', data: result });
     }
-
-    if (orderStatus) order.orderStatus = orderStatus;
-    if (paymentStatus && ['Pending', 'Paid'].includes(paymentStatus)) order.paymentStatus = paymentStatus;
-    if (orderStatus === 'Delivered') order.paymentStatus = 'Paid';
-
-    await order.save();
-    return res.json({ success: true, message: 'Đã cập nhật trạng thái đơn hàng.', data: order });
+    if (paymentStatus && ['Pending', 'Paid'].includes(paymentStatus)) {
+      if (order.orderStatus === 'Delivered' && paymentStatus !== 'Paid') throw createError('Đơn đã giao phải có trạng thái đã thanh toán.');
+      order.paymentStatus = paymentStatus;
+      await order.save();
+    }
+    return res.json({ success: true, message: 'Đã cập nhật đơn hàng.', data: order });
   } catch (error) {
     return next(error);
   }
 }
 
-module.exports = { createOrder, getMyOrders, getOrderById, getAllOrders, updateOrderStatus };
+module.exports = { createOrder, getMyOrders, getOrderById, getAllOrders, updateOrderStatus, cancelMyOrder, cleanAddress, requestedProductIds, calculateCoupon, ADMIN_TRANSITIONS };

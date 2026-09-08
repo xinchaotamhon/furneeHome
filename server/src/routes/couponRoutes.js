@@ -2,7 +2,7 @@ const router = require('express').Router();
 const couponController = require('../controllers/couponController');
 const { authenticate, requireAdmin } = require('../middleware/authMiddleware');
 
-router.post('/apply', couponController.applyCoupon);
+router.post('/apply', authenticate, couponController.applyCoupon);
 
 router.get('/', authenticate, requireAdmin, couponController.listCoupons);
 router.post('/', authenticate, requireAdmin, couponController.createCoupon);

@@ -5,8 +5,9 @@ const productSchema = new mongoose.Schema({
   slug: { type: String, required: true, unique: true },
   category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
   categoryName: { type: String, required: true, trim: true },
-  price: { type: Number, required: true, min: 0 },
-  stock: { type: Number, default: 50, min: 0 },
+  // FurneeHome sells in whole Vietnamese dong; a sellable product never has a placeholder price.
+  price: { type: Number, required: true, min: 1, validate: Number.isInteger },
+  stock: { type: Number, default: 50, min: 0, validate: Number.isInteger },
   ratingAverage: { type: Number, default: 5.0, min: 0, max: 5 },
   reviewCount: { type: Number, default: 0, min: 0 },
   dimensions: { type: String, default: '', trim: true },

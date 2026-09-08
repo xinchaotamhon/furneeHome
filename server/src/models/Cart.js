@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const cartItemSchema = new mongoose.Schema({
   product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
   quantity: { type: Number, required: true, min: 1, default: 1 },
-  price: { type: Number, required: true, min: 0 },
+  // Kept only as a display cache. Checkout always rereads the live Product price.
+  price: { type: Number, required: true, min: 1 },
 });
 
 const cartSchema = new mongoose.Schema({

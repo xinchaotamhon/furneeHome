@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Review = require('../models/Review');
 const Product = require('../models/Product');
+const Order = require('../models/Order');
 
 function createError(message, status = 400) {
   const error = new Error(message);
@@ -12,39 +13,43 @@ function checkId(id) {
   if (!mongoose.isValidObjectId(id)) throw createError('Mã không hợp lệ.');
 }
 
+async function refreshRating(productId) {
+  const reviews = await Review.find({ product: productId }).select('rating');
+  const sum = reviews.reduce((total, review) => total + review.rating, 0);
+  await Product.findByIdAndUpdate(productId, {
+    $set: {
+      ratingAverage: reviews.length ? Number((sum / reviews.length).toFixed(1)) : 0,
+      reviewCount: reviews.length,
+    },
+  });
+}
+
 async function createReview(req, res, next) {
   try {
     const { productId, rating, comment } = req.body;
     checkId(productId);
-
     const numRating = Number(rating);
-    if (!Number.isInteger(numRating) || numRating < 1 || numRating > 5) {
-      throw createError('Đánh giá phải từ 1 đến 5 sao.');
-    }
-
     const textComment = String(comment || '').trim();
-    if (!textComment) {
-      throw createError('Vui lòng nhập nội dung đánh giá.');
-    }
+    if (!Number.isInteger(numRating) || numRating < 1 || numRating > 5) throw createError('Đánh giá phải từ 1 đến 5 sao.');
+    if (!textComment || textComment.length > 1000) throw createError('Nội dung đánh giá không hợp lệ.');
 
     const product = await Product.findById(productId);
-    if (!product || !product.isActive) {
-      throw createError('Sản phẩm không tồn tại hoặc đã ngừng bán.', 404);
-    }
-
-    const review = await Review.create({
+    if (!product) throw createError('Sản phẩm không tồn tại.', 404);
+    const hasDeliveredPurchase = await Order.exists({
       user: req.user._id,
-      product: productId,
-      rating: numRating,
-      comment: textComment,
+      orderStatus: 'Delivered',
+      'orderItems.product': productId,
     });
+    if (!hasDeliveredPurchase) throw createError('Chỉ khách đã nhận sản phẩm mới có thể đánh giá.', 403);
 
-    const allReviews = await Review.find({ product: productId });
-    const sum = allReviews.reduce((total, r) => total + r.rating, 0);
-    product.ratingAverage = Number((sum / allReviews.length).toFixed(1));
-    product.reviewCount = allReviews.length;
-    await product.save();
-
+    let review;
+    try {
+      review = await Review.create({ user: req.user._id, product: productId, rating: numRating, comment: textComment });
+    } catch (error) {
+      if (error?.code === 11000) throw createError('Bạn đã đánh giá sản phẩm này.', 409);
+      throw error;
+    }
+    await refreshRating(productId);
     await review.populate('user', 'name avatarUrl');
     return res.status(201).json({ success: true, message: 'Đã gửi đánh giá thành công.', data: review });
   } catch (error) {
@@ -56,15 +61,11 @@ async function getByProduct(req, res, next) {
   try {
     const { productId } = req.params;
     checkId(productId);
-
-    const reviews = await Review.find({ product: productId })
-      .populate('user', 'name avatarUrl')
-      .sort({ createdAt: -1 });
-
+    const reviews = await Review.find({ product: productId }).populate('user', 'name avatarUrl').sort({ createdAt: -1 });
     return res.json({ success: true, message: 'Đã tải danh sách đánh giá.', data: reviews });
   } catch (error) {
     return next(error);
   }
 }
 
-module.exports = { createReview, getByProduct };
+module.exports = { createReview, getByProduct, refreshRating };

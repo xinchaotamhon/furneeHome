@@ -27,10 +27,10 @@ function text(value, maximum) {
   return result;
 }
 
-function number(value, label, minimum = 0) {
+function number(value, label, minimum = 0, whole = false) {
   if (value === undefined || value === '') return undefined;
   const result = Number(value);
-  if (!Number.isFinite(result) || result < minimum) throw createError(`${label} không hợp lệ.`);
+  if (!Number.isFinite(result) || result < minimum || (whole && !Number.isInteger(result))) throw createError(`${label} không hợp lệ.`);
   return result;
 }
 
@@ -51,11 +51,11 @@ async function productData(body, creating = false) {
   if (creating && !name) throw createError('Tên sản phẩm không được để trống.');
   if (name !== undefined) data.name = name;
 
-  const price = number(body.price, 'Giá sản phẩm');
+  const price = number(body.price, 'Giá sản phẩm', 1, true);
   if (creating && price === undefined) throw createError('Giá sản phẩm không được để trống.');
   if (price !== undefined) data.price = price;
 
-  const stock = number(body.stock, 'Số lượng tồn kho', 0);
+  const stock = number(body.stock, 'Số lượng tồn kho', 0, true);
   if (stock !== undefined) data.stock = stock;
 
   const dimensions = text(body.dimensions, 100);
@@ -99,7 +99,7 @@ function checkId(id) {
 async function list(req, res, next) {
   try {
     const { search, category, sort, minPrice, maxPrice } = req.query;
-    const filter = ['admin', 'superadmin'].includes(req.user?.role) ? {} : { isActive: true };
+    const filter = ['admin', 'superadmin'].includes(req.user?.role) ? {} : { isActive: true, price: { $gt: 0 } };
 
     if (search) {
       filter.$or = [
@@ -137,7 +137,8 @@ async function list(req, res, next) {
 async function getById(req, res, next) {
   try {
     checkId(req.params.id);
-    const product = await Product.findById(req.params.id).populate('category', 'name slug');
+    const filter = ['admin', 'superadmin'].includes(req.user?.role) ? { _id: req.params.id } : { _id: req.params.id, isActive: true, price: { $gt: 0 } };
+    const product = await Product.findOne(filter).populate('category', 'name slug');
     if (!product) throw createError('Không tìm thấy sản phẩm.', 404);
     return res.json({ success: true, message: 'Đã tải chi tiết sản phẩm.', data: product });
   } catch (error) {
@@ -174,9 +175,10 @@ async function update(req, res, next) {
 async function remove(req, res, next) {
   try {
     checkId(req.params.id);
-    const product = await Product.findByIdAndDelete(req.params.id);
+    // Preserve order snapshots and the ability to restore stock if a pending order is cancelled.
+    const product = await Product.findByIdAndUpdate(req.params.id, { $set: { isActive: false } }, { new: true });
     if (!product) throw createError('Không tìm thấy sản phẩm.', 404);
-    return res.json({ success: true, message: 'Đã xóa sản phẩm.', data: null });
+    return res.json({ success: true, message: 'Đã ngừng bán sản phẩm.', data: null });
   } catch (error) {
     return next(error);
   }

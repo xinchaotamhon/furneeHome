@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Coupon = require('../models/Coupon');
+const Cart = require('../models/Cart');
 
 function createError(message, status = 400) {
   const error = new Error(message);
@@ -13,14 +14,17 @@ function checkId(id) {
 
 async function applyCoupon(req, res, next) {
   try {
-    const { code, orderAmount = 0 } = req.body;
+    const { code } = req.body;
     const cleanCode = String(code || '').trim().toUpperCase();
     if (!cleanCode) throw createError('Vui lòng nhập mã giảm giá.');
 
-    const subtotal = Number(orderAmount);
-    if (!Number.isFinite(subtotal) || subtotal <= 0) {
-      throw createError('Giá trị đơn hàng không hợp lệ.');
-    }
+    const cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
+    const subtotal = (cart?.items || []).reduce((total, item) => {
+      const product = item.product;
+      if (!product?.isActive || !Number.isInteger(product.price) || product.price < 1 || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > product.stock) return total;
+      return total + product.price * item.quantity;
+    }, 0);
+    if (subtotal <= 0) throw createError('Giỏ hàng không có sản phẩm hợp lệ.');
 
     const coupon = await Coupon.findOne({ code: cleanCode, isActive: true });
     if (!coupon) {
