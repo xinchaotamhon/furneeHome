@@ -5,7 +5,176 @@ import { formatPrice } from '../utils/formatPrice';
 const idOf = (item) => item.product?._id || item.product?.id;
 
 export default function CartPage() {
-  const { items, totalCount, rawSubtotal, updateQuantity, removeFromCart, clearCart } = useCart();
-  if (!items.length) return <main className="container page cart-empty-page"><div className="empty-cart-card"><h1>Giỏ hàng đang trống</h1><p>Chọn nội thất phù hợp cho không gian của bạn.</p><Link className="button" to="/products">Xem sản phẩm</Link></div></main>;
-  return <main className="container page cart-page"><div className="split-heading"><div><p className="eyebrow">GIỎ HÀNG</p><h1>Đơn hàng của bạn</h1><p>{totalCount} sản phẩm đã chọn</p></div><button className="text-button danger" type="button" onClick={clearCart}>Xóa tất cả</button></div><div className="cart-layout"><section className="cart-items-column">{items.map((item) => { const id = idOf(item); return <article className="cart-item-row" key={id}><div className="item-details">{item.image ? <img src={item.image} alt="" className="item-thumbnail" /> : <div className="item-thumbnail-placeholder">⌂</div>}<div><Link className="item-title" to={`/products/${id}`}>{item.name}</Link><p className="muted">{formatPrice(item.price)}</p></div></div><label className="sr-only" htmlFor={`qty-${id}`}>Số lượng</label><input id={`qty-${id}`} className="cart-quantity" type="number" min="1" max={item.product.stock ?? item.product.countInStock ?? 99} value={item.quantity} onChange={(event) => updateQuantity(id, event.target.value)} /><strong>{formatPrice(item.price * item.quantity)}</strong><button className="text-button danger" type="button" onClick={() => removeFromCart(id)}>Xóa</button></article>; })}</section><aside className="order-summary"><h2>Tóm tắt</h2><p><span>Tạm tính</span><strong>{formatPrice(rawSubtotal)}</strong></p><p className="muted">Giá và tồn kho được kiểm tra lại khi đặt hàng.</p><Link className="button button-full" to="/checkout">Thanh toán COD</Link></aside></div></main>;
+  const {
+    items,
+    totalCount,
+    selectedItems,
+    selectedCount,
+    selectedSubtotal,
+    isAllSelected,
+    toggleItemSelection,
+    toggleSelectAll,
+    updateQuantity,
+    removeFromCart,
+    clearPurchasedItems,
+    clearCart,
+  } = useCart();
+
+  if (!items.length) {
+    return (
+      <main className="container page cart-empty-page">
+        <div className="empty-cart-card">
+          <h1>Giỏ hàng đang trống</h1>
+          <p>Chọn nội thất phù hợp cho không gian của bạn.</p>
+          <Link className="button" to="/products">
+            Xem sản phẩm
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  const removeSelected = () => {
+    if (!selectedItems.length) return;
+    if (window.confirm(`Bạn có chắc muốn xóa ${selectedItems.length} sản phẩm đã chọn?`)) {
+      clearPurchasedItems(selectedItems.map(idOf));
+    }
+  };
+
+  return (
+    <main className="container page cart-page">
+      <div className="split-heading">
+        <div>
+          <p className="eyebrow">GIỎ HÀNG</p>
+          <h1>Đơn hàng của bạn</h1>
+          <p>
+            Đã chọn <strong>{selectedCount}</strong> / {totalCount} món
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          {selectedItems.length > 0 && selectedItems.length < items.length && (
+            <button className="text-button danger" type="button" onClick={removeSelected}>
+              Xóa mục đã chọn
+            </button>
+          )}
+          <button className="text-button danger" type="button" onClick={clearCart}>
+            Xóa tất cả
+          </button>
+        </div>
+      </div>
+
+      <div className="cart-layout">
+        <section className="cart-items-column">
+          {/* Thanh chọn tất cả */}
+          <div className="cart-select-all-bar">
+            <label className="cart-checkbox-label select-all-label">
+              <input
+                type="checkbox"
+                className="cart-checkbox"
+                checked={isAllSelected}
+                onChange={toggleSelectAll}
+              />
+              <span>
+                Chọn tất cả ({items.length} loại sản phẩm, {totalCount} món)
+              </span>
+            </label>
+          </div>
+
+          {items.map((item) => {
+            const id = idOf(item);
+            const isChecked = item.selected !== false;
+
+            return (
+              <article className={`cart-item-row ${isChecked ? 'is-selected' : ''}`} key={id}>
+                <div className="cart-item-select">
+                  <input
+                    type="checkbox"
+                    className="cart-checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleItemSelection(id)}
+                    aria-label={`Chọn sản phẩm ${item.name}`}
+                  />
+                </div>
+
+                <div className="item-details">
+                  {item.image ? (
+                    <img src={item.image} alt="" className="item-thumbnail" />
+                  ) : (
+                    <div className="item-thumbnail-placeholder">⌂</div>
+                  )}
+                  <div>
+                    <Link className="item-title" to={`/products/${id}`}>
+                      {item.name}
+                    </Link>
+                    <p className="muted">{formatPrice(item.price)}</p>
+                  </div>
+                </div>
+
+                <label className="sr-only" htmlFor={`qty-${id}`}>
+                  Số lượng
+                </label>
+                <input
+                  id={`qty-${id}`}
+                  className="cart-quantity"
+                  type="number"
+                  min="1"
+                  max={item.product?.stock ?? item.product?.countInStock ?? 99}
+                  value={item.quantity}
+                  onChange={(event) => updateQuantity(id, event.target.value)}
+                />
+
+                <strong>{formatPrice(item.price * item.quantity)}</strong>
+
+                <button
+                  className="text-button danger"
+                  type="button"
+                  onClick={() => removeFromCart(id)}
+                >
+                  Xóa
+                </button>
+              </article>
+            );
+          })}
+        </section>
+
+        <aside className="order-summary">
+          <h2>Tóm tắt đơn hàng</h2>
+          <div className="summary-lines">
+            <p>
+              <span>Sản phẩm đã chọn</span>
+              <strong>{selectedCount} món</strong>
+            </p>
+            <p>
+              <span>Tạm tính</span>
+              <strong className="summary-total-price">{formatPrice(selectedSubtotal)}</strong>
+            </p>
+          </div>
+
+          <p className="muted" style={{ fontSize: '0.85rem' }}>
+            Phí vận chuyển sẽ được tính tại bước thanh toán theo khu vực giao hàng.
+          </p>
+
+          {selectedCount > 0 ? (
+            <Link className="button button-full" to="/checkout">
+              Mua hàng ({selectedCount})
+            </Link>
+          ) : (
+            <button
+              className="button button-full button-disabled"
+              disabled
+              title="Vui lòng tích chọn ít nhất 1 sản phẩm để thanh toán"
+            >
+              Mua hàng (0)
+            </button>
+          )}
+
+          {selectedCount === 0 && (
+            <p className="form-error" style={{ fontSize: '0.82rem', textAlign: 'center', marginTop: '8px' }}>
+              * Hãy tích chọn sản phẩm bạn muốn thanh toán
+            </p>
+          )}
+        </aside>
+      </div>
+    </main>
+  );
 }

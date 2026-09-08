@@ -11,11 +11,22 @@ import {
   calculateShippingFee,
   FALLBACK_PROVINCES,
 } from '../services/locationService';
-import { validateVietnamPhone, validateDetailedAddress } from '../utils/validation';
+import { validateVietnamPhone, validateSpecificAddress } from '../utils/validation';
 import QrPaymentCard from '../components/payment/QrPaymentCard';
 
 export default function CheckoutPage() {
-  const { items, rawSubtotal, totalCount, clearCart } = useCart();
+  const {
+    items: allCartItems,
+    selectedItems,
+    selectedSubtotal,
+    selectedCount,
+    clearPurchasedItems,
+  } = useCart();
+
+  // Chỉ thanh toán các sản phẩm được tích chọn (hoặc tất cả nếu chưa chọn lọc)
+  const items = selectedItems.length > 0 ? selectedItems : allCartItems;
+  const rawSubtotal = selectedItems.length > 0 ? selectedSubtotal : allCartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalCount = selectedItems.length > 0 ? selectedCount : allCartItems.reduce((sum, item) => sum + item.quantity, 0);
   const { user, openLogin } = useAuth();
   const navigate = useNavigate();
 
@@ -136,7 +147,7 @@ export default function CheckoutPage() {
 
     if (!provinceObj) return setError('Vui lòng chọn Tỉnh / Thành phố nhận hàng.');
 
-    const addressCheck = validateDetailedAddress(specificAddress);
+    const addressCheck = validateSpecificAddress(specificAddress);
     if (!addressCheck.isValid) {
       return setError(addressCheck.message);
     }
@@ -166,7 +177,8 @@ export default function CheckoutPage() {
         shippingFee,
         paymentMethod,
       });
-      clearCart();
+      const purchasedIds = items.map((item) => item.product._id || item.product.id);
+      clearPurchasedItems(purchasedIds);
       setResult(order);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Không thể tạo đơn hàng. Hãy thử lại.');
