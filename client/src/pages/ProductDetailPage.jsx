@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import ProductArtwork from '../components/product/ProductArtwork';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { useProducts } from '../context/ProductContext';
+import productService from '../services/productService';
 import reviewService from '../services/reviewService';
 import { formatPrice } from '../utils/formatPrice';
 
@@ -35,18 +35,28 @@ function ReviewItem({ review, isAdmin, onModerate, onDelete }) {
 export default function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { products, loading } = useProducts();
   const { addToCart } = useCart();
   const { user, openLogin } = useAuth();
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [notice, setNotice] = useState('');
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
   const [reviewNotice, setReviewNotice] = useState('');
-  const product = products.find((item) => String(item._id || item.id) === id || item.slug === id);
   const productId = product?._id || product?.id;
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    productService.getById(id)
+      .then((data) => { if (active) setProduct(data); })
+      .catch(() => { if (active) setProduct(null); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [id]);
 
   const loadReviews = async () => {
     if (!productId) return;

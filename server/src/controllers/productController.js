@@ -96,17 +96,28 @@ function checkId(id) {
   if (!mongoose.isValidObjectId(id)) throw createError('Mã sản phẩm không hợp lệ.');
 }
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 async function list(req, res, next) {
   try {
     const { search, category, sort, minPrice, maxPrice } = req.query;
-    const filter = ['admin', 'superadmin'].includes(req.user?.role) ? {} : { isActive: true, price: { $gt: 0 } };
+    const baseFilter = ['admin', 'superadmin'].includes(req.user?.role) ? {} : { isActive: true, price: { $gt: 0 } };
+    const filter = { ...baseFilter };
 
     if (search) {
-      filter.$or = [
-        { name: { $regex: String(search).trim(), $options: 'i' } },
-        { categoryName: { $regex: String(search).trim(), $options: 'i' } },
-        { description: { $regex: String(search).trim(), $options: 'i' } },
-      ];
+      const searchText = String(search).trim();
+      if (searchText) {
+        const keyword = escapeRegex(searchText);
+        const slugKeyword = escapeRegex(toSlug(searchText));
+        filter.$or = [
+          { name: { $regex: keyword, $options: 'i' } },
+          { slug: { $regex: slugKeyword, $options: 'i' } },
+          { categoryName: { $regex: keyword, $options: 'i' } },
+          { description: { $regex: keyword, $options: 'i' } },
+        ];
+      }
     }
 
     if (category && category !== 'Tất cả') {
@@ -124,11 +135,24 @@ async function list(req, res, next) {
     else if (sort === 'price-desc' || sort === 'high') sortOption = { price: -1 };
     else if (sort === 'rating') sortOption = { ratingAverage: -1 };
 
-    const products = await Product.find(filter)
-      .populate('category', 'name slug')
-      .sort(sortOption);
+    const query = Product.find(filter).populate('category', 'name slug').sort(sortOption);
+    if (!req.query.page && !req.query.limit) {
+      const products = await query;
+      return res.json({ success: true, message: 'Đã tải sản phẩm.', data: products });
+    }
 
-    return res.json({ success: true, message: 'Đã tải sản phẩm.', data: products });
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 12));
+    const total = await Product.countDocuments(filter);
+    const products = await query.skip((page - 1) * limit).limit(limit);
+    const categories = await Product.distinct('categoryName', baseFilter);
+    return res.json({
+      success: true,
+      message: 'Đã tải sản phẩm.',
+      data: products,
+      categories: categories.filter(Boolean).sort((a, b) => a.localeCompare(b, 'vi')),
+      pagination: { total, page, totalPages: Math.max(1, Math.ceil(total / limit)) },
+    });
   } catch (error) {
     return next(error);
   }
@@ -213,4 +237,5 @@ module.exports = {
   addImage,
   productData,
   toSlug,
+  escapeRegex,
 };

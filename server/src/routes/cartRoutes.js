@@ -4,6 +4,7 @@ const { authenticate } = require('../middleware/authMiddleware');
 
 router.use(authenticate);
 router.get('/', cartController.getCart);
+router.post('/sync', cartController.syncCart);
 router.post('/add', cartController.addToCart);
 router.put('/update', cartController.updateQuantity);
 router.delete('/item/:productId', cartController.removeItem);

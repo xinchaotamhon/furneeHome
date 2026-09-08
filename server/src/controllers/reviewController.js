@@ -14,7 +14,7 @@ function checkId(id) {
 }
 
 async function refreshRating(productId) {
-  const reviews = await Review.find({ product: productId }).select('rating');
+  const reviews = await Review.find({ product: productId, isHidden: { $ne: true } }).select('rating');
   const sum = reviews.reduce((total, review) => total + review.rating, 0);
   await Product.findByIdAndUpdate(productId, {
     $set: {
@@ -82,6 +82,7 @@ async function moderateReview(req, res, next) {
       },
     }, { returnDocument: 'after', runValidators: true }).populate('user', 'name avatarUrl');
     if (!review) throw createError('Không tìm thấy đánh giá.', 404);
+    await refreshRating(review.product);
     return res.json({ success: true, message: isHidden ? 'Đã ẩn đánh giá.' : 'Đã hiển thị lại đánh giá.', data: review });
   } catch (error) {
     return next(error);

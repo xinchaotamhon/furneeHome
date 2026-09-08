@@ -31,6 +31,7 @@ function unwrap(response) { return response.data?.data ?? response.data; }
 
 export const cartService = {
   async get() { return unwrap(await apiClient.get('/cart')); },
+  async sync(items) { return unwrap(await apiClient.post('/cart/sync', { items })); },
   async add(productId, quantity) { return unwrap(await apiClient.post('/cart/add', { productId, quantity })); },
   async update(productId, quantity) { return unwrap(await apiClient.put('/cart/update', { productId, quantity })); },
   async remove(productId) { return unwrap(await apiClient.delete(`/cart/item/${productId}`)); },

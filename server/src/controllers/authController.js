@@ -118,6 +118,7 @@ async function requestPasswordReset(req, res, next) {
       const otp = createOtp();
       user.resetOtpHash = hashOtp(email, otp);
       user.resetOtpExpiresAt = new Date(Date.now() + OTP_TTL_MS);
+      user.resetOtpAttempts = 0;
       await user.save();
       if (smtpConfigured()) await sendOtp(email, otp, 'Mã đặt lại mật khẩu FurneeHome', 'Mã đặt lại mật khẩu FurneeHome của bạn là');
       else data.devOtp = otp;
@@ -132,11 +133,33 @@ async function resetPassword(req, res, next) {
     const otp = String(req.body.otp || req.body.code || '').trim();
     const password = String(req.body.password || '');
     if (!isValidEmail(email) || !/^\d{6}$/.test(otp) || password.length < 6) return res.status(400).json({ success: false, message: 'Email, mã OTP hoặc mật khẩu không hợp lệ.', data: null });
-    const user = await User.findOne({ email, isActive: true }).select('+resetOtpHash +resetOtpExpiresAt');
-    if (!user || user.resetOtpHash !== hashOtp(email, otp) || !user.resetOtpExpiresAt || user.resetOtpExpiresAt.getTime() <= Date.now()) return res.status(400).json({ success: false, message: 'Mã OTP không đúng hoặc đã hết hạn.', data: null });
+    const user = await User.findOne({ email, isActive: true }).select('+resetOtpHash +resetOtpExpiresAt +resetOtpAttempts');
+    if (!user || !user.resetOtpExpiresAt || user.resetOtpExpiresAt.getTime() <= Date.now()) {
+      return res.status(400).json({ success: false, message: 'Mã OTP không đúng hoặc đã hết hạn.', data: null });
+    }
+    if (user.resetOtpAttempts >= 5) {
+      user.resetOtpHash = undefined;
+      user.resetOtpExpiresAt = undefined;
+      user.resetOtpAttempts = 0;
+      await user.save();
+      return res.status(400).json({ success: false, message: 'Bạn đã nhập sai OTP quá 5 lần. Vui lòng yêu cầu mã mới.', data: null });
+    }
+    if (user.resetOtpHash !== hashOtp(email, otp)) {
+      user.resetOtpAttempts = Number(user.resetOtpAttempts || 0) + 1;
+      if (user.resetOtpAttempts >= 5) {
+        user.resetOtpHash = undefined;
+        user.resetOtpExpiresAt = undefined;
+        user.resetOtpAttempts = 0;
+        await user.save();
+        return res.status(400).json({ success: false, message: 'Bạn đã nhập sai OTP 5 lần. Vui lòng yêu cầu mã mới.', data: null });
+      }
+      await user.save();
+      return res.status(400).json({ success: false, message: 'Mã OTP không đúng hoặc đã hết hạn.', data: null });
+    }
     user.password = await bcrypt.hash(password, 10);
     user.resetOtpHash = undefined;
     user.resetOtpExpiresAt = undefined;
+    user.resetOtpAttempts = 0;
     await user.save();
     return res.json({ success: true, message: 'Đã đặt lại mật khẩu.', data: null });
   } catch (error) { return next(error); }

@@ -1,288 +1,81 @@
-# Hiệp — Phần 4/4: Kiến trúc, MongoDB, Phòng thử AI và kết luận
-
-## Vai trò của Hiệp
-
-Hiệp nói cuối và phụ trách phần khó nhất: kiến trúc, dữ liệu, logic quan trọng, điểm wow, triển khai, giới hạn và kết luận.
-
-## 1. Kiến trúc tổng thể
-
-Luồng chính:
-
-`Trình duyệt → React → Axios → Express API → Controller → Mongoose → MongoDB Atlas → JSON response → React cập nhật giao diện`
-
-Vai trò từng phần:
-
-- React, HTML, CSS: hiển thị và nhận thao tác.
-- Axios: gửi HTTP request tới API.
-- Node.js và Express: định tuyến, xác thực và xử lý nghiệp vụ.
-- Mongoose: định nghĩa cấu trúc dữ liệu và truy vấn MongoDB.
-- MongoDB Atlas: lưu dữ liệu dùng chung cho cả nhóm và bản deploy.
-- Pollinations/Cloudflare AI: nhận ảnh và prompt để tạo ảnh phòng thử.
-
-Câu có thể bị hỏi:
-
-**Tại sao không cho React truy cập MongoDB trực tiếp?**  
-Vì sẽ lộ chuỗi kết nối và không có nơi đáng tin cậy để kiểm tra quyền, giá, tồn kho và trạng thái đơn.
-
-**Business logic nằm ở đâu?**  
-Chủ yếu trong `server/src/controllers`. Frontend chỉ thu thập dữ liệu và hiển thị kết quả.
-
-**API trả dữ liệu theo dạng nào?**  
-JSON với trạng thái thành công, thông báo và trường `data`.
-
-## 2. MongoDB và các collection
-
-Các collection đang dùng:
-
-- `users`: tài khoản, email, mật khẩu băm, quyền và trạng thái khóa.
-- `products`: tên, giá, tồn kho, ảnh, mô tả, danh mục và dữ liệu hỗ trợ AI.
-- `categories`: danh mục sản phẩm.
-- `carts`: giỏ hàng gắn với từng user.
-- `orders`: sản phẩm đã mua, giá tại lúc mua, địa chỉ, thanh toán và trạng thái.
-- `reviews`: điểm, bình luận, người viết và sản phẩm.
-- `feedbacks`: báo nội dung và trạng thái xử lý.
-
-`roomdesigns` là dữ liệu từ phiên bản cũ. Bản chốt không có Bộ sưu tập và không dùng collection này. Có thể giữ mà không ảnh hưởng; nếu muốn xóa thì sao lưu rồi xóa thủ công sau, không xóa ngay trước buổi bảo vệ.
-
-Quan hệ chính:
-
-- Một user có một cart và nhiều orders.
-- Một product thuộc một category.
-- Một order có nhiều `orderItems`.
-- Một review nối một user với một product.
-- Một feedback có thể gắn với product bị báo cáo.
-
-Câu có thể bị hỏi:
-
-**MongoDB là NoSQL thì quan hệ ở đâu?**  
-Mongoose lưu ObjectId tham chiếu cho user, product và category; dữ liệu cần giữ lịch sử như tên/giá trong đơn được nhúng trực tiếp vào orderItems.
-
-**Tại sao orderItems vừa có product ID vừa có tên và giá?**  
-ID giúp truy vết sản phẩm, còn tên/giá là bản chụp lịch sử để đơn cũ không đổi khi catalog đổi.
-
-**Tại sao cart tách thành collection?**  
-Để giỏ dùng chung khi người dùng đăng nhập lại hoặc dùng thiết bị khác.
-
-## 3. `data_import.json` và MongoDB
-
-Đây là điểm phải nói thật rõ:
-
-- `client/public/data_import/data_import.json` là **dữ liệu nhập ban đầu**.
-- `seedProducts()` đọc JSON và dùng `slug` để nhận biết sản phẩm.
-- `$setOnInsert` chỉ thêm sản phẩm chưa tồn tại.
-- Tên, giá, tồn kho, mô tả và ảnh đã sửa trên MongoDB không bị seed ghi đè.
-- Sau khi nạp, website đọc và ghi MongoDB; JSON không phải cơ sở dữ liệu đang chạy.
-- Không có nút đồng bộ hai chiều vì sẽ tạo hai nguồn dữ liệu và có nguy cơ ghi đè giá thật.
-
-Luồng:
-
-`data_import.json → npm run seed → Chỉ thêm sản phẩm chưa có → MongoDB → Product API → Giao diện`
-
-Trường hợp MongoDB tải chậm:
-
-- Frontend hiển thị trạng thái tải.
-- Trước buổi demo mở Render và website sớm để server hết cold start.
-- Không hiển thị JSON cũ làm dữ liệu thay thế vì tốc độ nhanh nhưng có thể sai giá.
-
-Code cần biết:
-
-- `seedProducts()` — `server/src/utils/seedData.js`: nhập sản phẩm theo cơ chế chỉ thêm.
-- `productData()` — cùng file: đổi một mục JSON thành dữ liệu Product.
-- `connectDatabase()` — `server/src/config/db.js`: kết nối MongoDB.
-- `fetchProducts()` — `client/src/context/ProductContext.jsx`: tải catalog thật qua API.
-
-Câu có thể bị hỏi:
-
-**Có cần nút Đồng bộ MongoDB không?**  
-Không. MongoDB đã là nguồn vận hành. Nút đồng bộ từ JSON có thể đẩy dữ liệu cũ lên và làm mất giá Admin đã sửa.
-
-**JSON có còn tác dụng gì sau seed?**  
-Có: là bộ dữ liệu nhập ban đầu, giúp dựng database mới và giải thích nguồn catalog.
-
-**Nếu sửa JSON thì website có đổi ngay không?**  
-Không. Phải chạy seed, và seed chỉ thêm slug mới; sản phẩm hiện có vẫn lấy từ MongoDB.
-
-## 4. Phòng thử AI — điểm wow
-
-### Luồng người dùng
-
-1. Bước 1: chọn từ một đến ba sản phẩm.
-2. Mỗi ảnh đã chọn có tag số 1, 2 hoặc 3.
-3. Bước 2: tải ảnh phòng JPG, PNG hoặc WebP.
-4. Bước 3: nhập vị trí riêng cho từng số sản phẩm hoặc để trống.
-5. Bấm **Tạo ảnh**.
-6. Trong lúc xử lý, chính nút đổi thành **Ảnh đang được tạo, bạn đợi xíu nghen ^_^**.
-7. Khi xong, ảnh tạo và ảnh gốc được hiển thị để so sánh; không có nút Xem ảnh gốc thừa.
-
-### Dữ liệu gửi lên API
-
-- Ảnh phòng.
-- Ảnh tham chiếu của từng sản phẩm.
-- ID và tên sản phẩm.
-- Kích thước nếu có.
-- Cách sử dụng và bề mặt đặt nếu có.
-- Mô tả hình dạng nếu có.
-- `desiredPosition` của đúng sản phẩm nếu người dùng nhập.
-
-### Prompt xử lý thế nào
-
-`productPrompt()` đánh số từng sản phẩm và biến vị trí người dùng thành yêu cầu `MANDATORY POSITION`.
-
-`buildPrompt()` yêu cầu:
-
-- Dùng ảnh phòng làm nền gốc.
-- Giữ camera, tường, sàn, trần, cửa, cửa sổ, cầu thang, nhà vệ sinh và vật có sẵn.
-- Không xóa, di chuyển, che, đổi kích thước hoặc thay thế vật có sẵn.
-- Chỉ thêm sản phẩm đã chọn vào khoảng trống.
-- Mỗi sản phẩm xuất hiện đúng một lần.
-- Giữ hình dáng, màu, vật liệu, tỷ lệ và cấu tạo sản phẩm.
-- Ưu tiên vị trí người dùng; nếu chỗ quá hẹp thì chọn khoảng trống gần nhất mà không thay đổi phòng.
-
-### Thứ tự nhà cung cấp AI
-
-`providerList()` đọc cấu hình. Mặc định thử Pollinations trước; nếu lỗi hoặc hết quota thì thử Cloudflare khi đã có key.
-
-`generateRoomPreview()` lần lượt gọi từng provider và trả ảnh đầu tiên thành công.
-
-Code cần biết:
-
-- `generate()` — `client/src/pages/RoomStudioPage.jsx`: gom ảnh, sản phẩm và vị trí rồi gọi API.
-- `validate()` — `server/src/controllers/roomPreviewController.js`: kiểm tra ảnh và số lượng tối đa ba.
-- `productPrompt()` — `server/src/services/cloudflareImageService.js`: mô tả một sản phẩm và vị trí của nó.
-- `buildPrompt()` — cùng file: tạo yêu cầu tổng cho AI.
-- `providerList()` — cùng file: chọn các provider đã cấu hình.
-- `generateRoomPreview()` — cùng file: gọi provider theo thứ tự và fallback.
-
-Câu có thể bị hỏi:
-
-**Vị trí người dùng có thật sự được gửi không?**  
-Có. `RoomStudioPage.generate()` gắn `desiredPosition` theo ID sản phẩm; `productPrompt()` đưa nó vào prompt cùng số sản phẩm.
-
-**Tại sao ghi gần cầu thang mà AI vẫn có thể đặt chưa chính xác?**  
-Mô hình tạo ảnh mang tính xác suất. Prompt đã tăng mức ưu tiên nhưng không thể bảo đảm tọa độ từng pixel như phần mềm 3D. Nếu vị trí không có khoảng trống, AI được yêu cầu chọn chỗ gần nhất mà vẫn giữ phòng.
-
-**Nếu ảnh tạo thay đồ trong phòng thì sao?**  
-Prompt đã cấm thay thế vật có sẵn. Chất lượng còn phụ thuộc model; nhóm trình bày đây là giới hạn thực tế của generative AI, không nói quá khả năng.
-
-**Tại sao gửi ảnh tham chiếu sản phẩm?**  
-Chỉ tên sản phẩm không đủ để biết chính xác hình dáng. Ảnh, kích thước và mô tả giúp model giữ sản phẩm gần thực tế hơn.
-
-**Nếu Pollinations hết quota?**  
-Server bắt lỗi và thử Cloudflare. Nếu tất cả đều lỗi, API trả thông báo để người dùng thử lại.
-
-**Có lưu ảnh phòng của khách không?**  
-Bản chốt chỉ gửi ảnh để tạo kết quả và giữ phiên giao diện trong `sessionStorage`; không tạo collection lưu Bộ sưu tập.
-
-**Tại sao chỉ tối đa ba sản phẩm?**  
-Giảm dữ liệu gửi, giảm thời gian chờ và giúp model giữ đúng hình dáng tốt hơn.
-
-## 5. Logic đơn hàng quan trọng
-
-Nếu ban giám khảo hỏi sâu, trả lời theo ba trường hợp:
-
-### Khách đang đặt hàng
-
-1. Server đọc lại sản phẩm từ MongoDB.
-2. Chỉ giảm tồn kho nếu sản phẩm đang bán, giá hợp lệ và tồn kho đủ.
-3. Lưu bản chụp tên, giá, ảnh vào orderItems.
-4. Tạo order `Pending`.
-5. Nếu một bước lỗi, hoàn lại tồn kho đã giữ.
-
-### Đơn bị hủy
-
-1. Chỉ Pending hoặc Processing được hủy.
-2. Đổi thành Cancelled.
-3. Đặt `stockRestored=true`.
-4. Cộng trả tồn kho đúng một lần.
-
-### Đơn thành công
-
-1. Admin chuyển lần lượt tới Delivered.
-2. Admin xác nhận thanh toán.
-3. Đơn hoàn tất khi `orderStatus=Delivered` và `paymentStatus=Paid`.
-
-Hàm chính: `createOrder()`, `cancelOrder()`, `updateOrderStatus()` trong `server/src/controllers/orderController.js`.
-
-## 6. Dữ liệu demo
-
-- Tài khoản khách chính: `customer` / `user123456`.
-- Tài khoản tạo đánh giá mẫu: `minhanh`, `hoangnam`, `thuha`; mật khẩu `user123456`.
-- 6 đánh giá mẫu từ 3 đến 5 sao.
-- Đơn mẫu có trạng thái đang xử lý, thành công và đã hủy.
-- 4 tài khoản quản trị: `admin`, `phuc`, `trieu`, `dung`; mật khẩu `123`.
-
-Dữ liệu này do `seedAccounts()` và `seedDemoContent()` trong `server/src/utils/seedData.js` tạo. Cơ chế upsert giúp chạy lại không tạo bản trùng và không sửa giá sản phẩm.
-
-## 7. Bảo mật
-
-- `.env` nằm trong `.gitignore` và không được push.
-- Mật khẩu băm bằng bcrypt.
-- OTP băm và có thời hạn.
-- JWT xác định người dùng cho request.
-- Middleware kiểm tra đăng nhập và quyền Admin.
-- Server kiểm tra lại giá, tồn kho, dữ liệu nhập và trạng thái đơn.
-- Secret khi deploy được đặt trong Environment Variables.
-
-Câu có thể bị hỏi:
-
-**Frontend ẩn nút Admin đã đủ chưa?**  
-Chưa. Backend vẫn phải dùng `requireAdmin()`; nếu khách tự gọi API thì server từ chối.
-
-**Có đưa Gmail App Password lên Git không?**  
-Không. Chỉ đặt trong `.env` local và Environment Variables của Render.
-
-**Tại sao phải kiểm tra lại dữ liệu ở server?**  
-Người dùng có thể sửa request từ trình duyệt; chỉ server là nơi quyết định đáng tin cậy.
-
-## 8. Deploy
-
-- Frontend: Cloudflare Pages.
-- Root directory: `client`.
-- Build command: `npm run build`.
-- Output: `dist`.
-- Backend: Render, root `server`, lệnh `npm start`.
-- Database: MongoDB Atlas.
-- Cloudflare đặt `VITE_API_URL=https://ten-render.onrender.com/api`.
-- Render đặt MongoDB, JWT, SMTP, Pollinations và Cloudflare key trong Environment Variables.
-
-Câu có thể bị hỏi:
-
-**Cloudflare Pages có chạy Express không?**  
-Không. Pages chỉ chạy frontend tĩnh; Express chạy trên Render.
-
-**Tại sao lần đầu mở API có thể chậm?**  
-Render có thể cold start. Trước demo mở website và gọi API health trước.
-
-## 9. Smoke test trước khi bảo vệ
-
-Thực hiện đúng thứ tự:
-
-1. Mở trang chủ và danh sách sản phẩm.
-2. Đăng ký hoặc quên mật khẩu, xác nhận OTP Gmail.
-3. Đăng nhập `customer` / `user123456`.
-4. Thêm hai sản phẩm, chọn một phần giỏ và đặt hàng.
-5. Mở lịch sử đơn và thử hủy một đơn hợp lệ.
-6. Đánh giá một sản phẩm đã nhận.
-7. Báo nội dung một sản phẩm.
-8. Đăng nhập `admin` / `123`.
-9. Kiểm tra Sản phẩm, Khách hàng, Đơn hàng, Báo nội dung và Quản trị admin.
-10. Chuyển trạng thái đơn đúng thứ tự và xác nhận thanh toán.
-11. Chọn ba sản phẩm, tải ảnh phòng, nhập vị trí và tạo ảnh.
-12. Tải lại một URL sâu trên bản deploy để kiểm tra `_redirects`.
-
-## 10. Kết luận để nói
-
-> FurneeHome hoàn thiện luồng bán nội thất từ tìm kiếm đến sau mua. MongoDB là nguồn dữ liệu chung, backend giữ các quy tắc về tài khoản, tồn kho, đơn hàng và quyền quản trị. Phòng thử AI là điểm wow giúp khách hình dung sản phẩm trong phòng thật, nhưng nhóm vẫn trình bày rõ giới hạn của mô hình tạo ảnh. Mục tiêu của nhóm là một hệ thống đơn giản, dễ dùng, dễ bảo trì và đủ đầy đủ để vận hành một cửa hàng nội thất trực tuyến.
-
-Sau đó mời ban giám khảo đặt câu hỏi.
-
-## Tự kiểm tra trước khi bảo vệ
-
-- Vẽ miệng được luồng React → Express → MongoDB.
-- Nói rõ vai trò JSON và tại sao không đồng bộ hai chiều.
-- Kể được bảy collection đang dùng.
-- Trình bày được toàn bộ dữ liệu gửi cho Phòng thử.
-- Trả lời trung thực giới hạn của AI.
-- Nói được ba tình huống đơn: đang đặt, hủy và thành công.
-- Nhớ kiến trúc deploy và vị trí secret.
-- Thuộc đoạn kết luận.
+# Hiệp — Phần 4/4: Kiến trúc, dữ liệu và Phòng thử AI
+
+Hiệp nói cuối. Mỗi bước: **Nói · Demo · Thành công · Lỗi/thay đổi · Hỏi đáp · Hàm + đường dẫn**.
+
+## Bước 1 — Kiến trúc tổng thể
+
+- **Nói:** Luồng đi: `React → Axios/fetch → Express route → Controller → Mongoose → MongoDB Atlas`; luồng về: `MongoDB → Controller trả JSON → React cập nhật giao diện`. Frontend hiển thị; backend giữ quyền, giá, tồn kho và nghiệp vụ.
+- **Demo:** Mở website → tạo một thao tác tìm sản phẩm hoặc thêm giỏ; nếu có thể chỉ Network/API và kết quả JSON.
+- **Thành công:** Một request đi qua đúng client, API, controller, database rồi cập nhật giao diện.
+- **Lỗi/thay đổi:** Nếu MongoDB hoặc API chậm, giao diện báo đang tải/lỗi; không để React truy cập MongoDB trực tiếp và không dùng dữ liệu cũ để che lỗi.
+- **Hỏi đáp:** *Tại sao không nối React thẳng MongoDB?* Sẽ lộ chuỗi kết nối và bỏ qua kiểm tra quyền/giá/tồn kho. *JSON API có dạng gì?* `success`, `message`, `data` và pagination khi danh sách có phân trang.
+- **Hàm + đường dẫn:** `app` — `server/src/app.js`: Express, CORS, JSON limit và `/api`; `router` — `server/src/routes/index.js`: nối route; `connectDatabase()` — `server/src/config/db.js`: kết nối Atlas; `getPage()`/`getById()` — `client/src/services/productService.js`: tải theo trang hoặc ID; `ProductProvider()`/`refreshProducts()` — `client/src/context/ProductContext.jsx`: chỉ tải toàn catalog khi Admin hoặc Phòng thử cần.
+
+## Bước 2 — MongoDB và dữ liệu nhập ban đầu
+
+- **Nói:** Collection vận hành gồm `users`, `products`, `categories`, `carts`, `orders`, `reviews`, `feedbacks`. `data_import.json` chỉ là dữ liệu nhập ban đầu; sau seed MongoDB là nguồn vận hành.
+- **Demo:** Mở `client/public/data_import/data_import.json` để chỉ dữ liệu mẫu; vào admin sửa giá/tồn kho rồi tải lại để chứng minh giá lấy từ MongoDB.
+- **Thành công:** Seed lần đầu thêm catalog; chạy lại không ghi đè giá/tồn kho/mô tả/ảnh đã sửa vì dùng `slug` + `$setOnInsert`.
+- **Lỗi/thay đổi:** Sửa JSON không làm website đổi ngay; phải chạy seed, và sản phẩm đã có vẫn không bị ghi đè. Không có nút đồng bộ hai chiều.
+- **Hỏi đáp:** *Quan hệ NoSQL ở đâu?* Mongoose dùng ObjectId; `orderItems` nhúng tên/giá để giữ lịch sử. *`roomdesigns` có dùng không?* Không dùng trong bản chốt, không trình bày Bộ sưu tập; nếu còn dữ liệu cũ thì không ảnh hưởng luồng mới.
+- **Hàm + đường dẫn:** `seedCategories()`/`seedProducts()`/`productData()`/`seedAccounts()` — `server/src/utils/seedData.js`: seed danh mục, catalog, tài khoản và dữ liệu demo; `list()` — `server/src/controllers/productController.js`: đọc MongoDB cho khách/admin.
+
+## Bước 3 — Tính toàn vẹn đơn và đánh giá
+
+- **Nói:** Khi tạo đơn, server đọc lại sản phẩm, cập nhật kho có điều kiện, chụp tên/giá/ảnh vào `orderItems`, tính phí theo tỉnh rồi tạo `Pending`. Khi hủy, hoàn kho có cờ chống lặp.
+- **Demo:** Dùng checkout tạo đơn → vào admin chuyển trạng thái; thử hủy đơn hợp lệ; mở sản phẩm có đánh giá và ẩn một đánh giá bằng admin nếu có thời gian.
+- **Thành công:** Không âm kho, đơn cũ giữ đúng giá, chỉ món vừa mua bị xóa khỏi cart; đánh giá ẩn không còn tính `ratingAverage`/`reviewCount`.
+- **Lỗi/thay đổi:** Nếu một sản phẩm hết hàng hoặc dữ liệu sai, cả đơn bị từ chối và kho đã giữ được khôi phục. Nếu hủy hai lần, điều kiện `stockRestored` chặn lần hai.
+- **Hỏi đáp:** *Phí có thể bị sửa từ client không?* Không, server tính lại từ `provinceCode`. *Tại sao giá vừa hiển thị khác giá đơn?* Server dùng giá mới nhất lúc mua; đơn sau đó giữ bản chụp của mình. *Ai quyết định đánh giá hiển thị?* `isHidden` ở server.
+- **Hàm + đường dẫn:** `createOrder()`, `calculateShippingFee()`, `cancelOrder()`, `updateOrderStatus()` — `server/src/controllers/orderController.js`: tạo, tính phí, hủy và chuyển đơn; `refreshRating()`/`moderateReview()` — `server/src/controllers/reviewController.js`: tính điểm công khai và kiểm duyệt.
+
+## Bước 4 — Phòng thử AI: chọn sản phẩm và vị trí
+
+- **Nói:** `/room-studio` cho chọn 1–3 sản phẩm, tải JPG/PNG/WebP dưới 10 MB, nhập vị trí tùy chọn cho từng số rồi tạo ảnh. Session chỉ giữ `selectedIds` và `desiredPositions`; không lưu ảnh base64.
+- **Demo:** Mở `/room-studio` → **Chọn từ danh sách sản phẩm** → chọn tối đa 3 → quay lại → tải ảnh phòng → nhập “gần cửa sổ” cho món số 1 → bấm **Tạo ảnh**.
+- **Thành công:** Ba bước hiện rõ; nút chuyển sang “Ảnh đang được tạo…”; kết quả hiển thị cạnh ảnh gốc; quay lại danh sách vẫn giữ ID và vị trí đã chọn.
+- **Lỗi/thay đổi:** Chưa có ảnh hoặc chưa chọn sản phẩm thì nút bị khóa; ảnh sai định dạng/quá lớn hoặc quá 3 món thì báo lỗi. Xóa/đổi sản phẩm sẽ xóa vị trí liên quan và kết quả cũ.
+- **Hỏi đáp:** *Session lưu gì?* Chỉ `selectedIds` và `desiredPositions`; ảnh phòng, ảnh sản phẩm và ảnh kết quả không được ghi vào `sessionStorage`. *Tại sao không lưu base64?* Một ảnh có thể vài MB, dễ vượt giới hạn trình duyệt và gây `QuotaExceededError`. *Tại sao tối đa 3?* Giảm payload, thời gian chờ và nhầm lẫn giữa các ảnh tham chiếu.
+- **Hàm + đường dẫn:** `RoomStudioPage()`/`generate()` — `client/src/pages/RoomStudioPage.jsx`: chọn, gom dữ liệu và gọi API; `writeSession()` — cùng file: chỉ lưu ID/vị trí; `createRoomPreview()` — `client/src/services/roomPreviewService.js`: gọi `POST /api/room-previews`; `validate()`/`readProducts()` — `server/src/controllers/roomPreviewController.js`: kiểm tra 1–3 sản phẩm.
+
+## Bước 5 — Prompt, fallback và giới hạn AI
+
+- **Nói:** Server gửi ảnh phòng làm ảnh nền và ảnh tham chiếu từng sản phẩm. Prompt đánh số món, ưu tiên `desiredPosition`, giữ nguyên camera/phòng/vật có sẵn và yêu cầu mỗi món xuất hiện đúng một lần.
+- **Demo:** Nhập vị trí khác nhau cho món 1–3 → tạo ảnh → so sánh ảnh gốc/kết quả; nếu provider đầu lỗi, quan sát thông báo hoặc fallback khi môi trường có key.
+- **Thành công:** Ảnh đầu tiên tạo được trả về; Pollinations được thử trước, Cloudflare thử tiếp nếu cấu hình và provider trước lỗi/hết quota.
+- **Lỗi/thay đổi:** AI là mô hình xác suất, không bảo đảm tọa độ pixel; nếu chỗ quá hẹp có thể chọn khoảng trống gần nhất. Tất cả provider lỗi thì báo thử lại; không nói quá thành công.
+- **Hỏi đáp:** *Vị trí có thật sự gửi không?* Có, `desiredPosition` đi theo đúng `productId` và vào prompt. *Ảnh có lưu thành bộ sưu tập không?* Không, bản chốt không có collection Bộ sưu tập. *Vì sao gửi ảnh tham chiếu?* Để giữ hình dáng/màu/vật liệu gần sản phẩm thật hơn.
+- **Hàm + đường dẫn:** `productPrompt()`/`buildPrompt()` — `server/src/services/cloudflareImageService.js`: mô tả món và tạo prompt; `providerList()` — cùng file: đọc provider đã cấu hình; `generateRoomPreview()` — cùng file: thử provider theo thứ tự và trả ảnh đầu tiên thành công.
+
+## Bước 6 — Bảo mật, triển khai và kết luận
+
+- **Nói:** Secret nằm trong `.env`/Environment Variables; mật khẩu/OTP băm; JWT và middleware bảo vệ API. Frontend deploy Cloudflare Pages (`client`, `npm run build`, `dist`), backend Render (`server`, `npm start`), DB MongoDB Atlas.
+- **Demo:** Mở health API trước → website → đăng nhập → thử catalog, đơn, admin và Phòng thử; kiểm tra URL sâu như `/products/...` trên bản deploy.
+- **Thành công:** API health trả thành công; frontend gọi đúng `VITE_API_URL`; các luồng chính chạy sau cold start; URL sâu không rơi 404 nhờ cấu hình redirect.
+- **Lỗi/thay đổi:** Render có thể cold start, nên mở website/API sớm. Thiếu SMTP hoặc key AI thì luồng tương ứng báo cấu hình; không đưa secret lên Git.
+- **Hỏi đáp:** *Cloudflare Pages chạy Express không?* Không, Pages chạy frontend tĩnh; Express chạy Render. *Tại sao kiểm tra lại ở backend?* Request trên trình duyệt có thể bị sửa. *Giới hạn thực tế?* AI sinh ảnh không phải phần mềm 3D; vị trí và chi tiết cần kiểm tra bằng mắt.
+- **Hàm + đường dẫn:** `authenticate()`/`requireAdmin()` — `server/src/middleware/authMiddleware.js`: bảo vệ API; `errorHandler` — `server/src/middleware/errorHandler.js`: trả lỗi thống nhất; `app` — `server/src/app.js`: health/CORS/API.
+
+**Kết luận để nói:** “FurneeHome hoàn thiện luồng bán nội thất từ tìm kiếm đến sau mua. MongoDB là nguồn dữ liệu chung; backend giữ quy tắc về tài khoản, tồn kho, đơn hàng và quyền. Phòng thử AI giúp khách hình dung sản phẩm trong phòng thật, đồng thời nhóm trình bày rõ giới hạn của ảnh sinh. Mục tiêu là hệ thống đơn giản, dễ dùng, dễ bảo trì và đủ đầy đủ cho một cửa hàng nội thất trực tuyến. Nhóm xin mời ban giám khảo đặt câu hỏi.”
+
+## Phản biện nhanh cuối phần
+
+1. **MongoDB là gì trong dự án?** Database NoSQL lưu document; Mongoose định nghĩa cấu trúc và kết nối Node.js với MongoDB.
+2. **Tại sao vẫn có `data_import.json`?** Đây là nguồn nhập lần đầu; `seedProducts()` dùng `$setOnInsert` nên không ghi đè tên, giá, tồn kho hay ảnh đã sửa trong MongoDB.
+3. **Nếu sửa JSON rồi F5?** Website không đổi vì runtime đọc MongoDB; phải seed, và seed chỉ thêm sản phẩm chưa có.
+4. **Tại sao chi tiết gọi API riêng?** Danh sách chỉ tải 12 món/trang; `getById()` tải đúng món khi mở URL mà không cần tải toàn catalog.
+5. **Phòng thử gửi gì?** Ảnh phòng, 1–3 ảnh sản phẩm, tên, đặc điểm và `desiredPosition` của từng món.
+6. **Vị trí người dùng nhập nằm ở đâu?** `generate()` đưa vào `inspirationProducts`; `productPrompt()` ghép thành yêu cầu vị trí cho model.
+7. **Nếu AI đầu tiên hết quota?** `generateRoomPreview()` thử provider tiếp theo trong `providerList()` nếu đã cấu hình.
+8. **Tại sao kết quả có thể chưa đúng vị trí?** AI sinh ảnh có tính xác suất; prompt là ràng buộc ngôn ngữ chứ không phải tọa độ 3D tuyệt đối.
+9. **Tại sao không lưu ảnh vào sessionStorage?** Base64 dễ vượt khoảng lưu trữ trình duyệt; session chỉ giữ ID sản phẩm và vị trí nhẹ.
+10. **Secret ở đâu khi deploy?** Trong Environment Variables của Cloudflare/Render; `.env` chỉ dùng local và bị Git bỏ qua.
+11. **Nếu Render vừa ngủ?** API có cold start; mở health API trước khi demo và chờ server kết nối MongoDB.
+12. **Nếu MongoDB mất kết nối?** Backend không trả dữ liệu giả; giao diện báo tải/lỗi để tránh hiển thị sai giá và tồn kho.
+
+### Tự kiểm tra
+
+- Vẽ miệng được `React → Express → MongoDB`.
+- Nói đúng vai trò JSON và 7 collection vận hành.
+- Nhớ session Room Studio chỉ có `selectedIds`/`desiredPositions`, không có ảnh base64.
+- Trả lời được fallback AI, giới hạn mô hình, secret và cold start.

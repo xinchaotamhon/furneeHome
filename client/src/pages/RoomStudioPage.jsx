@@ -15,7 +15,7 @@ function readSession() {
 }
 
 function writeSession(value) {
-  try { sessionStorage.setItem(ROOM_STUDIO_SESSION_KEY, JSON.stringify(value)); } catch { /* Ảnh lớn không được chặn thao tác */ }
+  try { sessionStorage.setItem(ROOM_STUDIO_SESSION_KEY, JSON.stringify(value)); } catch {}
 }
 
 function toDataUrl(file) {
@@ -49,7 +49,7 @@ export default function RoomStudioPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const saved = readSession();
-  const { products } = useProducts();
+  const { products, refreshProducts } = useProducts();
   const incomingProductId = idOf(location.state?.product);
   const incomingIds = Array.isArray(location.state?.selectedIds) ? location.state.selectedIds : [];
   const initialIds = [...new Set([
@@ -58,10 +58,10 @@ export default function RoomStudioPage() {
     incomingProductId,
   ].filter(Boolean).map(String))].slice(0, MAX_PRODUCTS);
 
-  const [roomImage, setRoomImage] = useState(saved.roomImage || '');
+  const [roomImage, setRoomImage] = useState('');
   const [selectedIds, setSelectedIds] = useState(initialIds);
   const [desiredPositions, setDesiredPositions] = useState(saved.desiredPositions || {});
-  const [resultImage, setResultImage] = useState(saved.resultImage || '');
+  const [resultImage, setResultImage] = useState('');
   const [isGenerating, setGenerating] = useState(false);
   const [message, setMessage] = useState('Chọn tối đa 3 sản phẩm để bắt đầu.');
 
@@ -69,9 +69,11 @@ export default function RoomStudioPage() {
     .map((id) => products.find((product) => idOf(product) === String(id)))
     .filter(Boolean), [products, selectedIds]);
 
+  useEffect(() => { refreshProducts(); }, []);
+
   useEffect(() => {
-    writeSession({ roomImage, selectedIds, selectedId: selectedIds[0] || '', desiredPositions, resultImage });
-  }, [roomImage, selectedIds, desiredPositions, resultImage]);
+    writeSession({ selectedIds, desiredPositions });
+  }, [selectedIds, desiredPositions]);
 
   useEffect(() => {
     if (!incomingProductId && !incomingIds.length) return;

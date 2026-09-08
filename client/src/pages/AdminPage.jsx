@@ -89,6 +89,7 @@ export default function AdminPage() {
   useEffect(() => {
     setNotice('');
     setError('');
+    if (tab === 'products') refreshProducts();
     if (tab === 'customers' || tab === 'admins') loadUsers();
     if (tab === 'orders') loadOrders();
     if (tab === 'contact') loadFeedback();

@@ -154,7 +154,7 @@ export default function CheckoutPage() {
 
     // Ghép địa chỉ đầy đủ
     const addressParts = [
-      specificAddress.trim(),
+      addressCheck.address,
       wardObj ? wardObj.name : '',
       districtObj ? districtObj.name : '',
       provinceObj ? provinceObj.name : '',
@@ -172,9 +172,9 @@ export default function CheckoutPage() {
           fullName: fullName.trim(),
           phone: phone.trim(),
           address: fullAddress,
+          provinceCode: selectedProvince,
           note: note.trim(),
         },
-        shippingFee,
         paymentMethod,
       });
       const purchasedIds = items.map((item) => item.product._id || item.product.id);
@@ -439,7 +439,7 @@ export default function CheckoutPage() {
                 <strong>{formatPrice(rawSubtotal)}</strong>
               </p>
               <p className="line">
-                <span>Phí vận chuyển ({shippingInfo.regionName})</span>
+                <span>Phí vận chuyển ({shippingInfo.label})</span>
                 <strong>{shippingFee === 0 ? 'Miễn phí' : formatPrice(shippingFee)}</strong>
               </p>
             </div>

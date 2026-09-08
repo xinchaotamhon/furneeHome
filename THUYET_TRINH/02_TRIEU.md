@@ -1,201 +1,68 @@
-# Triều — Phần 2/4: Chi tiết sản phẩm và hành trình mua hàng
-
-## Vai trò của Triều
-
-Triều nói sau Dũng. Nhiệm vụ là trình bày mọi thao tác của khách từ lúc mở một sản phẩm đến lúc tạo được đơn hàng và theo dõi sau mua.
-
-## 1. Chi tiết sản phẩm
-
-Ý chính:
-
-- Trang dùng ID trên URL để tải đúng một sản phẩm từ MongoDB.
-- Khách xem ảnh, tên, giá, tồn kho, mô tả, thông số và đánh giá.
-- Khách chọn số lượng rồi **Thêm vào giỏ**, **Mua ngay** hoặc chọn sản phẩm cho **Phòng thử**.
-- **Báo nội dung** mở biểu mẫu gắn đúng ID và tên sản phẩm đang xem.
-
-Luồng:
-
-`Bấm sản phẩm → API tìm theo ID → Hiển thị thông tin → Chọn số lượng → Thêm giỏ, mua ngay, phòng thử hoặc báo xấu`
-
-Trình tự demo:
-
-1. Mở một sản phẩm có đánh giá mẫu.
-2. Chuyển qua các ảnh sản phẩm.
-3. Chỉ giá, tồn kho, mô tả và thông số.
-4. Chọn số lượng rồi bấm **Thêm vào giỏ**.
-5. Chỉ nút **Mua ngay**, **Phòng thử** và **Báo nội dung**.
-
-Code cần biết:
-
-- `ProductDetailPage()` — `client/src/pages/ProductDetailPage.jsx`: hiển thị chi tiết và nhận thao tác người dùng.
-- `getById()` — `server/src/controllers/productController.js`: tìm sản phẩm theo ID trong MongoDB.
-- `addToCart()` — `server/src/controllers/cartController.js`: kiểm tra sản phẩm và thêm vào giỏ của người đang đăng nhập.
-
-Câu có thể bị hỏi:
-
-**Nếu ID sản phẩm sai hoặc sản phẩm đã ngừng bán?**  
-API trả lỗi không tìm thấy; khách không xem được sản phẩm ngừng bán.
-
-**Thông tin hiển thị có lấy lại từ Shopee mỗi lần không?**  
-Không. Dữ liệu đã được đưa vào MongoDB. Website vận hành độc lập với trang nguồn.
-
-**Nếu Admin sửa giá trong khi khách đang xem?**  
-Khi đặt hàng, server đọc lại giá mới nhất trong MongoDB; không tin giá đang giữ ở trình duyệt.
-
-## 2. Đánh giá và báo xấu
-
-Quy tắc đánh giá:
-
-- Chỉ tài khoản đã có đơn `Delivered` chứa sản phẩm mới được đánh giá.
-- Điểm hợp lệ từ 1 đến 5 sao.
-- Một tài khoản chỉ đánh giá một lần cho một sản phẩm.
-- `refreshRating()` tính lại điểm trung bình và số lượt đánh giá.
-- Admin có thể kiểm duyệt nội dung xấu.
-
-Dữ liệu minh họa hiện có 6 đánh giá từ 3 đến 5 sao ở một số sản phẩm đầu trang. Đây là dữ liệu demo, không trình bày như đánh giá thật của khách ngoài hệ thống.
-
-Luồng:
-
-`Khách gửi đánh giá → Kiểm tra đơn đã giao → Lưu reviews → Tính lại ratingAverage và reviewCount → Hiển thị trên sản phẩm`
-
-Code cần biết:
-
-- `createReview()` — `server/src/controllers/reviewController.js`: kiểm tra quyền đánh giá rồi lưu.
-- `refreshRating()` — `server/src/controllers/reviewController.js`: tính lại điểm trung bình.
-- `getByProduct()` — `server/src/controllers/reviewController.js`: tải đánh giá chưa bị ẩn.
-- `create()` — `server/src/controllers/feedbackController.js`: lưu báo xấu vào `feedbacks`.
-
-Câu có thể bị hỏi:
-
-**Người chưa mua có đánh giá được không?**  
-Không. Server kiểm tra đơn đã giao, không chỉ ẩn nút ở frontend.
-
-**Nếu đánh giá hai lần?**  
-MongoDB có chỉ mục duy nhất theo `user + product`, nên lần thứ hai bị từ chối.
-
-**Nếu có đánh giá xấu về nội dung?**  
-Admin có thể ẩn đánh giá; báo cáo sản phẩm được xử lý ở tab Báo nội dung.
-
-## 3. Giỏ hàng
-
-Ý chính:
-
-- Giỏ được tách theo từng tài khoản.
-- Khách tăng, giảm, xóa số lượng trong giới hạn tồn kho.
-- Khách có thể chọn từng món hoặc chọn tất cả để thanh toán.
-- Món không được tích vẫn ở lại giỏ nhưng không nằm trong đơn lần này.
-- Sau khi đặt thành công, chỉ những món vừa mua bị xóa khỏi giỏ.
-
-Luồng:
-
-`Thêm sản phẩm → CartContext cập nhật giao diện → API lưu cart theo user → Chọn món cần mua → Chuyển đúng món sang Checkout`
-
-Trình tự demo:
-
-1. Mở giỏ có ít nhất hai sản phẩm.
-2. Tăng hoặc giảm số lượng.
-3. Bỏ chọn một sản phẩm.
-4. Chỉ tổng tiền của các sản phẩm đã chọn.
-5. Bấm thanh toán.
-
-Code cần biết:
-
-- `CartProvider()` — `client/src/context/CartContext.jsx`: giữ giỏ, món được chọn và đồng bộ API.
-- `toggleItemSelection()` — `client/src/context/CartContext.jsx`: chọn hoặc bỏ một món.
-- `toggleSelectAll()` — `client/src/context/CartContext.jsx`: chọn hoặc bỏ toàn bộ.
-- `updateQuantity()` — `server/src/controllers/cartController.js`: đổi số lượng nhưng không vượt tồn kho.
-- `clearPurchasedItems()` — `client/src/context/CartContext.jsx`: chỉ bỏ món vừa đặt thành công.
-
-Câu có thể bị hỏi:
-
-**Hai tài khoản có dùng chung giỏ không?**  
-Không. MongoDB gắn một cart với user; dữ liệu tạm trên trình duyệt cũng tách theo userId.
-
-**Nếu khách đăng xuất?**  
-Trạng thái giỏ trên trình duyệt được xóa; lần đăng nhập sau hệ thống tải lại giỏ của tài khoản từ server.
-
-**Nếu tồn kho giảm khi hàng đang ở giỏ?**  
-Server kiểm tra lại tồn kho khi tạo đơn; nếu không đủ thì từ chối và yêu cầu khách cập nhật giỏ.
-
-## 4. Checkout và tạo đơn hàng
-
-Ý chính:
-
-- Checkout hiển thị lại đúng các món đã chọn.
-- Khách nhập người nhận, số điện thoại Việt Nam, địa chỉ và ghi chú.
-- Khách chọn COD hoặc chuyển khoản QR.
-- Tổng tiền gồm tạm tính và phí giao hàng.
-- Trạng thái đầu tiên của đơn là `Pending`; trạng thái thanh toán là `Pending`.
-
-Luồng tạo đơn:
-
-1. Client gửi ID sản phẩm, số lượng, địa chỉ và phương thức thanh toán.
-2. `createOrder()` đọc lại từng sản phẩm từ MongoDB.
-3. Server chỉ giảm tồn kho khi tồn kho còn đủ.
-4. Tên, giá và ảnh được chụp vào `orderItems`.
-5. Server tạo mã đơn và lưu order.
-6. Nếu lỗi giữa chừng, server hoàn lại phần tồn kho đã giữ.
-7. Client hiện đặt hàng thành công và xóa các món vừa mua.
-
-Trình tự demo:
-
-1. Đăng nhập `customer` / `user123456`.
-2. Kiểm tra danh sách sản phẩm ở Checkout.
-3. Nhập địa chỉ hợp lệ.
-4. Chọn COD hoặc QR.
-5. Bấm đặt hàng.
-6. Chỉ mã đơn vừa tạo.
-
-Code cần biết:
-
-- `CheckoutPage()` — `client/src/pages/CheckoutPage.jsx`: thu thập thông tin và gửi yêu cầu tạo đơn.
-- `createOrder()` — `server/src/controllers/orderController.js`: kiểm tra giá, tồn kho, tạo đơn và khôi phục nếu lỗi.
-- `cleanAddress()` — `server/src/controllers/orderController.js`: kiểm tra tên, điện thoại và địa chỉ nhận.
-
-Câu có thể bị hỏi:
-
-**Khách đang đặt hàng thì hệ thống làm gì?**  
-Server kiểm tra từng sản phẩm, giữ tồn kho, tính tổng từ giá MongoDB, tạo order rồi trả mã đơn.
-
-**Nếu hai người mua món cuối cùng cùng lúc?**  
-Câu lệnh giảm tồn kho có điều kiện `stock >= số lượng`; chỉ yêu cầu thắng trước mới lấy được hàng.
-
-**QR có tự xác nhận tiền đã vào không?**  
-Không. QR cung cấp thông tin chuyển khoản; Admin xác nhận sau khi kiểm tra giao dịch.
-
-**Tại sao lưu giá vào orderItems?**  
-Để đơn cũ giữ đúng giá tại thời điểm mua dù sản phẩm được sửa giá sau này.
-
-## 5. Lịch sử đơn và hồ sơ
-
-- Khách chỉ xem các đơn của chính mình.
-- Khách được hủy đơn khi trạng thái còn `Pending` hoặc `Processing`.
-- Hủy đơn hoàn tồn kho đúng một lần.
-- Hồ sơ cho phép đổi tên và ảnh đại diện.
-
-Code cần biết:
-
-- `OrderHistoryPage()` — `client/src/pages/OrderHistoryPage.jsx`: hiển thị đơn và nút hủy hợp lệ.
-- `cancelMyOrder()` — `server/src/controllers/orderController.js`: hủy đơn của đúng người dùng.
-- `cancelOrder()` — `server/src/controllers/orderController.js`: đổi trạng thái và hoàn kho.
-- `updateMe()` — `server/src/controllers/userController.js`: cập nhật hồ sơ.
-
-Câu có thể bị hỏi:
-
-**Nếu khách hủy hai lần thì sao?**  
-Điều kiện trạng thái và `stockRestored` ngăn hoàn tồn kho lần thứ hai.
-
-**Đơn đang giao có hủy được không?**  
-Không. Khi đã `Shipped`, khách phải liên hệ cửa hàng thay vì tự hủy trên hệ thống.
-
-## 6. Câu chuyển cho Phúc
-
-> Phần của khách hàng đã tạo được một đơn hoàn chỉnh. Tiếp theo, Phúc sẽ giải thích tài khoản, OTP, vòng đời của đơn ở phía quản trị và cách phân quyền Admin.
-
-## Tự kiểm tra trước khi bảo vệ
-
-- Demo được chi tiết → giỏ → chọn món → checkout → tạo đơn.
-- Trả lời được trường hợp hết hàng, đặt lỗi, hủy đơn và mua đồng thời.
-- Nói được điều kiện đánh giá sản phẩm.
-- Nhớ tài khoản demo `customer` / `user123456`.
-- Nhớ câu chuyển phần cho Phúc.
+# Triều — Phần 2/4: Từ chi tiết đến đơn hàng
+
+Triều nói sau Dũng. Mỗi bước: **Nói · Demo · Thành công · Lỗi/thay đổi · Hỏi đáp · Hàm + đường dẫn**.
+
+## Bước 1 — Chi tiết sản phẩm
+
+- **Nói:** ID trên URL dùng để tải đúng sản phẩm; khách xem ảnh, giá, tồn kho, mô tả, thông số và đánh giá. Có thể thêm giỏ, mua ngay, thử trong phòng hoặc báo nội dung.
+- **Demo:** Mở `/products/:id` → đổi ảnh → chỉ giá/tồn kho → chọn số lượng → **Thêm vào giỏ**, **Mua ngay**, **Thử sản phẩm trong phòng**.
+- **Thành công:** Đúng sản phẩm hiện ra; mua ngay chuyển `/checkout`; liên kết Phòng thử mang theo sản phẩm; báo nội dung gắn đúng ID/tên.
+- **Lỗi/thay đổi:** ID sai, sản phẩm ngừng bán hoặc không tồn tại thì báo không tìm thấy. Giá/tồn kho thay đổi vẫn được server đọc lại khi đặt hàng.
+- **Hỏi đáp:** *Có lấy lại dữ liệu Shopee mỗi lần không?* Không, website vận hành bằng MongoDB. *Tại sao không tin giá trên trình duyệt?* Vì client có thể bị sửa; server là nơi quyết định.
+- **Hàm + đường dẫn:** `ProductDetailPage()` — `client/src/pages/ProductDetailPage.jsx`: gọi theo ID và hiển thị; `productService.getById()` — `client/src/services/productService.js`: gọi API chi tiết; `getById()` — `server/src/controllers/productController.js`: lấy sản phẩm; `addToCart()` — `server/src/controllers/cartController.js`: kiểm tra rồi thêm giỏ; API `GET /api/products/:id`, `POST /api/cart/add`.
+
+## Bước 2 — Đánh giá và báo nội dung
+
+- **Nói:** Chỉ người đã có đơn `Delivered` chứa sản phẩm mới được đánh giá; điểm 1–5 sao; mỗi tài khoản chỉ một đánh giá cho một sản phẩm. Admin có thể ẩn/xóa nội dung xấu.
+- **Demo:** Mở vùng đánh giá → gửi thử; nếu dùng dữ liệu mẫu thì chỉ 6 đánh giá mẫu từ 3–5 sao; từ chi tiết bấm **Báo nội dung**.
+- **Thành công:** Đánh giá hợp lệ xuất hiện; điểm trung bình cập nhật; đánh giá bị ẩn biến khỏi khách và không còn tính điểm.
+- **Lỗi/thay đổi:** Chưa mua/chưa nhận hàng, điểm ngoài 1–5, bình luận rỗng hoặc đánh giá lần hai đều bị server từ chối. Admin ẩn rồi hiện lại sẽ tính lại điểm.
+- **Hỏi đáp:** *Ẩn nút ở frontend đủ chưa?* Chưa, server kiểm tra đơn đã giao. *Một người đánh giá hai lần?* Chỉ mục `user + product` chặn lần hai. *Báo xấu lưu ở đâu?* Collection `feedbacks`, trạng thái `new → reviewed → resolved`.
+- **Hàm + đường dẫn:** `createReview()`, `getByProduct()`, `refreshRating()`, `moderateReview()` — `server/src/controllers/reviewController.js`: kiểm tra, đọc, tính điểm và kiểm duyệt; `create()` — `server/src/controllers/feedbackController.js`: lưu báo cáo; API `POST /api/reviews`, `GET /api/reviews/product/:productId`, `POST /api/feedback`.
+
+## Bước 3 — Giỏ hàng
+
+- **Nói:** Giỏ tách theo tài khoản; tăng/giảm trong tồn kho; có thể chọn từng món hoặc tất cả. Món bỏ chọn vẫn ở giỏ nhưng không đi vào đơn lần này.
+- **Demo:** Mở `/cart` có ít nhất 2 món → tăng/giảm → bỏ chọn 1 món → kiểm tra tổng → bấm thanh toán.
+- **Thành công:** Tổng tiền chỉ tính món đã chọn; đổi tài khoản không lẫn giỏ; thanh toán mang đúng món sang checkout.
+- **Lỗi/thay đổi:** Hết hàng/ngừng bán hoặc tồn kho giảm thì server từ chối cập nhật; giỏ được làm mới theo giá và tồn kho thật. Đặt thành công chỉ xóa món vừa mua, món bỏ chọn vẫn còn.
+- **Hỏi đáp:** *Hai tài khoản dùng chung giỏ không?* Không, cart gắn với `user`. *Đăng xuất thì sao?* Giỏ hiển thị được xóa; đăng nhập lại sẽ tải giỏ của tài khoản đó. *Tại sao đồng bộ một lần?* Client gửi cả giỏ qua một request để nhanh và tránh nhiều lần ghi đè nhau. *Tại sao kiểm tra hai lần?* Client tiện thao tác, server bảo vệ dữ liệu.
+- **Hàm + đường dẫn:** `CartProvider()` — `client/src/context/CartContext.jsx`: state, localStorage theo user và gọi đồng bộ một lần; `syncCart()` — `server/src/controllers/cartController.js`: cập nhật nhiều món rồi lưu một lần; `toggleItemSelection()`, `toggleSelectAll()`, `clearPurchasedItems()` — `client/src/context/CartContext.jsx`: chọn món và xóa đúng món đã mua; `updateQuantity()` — `server/src/controllers/cartController.js`: kiểm tra tồn kho; đoạn `$pull` trong `createOrder()` — `server/src/controllers/orderController.js`: xóa đúng ID vừa mua khỏi Mongo cart; API `GET /api/cart`, `POST /api/cart/sync`, `POST /api/cart/add`, `PUT /api/cart/update`.
+
+## Bước 4 — Checkout và tạo đơn
+
+- **Nói:** Checkout nhận người nhận, số điện thoại Việt Nam, địa chỉ, tỉnh/thành, ghi chú và COD hoặc chuyển khoản QR. Client gửi `provinceCode`; server tự tính phí, giá và tồn kho.
+- **Demo:** Đăng nhập `customer` / `user123456` → `/checkout` → nhập địa chỉ hợp lệ → chọn COD/QR → bấm đặt hàng.
+- **Thành công:** Màn hình trả mã đơn; đơn bắt đầu `Pending`, thanh toán bắt đầu `Pending`; tổng gồm tạm tính + phí giao hàng do server tính.
+- **Lỗi/thay đổi:** Địa chỉ/điện thoại/tỉnh sai, sản phẩm hết hàng hoặc giá không hợp lệ thì không tạo đơn. Địa chỉ được chuẩn hóa Unicode NFC nên tiếng Việt gõ từ Unikey, Gboard hay Safari vẫn nhận. Nếu lỗi giữa chừng, tồn kho đã giữ lại được hoàn lại. Không gửi và không tin `shippingFee` do client tự nhập.
+- **Hỏi đáp:** *Phí giao hàng lấy từ đâu?* `calculateShippingFee()` ở server dựa trên `provinceCode` (79: 30.000đ; từ 48: 40.000đ; dưới 48: 60.000đ). *Nếu sửa phí bằng F12?* Không có tác dụng vì client chỉ gửi tỉnh, server tự tính phí. *Hai người mua món cuối?* Cập nhật có điều kiện `stock >= qty`, chỉ một yêu cầu thành công. *QR có tự xác nhận tiền?* Không, admin kiểm tra giao dịch.
+- **Hàm + đường dẫn:** `CheckoutPage()` — `client/src/pages/CheckoutPage.jsx`: nhập form và gửi; `validateSpecificAddress()` — `client/src/utils/validation.js`: chuẩn hóa/kiểm tra địa chỉ tiếng Việt; `createOrder()`, `cleanAddress()`, `calculateShippingFee()` — `server/src/controllers/orderController.js`: kiểm tra, tính phí, giữ kho, chụp giá và tạo đơn; API `POST /api/orders`.
+
+## Bước 5 — Lịch sử đơn và bàn giao
+
+- **Nói:** Khách chỉ xem đơn của mình; chỉ `Pending`/`Processing` được hủy; hủy hoàn kho đúng một lần. Hồ sơ cho phép đổi tên và ảnh đại diện.
+- **Demo:** Mở `/orders` → xem mã/trạng thái → hủy một đơn hợp lệ → mở `/profile`.
+- **Thành công:** Đơn chuyển `Cancelled`, kho được cộng lại; đơn `Shipped`/`Delivered` không có nút hủy.
+- **Lỗi/thay đổi:** Hủy lần hai hoặc hủy đơn người khác bị từ chối; nếu cập nhật đồng thời, server yêu cầu tải lại.
+- **Hỏi đáp:** *Tại sao không hủy khi đang giao?* Đơn đã qua bước xử lý, cần liên hệ cửa hàng. *Đơn cũ có đổi giá không?* Không, `orderItems` giữ bản chụp tên/giá lúc mua.
+- **Hàm + đường dẫn:** `OrderHistoryPage()` — `client/src/pages/OrderHistoryPage.jsx`: lịch sử và nút hủy; `cancelMyOrder()`/`cancelOrder()` — `server/src/controllers/orderController.js`: giới hạn người hủy và hoàn kho; `updateMe()` — `server/src/controllers/userController.js`: sửa hồ sơ; API `GET /api/orders/my-orders`, `PATCH /api/orders/:id/cancel`, `PATCH /api/users/me`.
+
+**Câu bàn giao cho Phúc:** “Phần khách hàng đã tạo được một đơn hoàn chỉnh. Tiếp theo, Phúc sẽ trình bày OTP, vòng đời đơn ở phía quản trị và phân quyền Admin.”
+
+## Phản biện nhanh cuối phần
+
+1. **Nếu khách sửa giá trong F12?** Không ảnh hưởng; `createOrder()` đọc lại `Product.price` trong MongoDB.
+2. **Nếu khách gửi `shippingFee: 0`?** Server bỏ qua; `calculateShippingFee(provinceCode)` tự tính 30.000đ, 40.000đ hoặc 60.000đ.
+3. **Nếu khách chỉ mua 1 trong 3 món ở giỏ?** Order chỉ chứa món được chọn; `$pull` chỉ xóa ID vừa mua, hai món còn lại vẫn trong Mongo cart.
+4. **Nếu lỗi sau khi đã trừ kho món đầu?** `restoreReservedStock()` cộng lại các món đã giữ trước khi trả lỗi.
+5. **Tại sao đơn lưu lại tên và giá?** Đó là bản chụp lúc mua; Admin sửa catalog sau này không làm đơn cũ thay đổi.
+6. **Nếu hủy đơn hai lần?** Điều kiện `stockRestored: false` chỉ cho hoàn kho một lần.
+7. **Nếu một review bị ẩn?** `refreshRating()` chỉ lấy review chưa ẩn rồi cập nhật lại điểm và số lượt.
+8. **LocalStorage và Mongo cart khác nhau thế nào?** LocalStorage giữ trải nghiệm trên trình duyệt; Mongo cart giúp cùng tài khoản dùng được ở thiết bị khác.
+
+### Tự kiểm tra
+
+- Demo được chi tiết → giỏ → món chọn → checkout → mã đơn.
+- Nhớ `provinceCode` và phí do server tính lại.
+- Trả lời được hết hàng, mua đồng thời, hủy đơn và điều kiện đánh giá.
+- Nhớ câu bàn giao.

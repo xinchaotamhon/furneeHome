@@ -18,6 +18,7 @@ const orderSchema = new mongoose.Schema({
     fullName: { type: String, required: true, trim: true },
     phone: { type: String, required: true, trim: true },
     address: { type: String, required: true, trim: true },
+    provinceCode: { type: Number, min: 1, max: 99 },
     note: { type: String, default: '', trim: true },
   },
   paymentMethod: { type: String, enum: ['COD', 'BANK_TRANSFER'], default: 'COD' },

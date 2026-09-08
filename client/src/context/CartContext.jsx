@@ -21,6 +21,7 @@ export function CartProvider({ children }) {
   const { user } = useAuth();
   const userId = user?._id || user?.id || null;
   const prevUserIdRef = useRef(userId);
+  const skipSaveRef = useRef(false);
 
   // Khởi tạo giỏ hàng từ localStorage theo userId hiện tại
   const [items, setItems] = useState(() => getStoredCart(userId));
@@ -31,6 +32,7 @@ export function CartProvider({ children }) {
     prevUserIdRef.current = userId;
 
     if (prevUserId === userId) return; // không có gì thay đổi
+    skipSaveRef.current = true;
 
     if (!userId) {
       // Đăng xuất → xóa sạch giỏ hàng hiển thị (không xóa storage của user cũ)
@@ -44,6 +46,10 @@ export function CartProvider({ children }) {
 
   // Lưu vào localStorage mỗi khi items thay đổi (theo key của user hiện tại)
   useEffect(() => {
+    if (skipSaveRef.current) {
+      skipSaveRef.current = false;
+      return;
+    }
     if (userId !== null || items.length > 0) {
       saveStoredCart(items, userId);
     }
@@ -56,14 +62,11 @@ export function CartProvider({ children }) {
     (async () => {
       try {
         const local = getStoredCart(userId);
-        const remote = fromRemote(await cartService.get());
-        const remoteIds = new Set(remote.map((item) => productId(item.product)));
-        for (const item of local) {
-          const id = productId(item.product);
-          if (remoteIds.has(id)) await cartService.update(id, item.quantity);
-          else await cartService.add(id, item.quantity);
-        }
-        if (active) setItems(fromRemote(await cartService.get()));
+        const cart = await cartService.sync(local.map((item) => ({
+          productId: productId(item.product),
+          quantity: item.quantity,
+        })));
+        if (active) setItems(fromRemote(cart));
       } catch {
         // Guest storage remains available if the signed-in cart cannot be reached.
       }
@@ -143,11 +146,6 @@ export function CartProvider({ children }) {
       clearPurchasedItems(purchasedIds = []) {
         const idSet = new Set(purchasedIds.map(String));
         setItems((current) => current.filter((item) => !idSet.has(productId(item.product))));
-        if (userId) {
-          for (const id of purchasedIds) {
-            cartService.remove(id).catch(() => {});
-          }
-        }
       },
       clearCart() {
         setItems([]); clearStoredCart(userId); sync(() => cartService.clear());

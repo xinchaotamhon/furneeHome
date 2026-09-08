@@ -1,11 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import productService from '../services/productService';
 
 const ProductContext = createContext(null);
 
 export function ProductProvider({ children }) {
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -22,11 +22,7 @@ export function ProductProvider({ children }) {
     }
   };
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  const value = useMemo(() => ({
+  const value = {
     products,
     loading,
     refreshProducts: fetchProducts,
@@ -49,7 +45,7 @@ export function ProductProvider({ children }) {
       await fetchProducts();
       return product;
     },
-  }), [products, loading]);
+  };
 
   return <ProductContext.Provider value={value}>{children}</ProductContext.Provider>;
 }

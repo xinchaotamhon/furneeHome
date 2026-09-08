@@ -69,6 +69,46 @@ async function getCart(req, res, next) {
   }
 }
 
+async function syncCart(req, res, next) {
+  try {
+    const inputItems = Array.isArray(req.body.items) ? req.body.items : [];
+    const itemMap = new Map();
+
+    for (const item of inputItems) {
+      if (!item || typeof item !== 'object') continue;
+      const productId = String(item.productId || '');
+      const quantity = Number(item.quantity);
+      if (mongoose.isValidObjectId(productId) && Number.isInteger(quantity) && quantity > 0) {
+        itemMap.set(productId, quantity);
+      }
+    }
+
+    const products = await Product.find({ _id: { $in: [...itemMap.keys()] } });
+    const productMap = new Map(products.map((product) => [String(product._id), product]));
+    const cart = await refreshCart(await loadCart(req.user._id));
+
+    for (const [productId, quantity] of itemMap) {
+      const product = productMap.get(productId);
+      if (!isSellable(product)) continue;
+
+      const finalQuantity = Math.min(quantity, product.stock);
+      const item = cart.items.find((cartItem) => itemProductId(cartItem) === productId);
+      if (item) {
+        item.quantity = finalQuantity;
+        item.price = product.price;
+      } else {
+        cart.items.push({ product: product._id, quantity: finalQuantity, price: product.price });
+      }
+    }
+
+    await cart.save();
+    await cart.populate('items.product');
+    return res.json({ success: true, message: 'Đã đồng bộ giỏ hàng.', data: cart });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function addToCart(req, res, next) {
   try {
     const { productId, quantity = 1 } = req.body;
@@ -152,4 +192,4 @@ async function clearCart(req, res, next) {
   }
 }
 
-module.exports = { getCart, addToCart, updateQuantity, removeItem, clearCart, isSellable };
+module.exports = { getCart, syncCart, addToCart, updateQuantity, removeItem, clearCart, isSellable };

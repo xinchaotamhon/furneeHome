@@ -218,7 +218,7 @@ async function seedDemoContent() {
         orderNumber,
         user: customer._id,
         orderItems,
-        shippingAddress: { fullName: customer.name, phone: '0372208100', address: '71/5 Huỳnh Tấn Phát, Xã Nhà Bè, TP.HCM', note: 'Đơn hàng minh họa' },
+        shippingAddress: { fullName: customer.name, phone: '0372208100', address: '71/5 Huỳnh Tấn Phát, Xã Nhà Bè, TP.HCM', provinceCode: 79, note: 'Đơn hàng minh họa' },
         paymentMethod: 'COD',
         paymentStatus,
         orderStatus,

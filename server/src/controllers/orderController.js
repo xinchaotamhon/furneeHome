@@ -4,6 +4,13 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Cart = require('../models/Cart');
 
+const PROVINCE_CODES = new Set([
+  1, 2, 4, 6, 8, 10, 11, 12, 14, 15, 17, 19, 20, 22, 24, 25, 26, 27, 30, 31,
+  33, 34, 35, 36, 37, 38, 40, 42, 44, 45, 46, 48, 49, 51, 52, 54, 56, 58, 60,
+  62, 64, 66, 67, 68, 70, 72, 74, 75, 77, 79, 80, 82, 83, 84, 86, 87, 89, 91,
+  92, 93, 94, 95, 96,
+]);
+
 const CUSTOMER_CANCELLABLE = ['Pending', 'Processing'];
 const ADMIN_TRANSITIONS = {
   Pending: ['Processing', 'Cancelled'],
@@ -29,10 +36,23 @@ function readQuantity(value) {
   return quantity;
 }
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function calculateShippingFee(provinceCode) {
+  const code = Number(provinceCode);
+  if (!PROVINCE_CODES.has(code)) throw createError('Tỉnh hoặc thành phố không hợp lệ.');
+  if (code === 79) return 30000;
+  if (code >= 48) return 40000;
+  return 60000;
+}
+
 function cleanAddress(input) {
   const fullName = String(input?.fullName || '').trim();
   const phone = String(input?.phone || '').trim().replace(/[.\s-]/g, '');
-  const address = String(input?.address || '').trim();
+  const address = String(input?.address || '').normalize('NFC').trim();
+  const provinceCode = Number(input?.provinceCode);
   const note = String(input?.note || '').trim();
 
   if (fullName.length < 2 || fullName.length > 100) {
@@ -46,9 +66,9 @@ function cleanAddress(input) {
   }
 
   // Kiểm tra địa chỉ: độ dài, không chứa ký tự bậy/đặc biệt, phải có chữ cái, không lặp ký tự spam
-  const hasInvalidChars = /[^a-zA-Z0-9\sÀ-ỹà-ỹ.,/–\-]/.test(address);
-  const hasLetters = /[a-zA-ZÀ-ỹà-ỹ]/.test(address);
-  const hasSpamRepetition = /(.)\1{4,}/.test(address);
+  const hasInvalidChars = /[^\p{L}\p{M}\p{N}\s.,/–-]/u.test(address);
+  const hasLetters = /\p{L}/u.test(address);
+  const hasSpamRepetition = /(.)\1{4,}/u.test(address);
 
   if (address.length < 8 || address.length > 300 || hasInvalidChars || !hasLetters || hasSpamRepetition) {
     throw createError('Địa chỉ giao hàng không hợp lệ. Vui lòng không nhập ký tự đặc biệt hoặc ký tự spam.');
@@ -58,7 +78,7 @@ function cleanAddress(input) {
     throw createError('Ghi chú đơn hàng tối đa 500 ký tự.');
   }
 
-  return { fullName, phone, address, note };
+  return { fullName, phone, address, provinceCode, note };
 }
 
 function orderNumber() {
@@ -79,9 +99,9 @@ function requestedProductIds(rawItems) {
 
 async function sourceItems(userId, body) {
   const requested = body.items || body.orderItems;
-  if (requested) return { items: requestedProductIds(requested), fromCart: false };
+  if (requested) return requestedProductIds(requested);
   const cart = await Cart.findOne({ user: userId });
-  return { items: requestedProductIds(cart?.items || []), fromCart: true };
+  return requestedProductIds(cart?.items || []);
 }
 
 async function restoreReservedStock(reserved) {
@@ -99,11 +119,12 @@ async function createOrder(req, res, next) {
       throw createError('Phương thức thanh toán không hợp lệ.');
     }
     const address = cleanAddress(shippingAddress);
-    const source = await sourceItems(req.user._id, req.body);
+    const shippingFee = calculateShippingFee(address.provinceCode);
+    const items = await sourceItems(req.user._id, req.body);
     const orderItems = [];
     let subtotal = 0;
 
-    for (const item of source.items) {
+    for (const item of items) {
       // This conditional update is the stock reservation: it cannot make stock negative.
       const product = await Product.findOneAndUpdate(
         { _id: item.productId, isActive: true, price: { $gt: 0 }, stock: { $gte: item.qty } },
@@ -126,8 +147,6 @@ async function createOrder(req, res, next) {
       });
     }
 
-    const requestedShippingFee = Number(req.body.shippingFee);
-    const shippingFee = Number.isFinite(requestedShippingFee) && requestedShippingFee >= 0 ? requestedShippingFee : 0;
     const order = await Order.create({
       orderNumber: orderNumber(),
       user: req.user._id,
@@ -141,7 +160,11 @@ async function createOrder(req, res, next) {
       totalAmount: subtotal + shippingFee,
     });
     persisted = true;
-    if (source.fromCart) await Cart.findOneAndUpdate({ user: req.user._id }, { $set: { items: [] } });
+    const purchasedIds = items.map((item) => item.productId);
+    await Cart.findOneAndUpdate(
+      { user: req.user._id },
+      { $pull: { items: { product: { $in: purchasedIds } } } },
+    );
     return res.status(201).json({ success: true, message: 'Đặt hàng thành công.', data: order });
   } catch (error) {
     if (!persisted && reserved.length) {
@@ -171,7 +194,7 @@ async function getAllOrders(req, res, next) {
     const filter = {};
     if (status && Object.hasOwn(ADMIN_TRANSITIONS, status)) filter.orderStatus = status;
     if (search) {
-      const value = String(search).trim();
+      const value = escapeRegex(String(search).trim());
       filter.$or = [
         { orderNumber: { $regex: value, $options: 'i' } },
         { 'shippingAddress.fullName': { $regex: value, $options: 'i' } },
@@ -261,4 +284,4 @@ async function updateOrderStatus(req, res, next) {
   }
 }
 
-module.exports = { createOrder, getMyOrders, getAllOrders, updateOrderStatus, cancelMyOrder, cleanAddress, requestedProductIds, ADMIN_TRANSITIONS };
+module.exports = { createOrder, getMyOrders, getAllOrders, updateOrderStatus, cancelMyOrder, cleanAddress, calculateShippingFee, escapeRegex, requestedProductIds, ADMIN_TRANSITIONS };

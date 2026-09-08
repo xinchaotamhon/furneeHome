@@ -40,7 +40,7 @@ export function validateSpecificAddress(address) {
     return { isValid: false, message: 'Vui lòng điền địa chỉ cụ thể (số nhà, tên đường).' };
   }
 
-  const trimmed = address.trim();
+  const trimmed = address.normalize('NFC').trim();
 
   if (trimmed.length < 5) {
     return {
@@ -57,7 +57,7 @@ export function validateSpecificAddress(address) {
   }
 
   // Phải có ít nhất một chữ cái
-  if (!/[a-zA-ZÀ-ỹà-ỹ]/.test(trimmed)) {
+  if (!/\p{L}/u.test(trimmed)) {
     return {
       isValid: false,
       message: 'Địa chỉ cụ thể phải có tên đường hoặc tên khu vực (không được chỉ nhập toàn số).'
@@ -65,7 +65,7 @@ export function validateSpecificAddress(address) {
   }
 
   // Không được chứa ký tự tầm bậy / đặc biệt
-  const invalidCharRegex = /[^a-zA-Z0-9\sÀ-ỹà-ỹ.,/–\-]/;
+  const invalidCharRegex = /[^\p{L}\p{M}\p{N}\s.,/–-]/u;
   if (invalidCharRegex.test(trimmed)) {
     return {
       isValid: false,
@@ -74,7 +74,7 @@ export function validateSpecificAddress(address) {
   }
 
   // Chống spam lặp ký tự (ví dụ: aaaaa, ....., /////)
-  if (/(.)\1{4,}/.test(trimmed)) {
+  if (/(.)\1{4,}/u.test(trimmed)) {
     return {
       isValid: false,
       message: 'Địa chỉ chứa các ký tự lặp lại bất thường. Vui lòng nhập đúng địa chỉ thực tế.'
