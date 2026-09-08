@@ -100,4 +100,166 @@ async function deleteReview(req, res, next) {
   }
 }
 
-module.exports = { createReview, getByProduct, moderateReview, deleteReview, refreshRating };
+async function getOrderReviewStatus(req, res, next) {
+  try {
+    checkId(req.params.orderId);
+
+    const order = await Order.findOne({
+      _id: req.params.orderId,
+      user: req.user._id,
+    });
+
+    if (!order) {
+      throw createError('Không tìm thấy đơn hàng.', 404);
+    }
+
+    if (order.orderStatus !== 'Delivered' || order.paymentStatus !== 'Paid') {
+      throw createError(
+        'Đơn hàng chưa đủ điều kiện để đánh giá.',
+        403
+      );
+    }
+
+    const productIds = [
+      ...new Set(
+        order.orderItems.map((item) => String(item.product))
+      ),
+    ];
+
+    const reviews = await Review.find({
+      user: req.user._id,
+      product: { $in: productIds },
+    }).select('product rating comment createdAt');
+
+    const reviewMap = new Map(
+      reviews.map((review) => [
+        String(review.product),
+        review,
+      ])
+    );
+
+    const items = order.orderItems.map((item) => ({
+      productId: String(item.product),
+      name: item.name,
+      image: item.image,
+      price: item.price,
+      qty: item.qty,
+      reviewed: reviewMap.has(String(item.product)),
+      review: reviewMap.get(String(item.product)) || null,
+    }));
+
+    return res.json({
+      success: true,
+      message: 'Đã tải thông tin đánh giá đơn hàng.',
+      data: {
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        items,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+
+async function createOrderReview(req, res, next) {
+  try {
+    const { orderId } = req.params;
+    const { productId, rating, comment } = req.body;
+
+    checkId(orderId);
+    checkId(productId);
+
+    const numRating = Number(rating);
+    const textComment = String(comment || '').trim();
+
+    if (
+      !Number.isInteger(numRating) ||
+      numRating < 1 ||
+      numRating > 5
+    ) {
+      throw createError('Đánh giá phải từ 1 đến 5 sao.');
+    }
+
+    if (!textComment || textComment.length > 1000) {
+      throw createError('Nội dung đánh giá không hợp lệ.');
+    }
+
+    const order = await Order.findOne({
+      _id: orderId,
+      user: req.user._id,
+    });
+
+    if (!order) {
+      throw createError('Không tìm thấy đơn hàng.', 404);
+    }
+
+    // Phải vừa giao hàng vừa thanh toán
+    if (
+      order.orderStatus !== 'Delivered' ||
+      order.paymentStatus !== 'Paid'
+    ) {
+      throw createError(
+        'Đơn hàng chưa đủ điều kiện để đánh giá.',
+        403
+      );
+    }
+
+    // QUAN TRỌNG:
+    // Product phải thực sự nằm trong đơn hàng này
+    const orderItem = order.orderItems.find(
+      (item) => String(item.product) === String(productId)
+    );
+
+    if (!orderItem) {
+      throw createError(
+        'Sản phẩm không thuộc đơn hàng này.',
+        403
+      );
+    }
+
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      throw createError('Sản phẩm không tồn tại.', 404);
+    }
+
+    let review;
+
+    try {
+      review = await Review.create({
+        user: req.user._id,
+        product: productId,
+        rating: numRating,
+        comment: textComment,
+      });
+    } catch (error) {
+      if (error?.code === 11000) {
+        throw createError(
+          'Bạn đã đánh giá sản phẩm này.',
+          409
+        );
+      }
+
+      throw error;
+    }
+
+    await refreshRating(productId);
+
+    await review.populate(
+      'user',
+      'name avatarUrl'
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Đã gửi đánh giá thành công.',
+      data: review,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = {createReview,getByProduct,moderateReview,deleteReview,refreshRating,getOrderReviewStatus,createOrderReview,};

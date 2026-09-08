@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import orderService from '../services/orderService';
 import { formatPrice } from '../utils/formatPrice';
@@ -21,8 +21,15 @@ const paymentStatusLabel = {
 function canCancel(order) {
   return ['Pending', 'Processing'].includes(order.orderStatus);
 }
+function canReviewOrder(order) {
+  return (
+    order.orderStatus === 'Delivered' &&
+    order.paymentStatus === 'Paid'
+  );
+}
 
 export default function OrderHistoryPage() {
+  const navigate = useNavigate();
   const { user, openLogin } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -86,6 +93,7 @@ export default function OrderHistoryPage() {
             const isBank = order.paymentMethod === 'BANK_TRANSFER';
             const isPaid = order.paymentStatus === 'Paid';
             const canShowQr = isBank && !isPaid && order.orderStatus !== 'Cancelled';
+            const eligibleForReview = canReviewOrder(order);
 
             return (
               <article className="order-card" key={order._id}>
@@ -133,6 +141,27 @@ export default function OrderHistoryPage() {
                 </footer>
 
                 <div className="order-actions-bar">
+                  {eligibleForReview && (
+                    <>
+                      <button
+                        type="button"
+                        className="button button-small"
+                        onClick={() =>
+                          navigate(`/orders/${order._id}/review`)
+                        }
+                      >
+                        ★ Đánh giá đơn hàng
+                      </button>
+
+                      <button
+                        type="button"
+                        className="text-button"
+                        onClick={() => navigate('/')}
+                      >
+                        Bỏ qua
+                      </button>
+                    </>
+                  )}
                   {canShowQr && (
                     <button
                       type="button"
