@@ -145,8 +145,11 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
 .demo-login-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .auth-switch { padding: 4px; border: 0; color: var(--color-primary); background: transparent; font-size: .82rem; font-weight: 750; cursor: pointer; }
 .remember-login { display: flex; align-items: center; gap: 8px; color: var(--color-muted); font-size: .82rem; font-weight: 600; }
-.remember-login input { width: 16px; height: 16px; margin: 0; accent-color: var(--color-primary); }
 .form-error { margin: 0; padding: 9px 11px; border-radius: 6px; color: #8f302b; background: #fff0ee; font-size: .8rem; }
+.password-input-wrap { position: relative; display: flex; align-items: center; width: 100%; }
+.password-input-wrap input { padding-right: 44px; }
+.password-toggle-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: var(--color-muted); cursor: pointer; padding: 6px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: color .15s ease; }
+.password-toggle-btn:hover { color: var(--color-primary); }
 
 .studio-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0 0 26px; padding: 0; list-style: none; }
 .studio-steps li { display: flex; gap: 12px; align-items: center; padding: 14px 16px; border: 1px solid var(--color-border); border-radius: 8px; background: white; }

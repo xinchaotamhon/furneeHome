@@ -11,6 +11,7 @@ import {
   fetchWards,
 } from '../services/locationService';
 import { formatPrice } from '../utils/formatPrice';
+import { validateSpecificAddress, validateVietnamPhone } from '../utils/validation';
 
 export default function CheckoutPage() {
   const { user, openLogin } = useAuth();
@@ -115,7 +116,12 @@ export default function CheckoutPage() {
     setError('');
 
     if (!fullName.trim()) return setError('Vui lòng nhập họ và tên người nhận.');
-    if (!phone.trim()) return setError('Vui lòng nhập số điện thoại người nhận.');
+    
+    // Kiểm tra số điện thoại vùng Việt Nam
+    const phoneCheck = validateVietnamPhone(phone);
+    if (!phoneCheck.isValid) {
+      return setError(phoneCheck.message);
+    }
 
     const provinceObj = provinces.find((p) => Number(p.code) === Number(selectedProvince));
     const districtObj = districts.find((d) => Number(d.code) === Number(selectedDistrict));
@@ -124,11 +130,14 @@ export default function CheckoutPage() {
     if (!provinceObj) return setError('Vui lòng chọn Tỉnh/Thành phố.');
     if (!districtObj) return setError('Vui lòng chọn Quận/Huyện.');
     if (!wardObj) return setError('Vui lòng chọn Phường/Xã.');
-    if (!specificAddress.trim()) {
-      return setError('Vui lòng điền địa chỉ cụ thể (số nhà, tên đường).');
+
+    // Kiểm tra địa chỉ cụ thể hợp lệ, không chứa ký tự bậy
+    const addressCheck = validateSpecificAddress(specificAddress);
+    if (!addressCheck.isValid) {
+      return setError(addressCheck.message);
     }
 
-    const fullAddress = `${specificAddress.trim()}, ${wardObj.name}, ${districtObj.name}, ${provinceObj.name}`;
+    const fullAddress = `${addressCheck.address}, ${wardObj.name}, ${districtObj.name}, ${provinceObj.name}`;
 
     setSaving(true);
     try {
@@ -260,13 +269,14 @@ export default function CheckoutPage() {
               </label>
 
               <label>
-                Số điện thoại
+                Số điện thoại (Việt Nam)
                 <input
                   required
                   inputMode="tel"
                   placeholder="Ví dụ: 0912345678"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  maxLength="15"
                 />
               </label>
             </div>
@@ -340,13 +350,14 @@ export default function CheckoutPage() {
 
             {/* Địa chỉ cụ thể */}
             <label style={{ marginTop: '10px' }}>
-              Địa chỉ cụ thể
+              Địa chỉ cụ thể (Số nhà, tên đường - không nhập ký tự đặc biệt)
               <textarea
                 required
                 rows="2"
                 placeholder="Ví dụ: 203/19/2F, Đường Huỳnh Văn Nghệ"
                 value={specificAddress}
                 onChange={(e) => setSpecificAddress(e.target.value)}
+                maxLength="150"
               />
             </label>
 

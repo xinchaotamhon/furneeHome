@@ -23,6 +23,8 @@ export default function LoginModal() {
   const [view, setView] = useState('login');
   const [form, setForm] = useState(emptyForm);
   const [remember, setRemember] = useState(() => Boolean(rememberedIdentity()));
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,6 +33,8 @@ export default function LoginModal() {
     const nextView = authMode === 'register' ? 'register-email' : authMode;
     setView(nextView);
     setForm({ ...emptyForm, identity: nextView === 'login' ? rememberedIdentity() : '' });
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setNotice('');
     setError('');
   }, [authMode, isLoginOpen]);
@@ -92,8 +96,74 @@ export default function LoginModal() {
       {view === 'login' && <label>Email hoặc tên đăng nhập<input type="text" value={form.identity} onChange={updateField('identity')} autoComplete="username" required /></label>}
       {(view === 'forgot' || view === 'reset') && <label>Email<input type="email" value={form.email} onChange={updateField('email')} autoComplete="email" readOnly={view === 'reset'} required /></label>}
       {view === 'reset' && <label>Mã xác minh<input inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={form.otp} onChange={updateField('otp')} autoComplete="one-time-code" required /></label>}
-      {(view === 'login' || view === 'register-complete' || view === 'reset') && <label>{view === 'reset' ? 'Mật khẩu mới' : 'Mật khẩu'}<input type="password" value={form.password} onChange={updateField('password')} autoComplete={view === 'login' ? 'current-password' : 'new-password'} minLength={view === 'login' ? 1 : 6} required /></label>}
-      {(view === 'register-complete' || view === 'reset') && <label>Nhập lại mật khẩu<input type="password" value={form.confirmPassword} onChange={updateField('confirmPassword')} autoComplete="new-password" minLength="6" required /></label>}
+      {(view === 'login' || view === 'register-complete' || view === 'reset') && (
+        <label>
+          {view === 'reset' ? 'Mật khẩu mới' : 'Mật khẩu'}
+          <div className="password-input-wrap">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={form.password}
+              onChange={updateField('password')}
+              autoComplete={view === 'login' ? 'current-password' : 'new-password'}
+              minLength={view === 'login' ? 1 : 6}
+              required
+            />
+            <button
+              type="button"
+              className="password-toggle-btn"
+              aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              onClick={() => setShowPassword((prev) => !prev)}
+            >
+              {showPassword ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              )}
+            </button>
+          </div>
+        </label>
+      )}
+      {(view === 'register-complete' || view === 'reset') && (
+        <label>
+          Nhập lại mật khẩu
+          <div className="password-input-wrap">
+            <input
+              type={showConfirmPassword ? 'text' : 'password'}
+              value={form.confirmPassword}
+              onChange={updateField('confirmPassword')}
+              autoComplete="new-password"
+              minLength="6"
+              required
+            />
+            <button
+              type="button"
+              className="password-toggle-btn"
+              aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              title={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              onClick={() => setShowConfirmPassword((prev) => !prev)}
+            >
+              {showConfirmPassword ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              )}
+            </button>
+          </div>
+        </label>
+      )}
       {view === 'login' && <label className="remember-login"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /><span>Ghi nhớ email hoặc tên đăng nhập</span></label>}
       {notice && <p className="form-success" role="status">{notice}</p>}
       {error && <p className="form-error" role="alert">{error}</p>}

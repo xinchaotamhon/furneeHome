@@ -34,9 +34,30 @@ function cleanAddress(input) {
   const phone = String(input?.phone || '').trim().replace(/[.\s-]/g, '');
   const address = String(input?.address || '').trim();
   const note = String(input?.note || '').trim();
-  if (fullName.length < 2 || fullName.length > 100 || !/^\+?\d{9,15}$/.test(phone) || address.length < 8 || address.length > 300 || note.length > 500) {
-    throw createError('Thông tin giao hàng không hợp lệ.');
+
+  if (fullName.length < 2 || fullName.length > 100) {
+    throw createError('Họ và tên người nhận phải từ 2 đến 100 ký tự.');
   }
+
+  // Kiểm tra số điện thoại chỉ thuộc vùng Việt Nam
+  const isVnPhone = /^(?:\+?84|0)[35789]\d{8}$/.test(phone);
+  if (!isVnPhone) {
+    throw createError('Số điện thoại phải thuộc vùng Việt Nam hợp lệ (gồm 10 chữ số, bắt đầu bằng 03, 05, 07, 08, 09 hoặc +84).');
+  }
+
+  // Kiểm tra địa chỉ: độ dài, không chứa ký tự bậy/đặc biệt, phải có chữ cái, không lặp ký tự spam
+  const hasInvalidChars = /[^a-zA-Z0-9\sÀ-ỹà-ỹ.,/–\-]/.test(address);
+  const hasLetters = /[a-zA-ZÀ-ỹà-ỹ]/.test(address);
+  const hasSpamRepetition = /(.)\1{4,}/.test(address);
+
+  if (address.length < 8 || address.length > 300 || hasInvalidChars || !hasLetters || hasSpamRepetition) {
+    throw createError('Địa chỉ giao hàng không hợp lệ. Vui lòng không nhập ký tự đặc biệt hoặc ký tự spam.');
+  }
+
+  if (note.length > 500) {
+    throw createError('Ghi chú đơn hàng tối đa 500 ký tự.');
+  }
+
   return { fullName, phone, address, note };
 }
 
