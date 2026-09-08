@@ -20,7 +20,7 @@ const orderSchema = new mongoose.Schema({
     address: { type: String, required: true, trim: true },
     note: { type: String, default: '', trim: true },
   },
-  paymentMethod: { type: String, enum: ['COD'], default: 'COD' },
+  paymentMethod: { type: String, enum: ['COD', 'BANK_TRANSFER'], default: 'COD' },
   paymentStatus: { type: String, enum: ['Pending', 'Paid'], default: 'Pending' },
   orderStatus: {
     type: String,

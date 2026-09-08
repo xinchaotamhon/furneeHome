@@ -74,7 +74,9 @@ async function createOrder(req, res, next) {
   let persisted = false;
   try {
     const { shippingAddress, paymentMethod = 'COD' } = req.body;
-    if (paymentMethod !== 'COD') throw createError('Hiện chỉ hỗ trợ thanh toán khi nhận hàng (COD).');
+    if (paymentMethod !== 'COD' && paymentMethod !== 'BANK_TRANSFER') {
+      throw createError('Phương thức thanh toán không hợp lệ.');
+    }
     const address = cleanAddress(shippingAddress);
     const source = await sourceItems(req.user._id, req.body);
     const orderItems = [];
@@ -109,7 +111,7 @@ async function createOrder(req, res, next) {
       user: req.user._id,
       orderItems,
       shippingAddress: address,
-      paymentMethod: 'COD',
+      paymentMethod,
       paymentStatus: 'Pending',
       orderStatus: 'Pending',
       subtotal,
@@ -218,7 +220,11 @@ async function updateOrderStatus(req, res, next) {
         throw createError('Chuyển trạng thái đơn hàng không hợp lệ.', 409);
       }
       const update = { orderStatus };
-      if (orderStatus === 'Delivered') update.paymentStatus = 'Paid';
+      if (orderStatus === 'Delivered') {
+        update.paymentStatus = 'Paid';
+      } else if (paymentStatus && ['Pending', 'Paid'].includes(paymentStatus)) {
+        update.paymentStatus = paymentStatus;
+      }
       const result = await Order.findOneAndUpdate({ _id: order._id, orderStatus: order.orderStatus }, { $set: update }, { returnDocument: 'after' });
       if (!result) throw createError('Đơn hàng vừa được thay đổi, vui lòng tải lại.', 409);
       return res.json({ success: true, message: 'Đã cập nhật trạng thái đơn hàng.', data: result });

@@ -127,9 +127,17 @@ export default function AdminPage() {
     try { await userService.updateAdmin(id, changes); await loadUsers(); setNotice('Đã cập nhật tài khoản.'); } catch (updateError) { setError(messageFrom(updateError)); setWorking(false); }
   }
 
-  async function updateOrder(id, orderStatus) {
+  async function updateOrder(id, changes) {
     setWorking(true); setNotice(''); setError('');
-    try { const saved = await orderService.updateOrderStatus(id, orderStatus); setOrders((current) => current.map((order) => (order._id === id ? saved : order))); setNotice('Đã cập nhật trạng thái đơn hàng.'); } catch (updateError) { setError(messageFrom(updateError)); } finally { setWorking(false); }
+    try {
+      const saved = await orderService.updateOrderStatus(id, changes);
+      setOrders((current) => current.map((order) => (order._id === id ? saved : order)));
+      setNotice('Đã cập nhật đơn hàng.');
+    } catch (updateError) {
+      setError(messageFrom(updateError));
+    } finally {
+      setWorking(false);
+    }
   }
 
   async function updateFeedback(id, status) {
@@ -166,7 +174,7 @@ export default function AdminPage() {
 
     {tab === 'customers' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Khách hàng ({customers.length})</h2><button className="text-button" type="button" onClick={loadUsers}>Tải lại</button></div>{isWorking && !customers.length ? <p className="muted">Đang tải…</p> : <div className="admin-user-list">{customers.map((account) => { const id = account._id || account.id; return <article key={id}><div><strong>{account.name}</strong><span>{account.username ? `@${account.username} · ` : ''}{account.email}</span></div><span className="admin-role">Khách hàng</span><button type="button" className={account.isActive ? 'admin-delete' : 'admin-edit'} onClick={() => updateAccount(id, { isActive: !account.isActive })} disabled={isWorking}>{account.isActive ? 'Khóa' : 'Mở khóa'}</button></article>; })}</div>}</section>}
 
-    {tab === 'orders' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Đơn hàng ({orders.length})</h2><button className="text-button" type="button" onClick={loadOrders}>Tải lại</button></div>{isWorking && !orders.length ? <p className="muted">Đang tải…</p> : !orders.length ? <p className="muted">Chưa có đơn hàng.</p> : <div className="admin-table-container"><table className="admin-table"><thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Sản phẩm</th><th>Tổng</th><th>Trạng thái</th></tr></thead><tbody>{orders.map((order) => <tr key={order._id}><td>{String(order._id).slice(-8).toUpperCase()}</td><td>{order.shippingAddress?.fullName}<br /><small>{order.shippingAddress?.phone}</small></td><td>{(order.orderItems || []).map((item) => `${item.name} × ${item.qty ?? item.quantity}`).join(', ')}</td><td>{formatPrice(order.totalAmount)}</td><td><select value={order.orderStatus || 'Pending'} disabled={isWorking} onChange={(event) => updateOrder(order._id, event.target.value)}>{ORDER_STATES.map((state) => <option key={state}>{state}</option>)}</select></td></tr>)}</tbody></table></div>}</section>}
+    {tab === 'orders' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Đơn hàng ({orders.length})</h2><button className="text-button" type="button" onClick={loadOrders}>Tải lại</button></div>{isWorking && !orders.length ? <p className="muted">Đang tải…</p> : !orders.length ? <p className="muted">Chưa có đơn hàng.</p> : <div className="admin-table-container"><table className="admin-table"><thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Sản phẩm</th><th>Tổng tiền</th><th>Phương thức</th><th>Thanh toán</th><th>Trạng thái đơn</th></tr></thead><tbody>{orders.map((order) => { const isBank = order.paymentMethod === 'BANK_TRANSFER'; return <tr key={order._id}><td><strong>{order.orderNumber || String(order._id).slice(-8).toUpperCase()}</strong></td><td>{order.shippingAddress?.fullName}<br /><small>{order.shippingAddress?.phone}</small></td><td>{(order.orderItems || []).map((item) => `${item.name} × ${item.qty ?? item.quantity}`).join(', ')}</td><td><strong>{formatPrice(order.totalAmount)}</strong></td><td><span className={`payment-badge ${isBank ? 'bank' : 'cod'}`}>{isBank ? 'Chuyển khoản QR' : 'COD'}</span></td><td><select value={order.paymentStatus || 'Pending'} disabled={isWorking} onChange={(event) => updateOrder(order._id, { paymentStatus: event.target.value })}><option value="Pending">Chờ thanh toán</option><option value="Paid">Đã thanh toán</option></select></td><td><select value={order.orderStatus || 'Pending'} disabled={isWorking} onChange={(event) => updateOrder(order._id, { orderStatus: event.target.value })}>{ORDER_STATES.map((state) => <option key={state}>{state}</option>)}</select></td></tr>; })}</tbody></table></div>}</section>}
 
     {tab === 'contact' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Liên hệ ({feedback.length})</h2><button className="text-button" type="button" onClick={loadFeedback}>Tải lại</button></div>{isWorking && !feedback.length ? <p className="muted">Đang tải…</p> : <div className="admin-feedback-list">{feedback.map((item) => <article key={item._id || item.id}><div><strong>{item.type === 'report' ? 'Báo nội dung xấu' : 'Góp ý'}</strong><span>{item.user?.email || item.email || 'Khách'}</span><p>{item.targetName ? `${item.targetName}: ${item.content}` : item.content}</p></div><select value={item.status} onChange={(event) => updateFeedback(item._id || item.id, event.target.value)} disabled={isWorking}><option value="new">Mới</option><option value="reviewed">Đã xem</option><option value="resolved">Đã xử lý</option></select></article>)}</div>}</section>}
 

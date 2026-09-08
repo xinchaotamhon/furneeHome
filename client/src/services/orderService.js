@@ -13,8 +13,9 @@ const orderService = {
     const response = await apiClient.get('/orders', { params });
     return response.data.data;
   },
-  async updateOrderStatus(id, orderStatus) {
-    const response = await apiClient.put(`/orders/${id}/status`, { orderStatus });
+  async updateOrderStatus(id, updateData) {
+    const payload = typeof updateData === 'object' && updateData !== null ? updateData : { orderStatus: updateData };
+    const response = await apiClient.put(`/orders/${id}/status`, payload);
     return response.data.data;
   },
   async cancelOrder(id) {
