@@ -1,373 +1,212 @@
-# FurneeHome 🛋️✨
+# FurneeHome
 
-> **Nền tảng AI hỗ trợ xem trước đồ nội thất trong căn phòng thật** (Dành cho học sinh, sinh viên và người ở phòng trọ nhỏ).
+Website giúp người dùng chọn nội thất và xem thử một sản phẩm trong ảnh phòng thật. Đây là bản chốt để nhóm trình bày và demo đồ án.
 
----
+## 1. Chức năng
 
-## ⚡ 1. Bật dự án nhanh (Chỉ 1 Click)
-
-Dành cho Windows:
-👉 **Sau khi cấu hình `.env` theo mục 6, click đúp vào file `start-furneehome.bat` ở thư mục gốc.**
-*(File script sẽ tự động mở 2 cửa sổ terminal chạy cả Backend Port 5000 và Frontend Port 5173 cùng lúc).*
-
-*(Nếu muốn chạy thủ công bằng terminal)*:
-- **Frontend:** Mở terminal $\rightarrow$ `cd client` $\rightarrow$ `npm run dev` (chạy tại `http://localhost:5173`)
-- **Backend:** Mở terminal $\rightarrow$ `cd server` $\rightarrow$ `npm run dev` (chạy tại `http://localhost:5000`)
-
----
-
-## 🔑 2. Đăng nhập thật và tài khoản Admin
-
-Đăng nhập/đăng ký hiện dùng backend Express, MongoDB và JWT; không còn tài khoản thử được tạo trực tiếp trong trình duyệt.
-
-- **Khách hàng:** bấm **Đăng ký** trong modal để tạo tài khoản thật qua API; có thể đăng nhập bằng tên đăng nhập hoặc email.
-- **Admin deploy:** tài khoản phải tồn tại trong collection `users` của MongoDB. Cấu hình `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` bằng secret của Render rồi chạy seed một lần. Production yêu cầu mật khẩu tối thiểu 12 ký tự.
-- **Admin local:** script `server/src/utils/bootstrapLocalAdmin.js` chỉ tạo tài khoản `localOnly` để demo trên chính máy đó và luôn từ chối production. Không dùng tài khoản/mật khẩu demo ngắn cho website công khai.
-- Token đăng nhập được lưu ở trình duyệt dưới khóa `accessToken`; quyền thật vẫn được kiểm tra lại ở backend bằng JWT và middleware Admin.
-
-> Không ghi mật khẩu admin thật vào README, source code hoặc Git. Xem mục 6 để cấu hình biến môi trường.
-
----
-
-## 🗺️ 3. Các trang và chức năng chính
-
-| Trang | Đường dẫn (URL) | Chức năng chính |
+| Trang | Đường dẫn | Chức năng |
 |---|---|---|
-| **Trang chủ** | `/` | Giới thiệu dự án, danh mục nổi bật, dẫn nhanh đến phòng thử |
-| **Danh sách sản phẩm** | `/products` | Sản phẩm từ MongoDB hoặc JSON dự phòng; mở link nguồn để xem thông tin gốc |
-| **Phòng thử (Room Studio)** | `/room-studio` | Tải ảnh → chọn món để hiện ngay trên ảnh → kéo, phóng/thu, xoay/lật → bấm Tạo ảnh. Mốc kích thước thật là tùy chọn |
-| **Bộ sưu tập** | `/collection` | Lưu ảnh gốc/kết quả, loại ý tưởng, vị trí/kích thước/xoay/lật/layer, điểm tham chiếu và mô tả; mở lại hoặc chủ động chia sẻ |
-| **Mẫu công khai** | `/collections/public` | Xem các mẫu được chủ sở hữu công khai; đăng nhập để công khai hoặc dùng lại thành bản sao riêng tư |
-| **Quản trị** | `/admin` | Dán URL Shopee trên localhost, CRUD sản phẩm, thêm ảnh và tải JSON fallback (dành cho Admin) |
+| Trang chủ | `/` | Giới thiệu FurneeHome và dẫn đến chức năng chính |
+| Sản phẩm | `/products` | Tìm kiếm, lọc, sắp xếp, lưu và chọn sản phẩm để thử |
+| Phòng thử | `/room-studio` | Tải ảnh phòng, đặt một sản phẩm, kéo vị trí, đổi kích thước, lật, tạo ảnh và lưu |
+| Bộ sưu tập | `/collection` | Xem sản phẩm yêu thích và mở lại mẫu phòng đã lưu |
+| Tài khoản | `/profile` | Thay đổi họ tên và ảnh đại diện |
+| Góp ý | `/feedback` | Gửi góp ý hoặc báo nội dung sản phẩm xấu |
+| Quản trị | `/admin` | CRUD sản phẩm, quản lý người dùng và xử lý phản hồi |
 
----
+Xác thực gồm đăng ký, đăng nhập, đăng xuất và đặt lại mật khẩu bằng OTP email.
 
-## 🌿 4. Hướng dẫn làm việc với Git cho 4 thành viên nhóm
+## 2. Quyền người dùng
 
-Mỗi thành viên làm trên nhánh riêng (`feature/phuc-next`, `feature/trieu`, `feature/dung`). Trưởng nhóm review rồi mới merge vào `main`.
+- `customer`: dùng sản phẩm, Phòng thử, bộ sưu tập, hồ sơ và góp ý.
+- `admin`: thêm, sửa, xóa sản phẩm; xem và xử lý phản hồi.
+- `superadmin`: có toàn bộ quyền admin, đồng thời cấp quyền admin và khóa/mở khóa tài khoản. Superadmin không thể tự hạ quyền và không thể bị admin khác thay đổi.
 
-### 0️⃣ Thiết lập lần đầu
+## 3. Chạy dự án
+
+Yêu cầu: Node.js, npm và MongoDB Atlas.
+
+1. Cài thư viện:
+
 ```powershell
-git clone https://github.com/xinchaotamhon/furneeHome.git
-cd furneeHome
-git fetch origin
-git switch main
-git pull --ff-only origin main
-git switch -c feature/phuc-next          # đổi thành tên nhánh mới của bạn
-git push -u origin feature/phuc-next
-
 cd client
 npm install
 cd ..\server
 npm install
 ```
 
-### 1️⃣ Sửa riêng lỗi nhánh của Phúc
+2. Tạo một file `.env` ở thư mục gốc. Không đưa file này lên Git.
 
-`origin/phuc` và `origin/feature/phuc` đều được tạo từ lịch sử cũ. Các commit cần thiết đã được trưởng nhóm merge vào `main`; không pull `main` trực tiếp vào hai nhánh cũ này. Phúc giữ chúng làm bản lưu và tạo nhánh mới từ `main`:
-
-```powershell
-git fetch origin
-git switch -c feature/phuc-next origin/main
-git push -u origin feature/phuc-next
-```
-
-Từ lần sau Phúc làm việc và push trên `feature/phuc-next`; không cần force-push hoặc xóa nhánh cũ.
-
-### 2️⃣ Lấy code mới từ `main` về nhánh cá nhân
-
-Commit phần đang làm dở trước, rồi chạy:
+3. Chạy nhanh trên Windows bằng `start-furneehome.bat`, hoặc mở hai terminal:
 
 ```powershell
-git switch main
-git pull --ff-only origin main
-git switch feature/phuc-next   # đổi thành nhánh của bạn
-git merge main
+cd server
+npm run dev
 ```
 
-Nếu Git báo conflict và bạn chưa biết xử lý, chạy `git merge --abort` rồi báo cho Hiệp. Không chạy `git pull origin main` ngay trên nhánh cá nhân và không dùng `git push --force`.
-
-### 3️⃣ Đẩy phần đã làm lên GitHub
 ```powershell
-git add .
-git status
-git commit -m "feat: mô tả ngắn gọn nội dung bạn vừa làm"
-git push
+cd client
+npm run dev
 ```
 
-*(Sau khi push xong, báo cho trưởng nhóm Hiệp để review và merge vào `main`.)*
+Frontend: `http://localhost:5173`
 
----
+Backend: `http://localhost:5000`
 
-## 🛒 5. Hướng dẫn cào & Nạp sản phẩm từ Shopee vào Database
+Kiểm tra backend: `http://localhost:5000/api/health`
 
-Để thêm đồ nội thất Shopee mới vào trang web và phòng thử AI:
+## 4. Biến môi trường
 
-- **Cách nhanh trên localhost:** Admin mở `/admin`, dán URL Shopee hợp lệ rồi bấm thêm. Backend chỉ nhận import từ request local/non-production; dữ liệu được lưu vào MongoDB và đồng bộ sang JSON local. Chọn lại sản phẩm để tải ảnh; ảnh được lưu theo Item ID trong URL. Nút tải JSON tạo bản fallback **nhẹ, không nhúng ảnh base64** để nhóm kiểm tra và commit khi cần.
-- **Cách theo lô trong repo:** dùng ba bước dưới đây khi nhóm đã chuẩn bị nhiều ảnh PNG và muốn cập nhật MongoDB cùng JSON local.
-
-### 🔹 Bước 1: Lưu ảnh tách nền (PNG)
-1. Lấy mã số **Item ID** ở cuối link Shopee (Ví dụ: `https://shopee.vn/...-i.1709649747.`**`52663854319`**).
-2. Lưu file ảnh tách nền vào thư mục:
-   👉 **`client/public/images/products/52663854319.png`**
-
-### 🔹 Bước 2: Dán link Shopee vào tool
-Mở file [tools/importProducts.js](tools/importProducts.js), thêm link sản phẩm vào mảng `DEFAULT_PRODUCTS`:
-
-```javascript
-const DEFAULT_PRODUCTS = [
-  'https://shopee.vn/link-san-pham-shopee-1...',
-  'https://shopee.vn/link-san-pham-shopee-2...',
-];
-```
-
-### 🔹 Bước 3: Chạy lệnh tự động nạp dữ liệu
-Mở terminal tại thư mục gốc `furneehome` và chạy:
-
-```bash
-node tools/importProducts.js --dry-run
-node tools/importProducts.js
-```
-
-Lệnh `--dry-run` chỉ kiểm tra URL, ID, slug, PNG, danh mục, giá và dữ liệu trùng; không kết nối MongoDB và không ghi file. Chỉ chạy lệnh import thật sau khi kiểm tra đạt.
-
-> **Cơ chế tự động của Tool:**
-> 1. **Kiểm tra MongoDB:** Nếu link hoặc mã sản phẩm **ĐÃ CÓ TRÊN MONGODB**, tool sẽ **TỪ CHỐI nạp ngay lập tức** và in cảnh báo chi tiết để tránh trùng lặp.
-> 2. **Chưa có trong DB:** Tool tự động liên kết với file ảnh tách nền tương ứng trong `client/public/images/products/`, thêm sản phẩm mới vào MongoDB và sao lưu ra `client/public/data_import/data_import.json`.
-
-
-### 🔹 Quyết định về giá
-
-MongoDB là dữ liệu dùng chung của nhóm; JSON và ảnh local là bản fallback cần commit. Room Studio kiểm tra file ảnh có tồn tại thật, đưa món có ảnh lên trước và khóa món thiếu ảnh để không gửi reference giả sang AI. Giá Shopee có thể thay đổi nên không xem giá đã cào là giá bán hiện tại. Trong giai đoạn này:
-
-- `price` chỉ là giá tham khảo; có thể để `0` nếu sản phẩm đi theo hướng affiliate.
-- `sourceUrl`/link Shopee là đường dẫn người dùng mở để xem giá và mua.
-- Chưa tích hợp cập nhật giá tự động. Chỉ thêm khi có một tool đáng tin cậy để Admin bấm cập nhật hoặc chạy cập nhật hằng ngày và có thể kiểm tra lỗi; nếu chưa có thì giữ mô hình affiliate.
-
----
-
-## ⚙️ 6. Cấu hình biến môi trường (`.env`)
-
-Dự án dùng **một file `.env` duy nhất ở thư mục gốc**. Giữ nguyên file `.env` hiện có của nhóm; không cần tạo thêm file môi trường để chạy local.
+### Bắt buộc
 
 | Biến | Mục đích |
 |---|---|
-| `NODE_ENV` | Đặt `production` trên Render để bật toàn bộ kiểm tra bảo mật production. Backend cũng tự nhận `RENDER=true` để không rơi về chế độ local nếu quên biến này |
-| `PORT` | Cổng backend, mặc định `5000` |
-| `CLIENT_URL` | Địa chỉ frontend được phép gọi API, thường là `http://localhost:5173` khi chạy máy cá nhân |
-| `MONGO_URI` | Chuỗi kết nối MongoDB Atlas |
-| `JWT_SECRET` | Secret tùy chọn; nếu không có, local hiện giữ fallback cũ để không phá cách chạy của nhóm. Khi deploy nên cấu hình secret riêng |
-| `ANONYMOUS_QUOTA_SALT` | Secret HMAC dùng băm IP cho một lượt tạo ảnh của khách; khi deploy nên đặt chuỗi riêng, không commit |
-| `TRUST_PROXY` | Cách Express tin proxy để đọc đúng IP. Local để trống/`false`; Render gọi trực tiếp có thể dùng `1`; nếu thêm proxy khác phải cấu hình lại đúng topology |
-| `ADMIN_USERNAME` | Tên đăng nhập Admin dùng khi chạy seed; không đưa vào Git nếu muốn giữ riêng |
-| `ADMIN_EMAIL` | Email dùng để tạo/cập nhật tài khoản Admin khi chạy seed |
-| `ADMIN_PASSWORD` | Mật khẩu Admin dùng khi chạy seed; không đưa vào Git |
-| `CLOUDFLARE_ACCOUNT_ID` | Account ID của Cloudflare Workers AI |
-| `CLOUDFLARE_API_TOKEN` | Token gọi Cloudflare Workers AI; chỉ backend đọc |
-| `CLOUDFLARE_IMAGE_MODEL` | Model tạo ảnh, mặc định là Flux-2 Klein |
-| `ROOM_IMAGE_PROVIDER_ORDER` | Thứ tự provider tùy chọn; mặc định `pollinations,cloudflare,huggingface` để thử nhóm model mạnh trước |
-| `POLLINATIONS_API_KEY` | Khóa Pollinations tùy chọn; có khóa thì mới bật fallback này |
-| `POLLINATIONS_IMAGE_MODELS` | Danh sách model Pollinations từ mạnh đến nhẹ, phân cách bằng dấu phẩy |
-| `HF_TOKEN` | Token Hugging Face tùy chọn |
-| `HUGGINGFACE_IMAGE_MODEL` | Model image-to-image được `hf-inference` hỗ trợ; phải có cùng `HF_TOKEN` mới bật fallback |
-| `SMTP_HOST` / `SMTP_PORT` | Máy chủ SMTP gửi mã xác minh email (mặc định cổng 587) |
-| `SMTP_SECURE` | Đặt `true` khi SMTP dùng TLS trực tiếp (thường cổng 465) |
-| `SMTP_USER` / `SMTP_PASS` | Tài khoản SMTP; chỉ lưu trong secret môi trường, không commit |
-| `SMTP_FROM` | Địa chỉ người gửi mã xác minh |
-| `AUTH_OTP_DEV_MODE` | Chỉ local: đặt `true` để nhận mã ngẫu nhiên trong response khi gọi từ localhost; production luôn bỏ qua |
+| `MONGO_URI` | Kết nối MongoDB |
+| `JWT_SECRET` | Ký token đăng nhập; production bắt buộc có |
+| `CLIENT_URL` | URL frontend được phép gọi backend |
 
-Chỉ cần các biến Cloudflare hiện có là Room Studio vẫn chạy như trước. Khi thêm khóa Pollinations hoặc Hugging Face, backend sẽ tự chuyển provider nếu nơi đang dùng hết quota, timeout hoặc tạm lỗi. Free quota do từng nhà cung cấp quyết định và có thể thay đổi; không provider nào được coi là miễn phí vô hạn.
+### Tạo ảnh
 
-### Đăng ký và xác minh email
+| Biến | Mục đích |
+|---|---|
+| `POLLINATIONS_API_KEY` | Khóa Pollinations |
+| `POLLINATIONS_IMAGE_MODELS` | Model thử lần lượt, mặc định `gpt-image-2,gptimage-large` |
+| `CLOUDFLARE_ACCOUNT_ID` | Account ID Cloudflare |
+| `CLOUDFLARE_API_TOKEN` | Token Workers AI |
+| `CLOUDFLARE_IMAGE_MODEL` | Model Cloudflare |
+| `ROOM_IMAGE_PROVIDER_ORDER` | Thứ tự gọi, mặc định `pollinations,cloudflare` |
 
-Đăng ký gồm ba bước: nhập email, nhập mã 6 số rồi tạo họ tên và mật khẩu. Mã có hiệu lực 10 phút và số lần gửi được giới hạn theo email cùng địa chỉ mạng đã băm. Local có thể đặt `AUTH_OTP_DEV_MODE=true`; production phải cấu hình SMTP.
+Nếu dịch vụ AI lỗi hoặc hết lượt, Phòng thử vẫn tạo bản bố cục tại trình duyệt để buổi demo không bị dừng.
 
-### Thêm JWT_SECRET cho xác thực backend
+### Gửi OTP
 
-Khi dùng đăng nhập thật, hãy thêm biến `JWT_SECRET` vào chính file `.env` ở thư mục gốc và đặt một chuỗi ngẫu nhiên riêng dài ít nhất 32 ký tự.
+| Biến | Mục đích |
+|---|---|
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Máy chủ gửi email |
+| `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Tài khoản gửi email |
+| `AUTH_OTP_DEV_MODE` | Localhost có thể hiện OTP thử khi chưa cấu hình SMTP |
 
-- Có thể giữ nguyên .env hiện tại và chỉ thêm một dòng này; không cần sửa start-furneehome.bat.
-- Sau khi thêm hoặc thay secret, hãy khởi động lại backend; các token cũ sẽ hết hiệu lực và người dùng cần đăng nhập lại.
-- Không commit hoặc gửi giá trị secret qua chat.
+Với Gmail, dùng App Password, không dùng mật khẩu Gmail thông thường. Production không trả OTP về giao diện và bắt buộc cấu hình SMTP nếu muốn dùng quên mật khẩu.
 
-Nếu cần tạo hoặc cập nhật tài khoản Admin từ biến môi trường, chạy:
+### Tạo quản trị cao nhất
 
-```
+Đặt `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, rồi chạy:
+
+```powershell
 cd server
 npm run seed
 ```
 
-Không commit `.env`, không dán giá trị secret vào tài liệu, và không tạo thêm `.env` bên trong `client/` hoặc `server/`.
+Lệnh seed chỉ thêm các sản phẩm chưa có từ JSON dự phòng và tạo/cập nhật `superadmin`. Mật khẩu production phải từ 12 ký tự.
 
+## 5. Luồng quan trọng
 
-## 📁 7. Cấu trúc thư mục dự án
+### Đăng nhập
 
-Đây là cấu trúc dạng cây để nhóm dễ nhìn khi thuyết trình. Những file có cùng vai trò được đặt cạnh nhau; các folder phụ trợ được tách ở cuối cây.
+`LoginModal` → `authService` → route `/api/auth` → `authController` → model `User` → MongoDB → JWT → `AuthContext`.
 
-~~~text
-furneehome/
-├── .env                              # Cấu hình MongoDB, Cloudflare và tùy chọn JWT; không commit
-├── README.md                         # Hướng dẫn chạy, chức năng, dữ liệu và cấu trúc dự án
-├── START_HERE.md                     # Quy tắc để AI/lập trình viên đọc trước khi sửa
-├── start-furneehome.bat              # Mở backend và frontend trên Windows
-├── G5_furniture-store_Review_1_2_VI.docx
-├── G5_furniture-store_Review_1_2_EN.docx
-│
-├── client/                           # Frontend React + Vite
-│   ├── package.json                  # Thư viện và lệnh chạy frontend
-│   ├── package-lock.json             # Khóa phiên bản thư viện frontend
-│   ├── index.html                    # HTML shell của Vite
-│   ├── vite.config.js                # Cấu hình Vite và React plugin
-│   │
-│   ├── public/
-│   │   ├── favicon.ico               # Biểu tượng trình duyệt
-│   │   ├── data_import/
-│   │   │   └── data_import.json      # Backup nhẹ khi API chưa sẵn sàng
-│   │   └── images/
-│   │       ├── README.md             # Quy ước đặt ảnh sản phẩm
-│   │       └── products/
-│   │           └── *.png             # Ảnh sản phẩm tách nền theo Item ID
-│   │
+### Phòng thử
+
+Ảnh phòng + sản phẩm + vị trí → `createRoomPreviewImages` tạo ảnh hướng dẫn → `/api/room-previews` → `generateRoomPreview` thử Pollinations rồi Cloudflare → `compositeRoomPreview` ghép vùng sản phẩm → kết quả.
+
+Điểm wow của dự án là sản phẩm luôn hiện đúng vị trí trước khi tạo; ảnh AI chỉ thay vùng sản phẩm, còn ảnh bố cục tại máy là phương án dự phòng.
+
+### Lưu bộ sưu tập
+
+- Khách chưa đăng nhập: lưu dữ liệu nhẹ trong `localStorage`.
+- Người đã đăng nhập: lưu mẫu phòng trong MongoDB; nếu mạng lỗi, vẫn giữ bản local.
+- Trạng thái đang chỉnh trong Phòng thử dùng `sessionStorage`; bấm **Làm lại** sẽ xóa trạng thái đó.
+
+### Quản trị
+
+Giao diện `/admin` → service tương ứng → middleware xác thực JWT và quyền → controller → MongoDB → tải lại danh sách.
+
+## 6. Dữ liệu sản phẩm
+
+- MongoDB là nguồn dùng chung khi backend hoạt động.
+- `client/public/data_import/data_import.json` là dữ liệu dự phòng khi backend chưa bật.
+- Ảnh sản phẩm tải từ trang quản trị được lưu cùng sản phẩm trong MongoDB.
+- Admin nhập kích thước, cách sử dụng, bề mặt đặt và mô tả hình dạng để AI giữ sản phẩm gần đúng hơn.
+
+## 7. Kiểm tra trước khi bảo vệ
+
+```powershell
+cd client
+npm run build
+```
+
+Sau đó kiểm tra lần lượt:
+
+1. Trang chủ và Sản phẩm tải được dữ liệu.
+2. Đăng ký, đăng nhập, đăng xuất.
+3. Quên mật khẩu nhận OTP và đổi được mật khẩu.
+4. Sửa hồ sơ.
+5. Phòng thử: tải ảnh → chọn món → kéo/chỉnh → tạo ảnh → so sánh → lưu.
+6. Bộ sưu tập: xem, mở lại và xóa.
+7. Góp ý và báo nội dung xấu.
+8. Admin CRUD sản phẩm và xử lý phản hồi.
+9. Superadmin cấp/hủy quyền admin và khóa/mở khóa người dùng.
+10. Mở một URL sai để kiểm tra trang 404.
+
+## 8. Git cho nhóm 4 người
+
+Mỗi người làm trên một nhánh mới tạo từ `main`. Không tiếp tục dùng nhánh cũ đã lệch lịch sử.
+
+Lấy bản mới và tạo nhánh:
+
+```powershell
+git fetch origin
+git switch main
+git pull --ff-only origin main
+git switch -c feature/ten-thanh-vien-cong-viec
+```
+
+Lấy thay đổi mới từ `main` vào nhánh đang làm:
+
+```powershell
+git status
+git switch main
+git pull --ff-only origin main
+git switch feature/ten-thanh-vien-cong-viec
+git merge main
+```
+
+Đẩy phần đã làm:
+
+```powershell
+git add .
+git status
+git commit -m "feat: mo ta ngan gon"
+git push -u origin feature/ten-thanh-vien-cong-viec
+```
+
+Nếu có conflict, chạy `git merge --abort` trước khi nhờ trưởng nhóm xử lý. Không dùng `git push --force`. Chỉ `.env` và các khóa bí mật phải gửi riêng; mã nguồn, package lock, JSON dự phòng và ảnh công khai của sản phẩm có thể đưa lên Git.
+
+## 9. Cấu trúc
+
+```text
+furneehome - Copy/
+├── .env                    # Bí mật, không commit
+├── README.md               # Nhóm đọc
+├── START_HERE.md           # AI đọc trước khi sửa
+├── start-furneehome.bat
+├── client/                 # React, HTML, CSS
+│   ├── public/             # JSON và ảnh công khai
 │   └── src/
-│       ├── main.jsx                  # Điểm khởi động React và nạp CSS
-│       ├── App.jsx                   # Bọc Auth, Product, Collection Provider và Router
-│       ├── router.jsx                # Khai báo URL và khu vực Admin
-│       │
 │       ├── components/
-│       │   ├── auth/
-│       │   │   └── LoginModal.jsx    # Modal đăng nhập/đăng ký qua backend
-│       │   ├── layout/
-│       │   │   ├── MainLayout.jsx    # Khung trang chung
-│       │   │   ├── Header.jsx        # Điều hướng, user và link Admin
-│       │   │   └── Footer.jsx        # Footer chung
-│       │   └── product/
-│       │       ├── ProductArtwork.jsx # Ảnh hoặc placeholder sản phẩm
-│       │       ├── ProductCard.jsx    # Thẻ một sản phẩm
-│       │       └── ProductGrid.jsx    # Lưới sản phẩm
-│       │
 │       ├── context/
-│       │   ├── AuthContext.jsx       # Login/register thật, JWT và logout
-│       │   ├── ProductContext.jsx     # Tải sản phẩm và gọi CRUD Admin
-│       │   └── CollectionContext.jsx # Lưu local và đồng bộ mẫu phòng của tài khoản
-│       ├── hooks/
-│       │   └── useDebounce.js        # Trì hoãn tìm kiếm khi người dùng gõ
-│       │
 │       ├── pages/
-│       │   ├── HomePage.jsx           # Trang giới thiệu
-│       │   ├── ProductListPage.jsx    # Tìm kiếm và xem sản phẩm
-│       │   ├── RoomStudioPage.jsx     # Chọn điểm, đặt đồ, xem thử AI
-│       │   ├── CollectionPage.jsx     # Xem, mở lại và chia sẻ mẫu đã lưu
-│       │   ├── PublicCollectionsPage.jsx # Danh sách mẫu phòng công khai
-│       │   ├── PublicCollectionDetailPage.jsx # Xem và dùng lại một mẫu công khai
-│       │   ├── AdminPage.jsx          # CRUD sản phẩm qua API
-│       │   └── NotFoundPage.jsx       # URL không tồn tại
-│       │
 │       ├── services/
-│       │   ├── apiClient.js           # Axios client và Bearer token
-│       │   ├── authService.js         # API login/register
-│       │   ├── productService.js      # API đọc/thêm/sửa/xóa sản phẩm
-│       │   ├── roomPreviewService.js  # API tạo preview AI
-│       │   └── roomDesignService.js   # API lưu/chia sẻ/dùng lại mẫu phòng
-│       │
-│       ├── styles/
-│       │   ├── theme.css              # Màu, font và design token
-│       │   └── global.css             # Layout và CSS responsive
-│       │
 │       └── utils/
-│           ├── cameraSolver.js        # Điểm tụ, tiêu cự, ma trận camera
-│           ├── roomPreviewCanvas.js   # Crop, tỷ lệ, phối cảnh, bóng, composite
-│           ├── formatPrice.js         # Định dạng tiền VND
-│           └── normalizeText.js       # Tìm kiếm/so sánh không dấu
-│
-├── server/                           # Backend Node.js + Express + MongoDB
-│   ├── package.json                  # Thư viện và lệnh chạy backend
-│   ├── package-lock.json             # Khóa phiên bản thư viện backend
-│   └── src/
-│       ├── app.js                    # Express app, CORS, JSON và routes
-│       ├── server.js                 # Kết nối MongoDB và mở port 5000
-│       │
-│       ├── config/
-│       │   ├── db.js                 # Kết nối MongoDB Atlas
-│       │   └── env.js                # Đọc .env root
-│       ├── controllers/
-│       │   ├── authController.js     # Login, register, bcrypt và JWT
-│       │   ├── productController.js  # List và CRUD sản phẩm
-│       │   ├── roomPreviewController.js # Kiểm tra request preview
-│       │   ├── roomDesignController.js  # Lưu/đọc thiết kế phòng
-│       │   └── adminController.js    # API quản trị user
-│       ├── middleware/
-│       │   ├── authMiddleware.js     # Xác thực JWT và role Admin
-│       │   └── errorHandler.js       # Format lỗi API
-│       ├── models/
-│       │   ├── User.js               # User và role customer/admin
-│       │   ├── Product.js             # Sản phẩm, gallery ảnh, giá, link nguồn
-│       │   ├── Category.js            # Danh mục
-│       │   ├── RoomDesign.js          # Thiết kế phòng của user
-│       │   └── AnonymousGenerationQuota.js # Lượt tạo ảnh khách theo IP đã băm
-│       ├── routes/
-│       │   ├── index.js              # Gom route dưới /api
-│       │   ├── authRoutes.js         # /auth/login, /auth/register
-│       │   ├── productRoutes.js      # GET công khai, CRUD cần Admin
-│       │   ├── roomPreviewRoutes.js  # /room-previews
-│       │   ├── roomDesignRoutes.js   # /room-designs
-│       │   └── adminRoutes.js        # /admin/users
-│       ├── services/
-│       │   ├── cloudflareImageService.js # Prompt và chuỗi provider ảnh
-│       │   ├── anonymousGenerationQuotaService.js # Reserve/use/release lượt khách
-│       │   └── productCatalogService.js # Kiểm tra URL, ảnh và export JSON
-│       └── utils/
-│           ├── seedData.js           # Seed Category/Admin deploy khi cần
-│           └── bootstrapLocalAdmin.js # Tạo admin chỉ dùng trên máy local
-│
-├── tools/                            # Script dữ liệu, không phải runtime website
-│   ├── importProducts.js             # Import sản phẩm từ Shopee
-│   ├── syncMongoToJson.js            # Đồng bộ MongoDB về JSON frontend
-│   ├── fixProductCategories.js       # Chuẩn hóa danh mục
-│   ├── smoke-room.cjs                # Smoke test Room Studio, prompt, quota
-│   └── smoke-admin.cjs               # Smoke test auth, Admin, ảnh, JSON
-│
-├── fSpy_3d-matching/                 # Repo tham khảo cho camera matching
-├── fourgether/                       # Flashcard/checklist ôn bảo vệ
-└── artifacts/                        # Ảnh và kết quả thử nghiệm
-~~~
+└── server/                 # Node.js, Express, MongoDB
+    └── src/
+        ├── config/
+        ├── controllers/
+        ├── middleware/
+        ├── models/
+        ├── routes/
+        ├── services/
+        └── utils/
+```
 
-### Cách hiểu khi thuyết trình
-
-- Phần chính cần trình bày: client, server, tools, data_import và ảnh sản phẩm.
-- fSpy_3d-matching chỉ là repo tham khảo; frontend runtime dùng cameraSolver.js.
-- fourgether và artifacts phục vụ làm việc/ôn tập, không phải dependency để website chạy.
-- roomPreviewCanvas.js dài hơn các file khác vì chứa phép tính canvas và phối cảnh; không nên đơn giản hóa bằng cách xóa bớt logic hình học.
-
-
-## 🚀 8. Triển khai Online (Deployment Architecture)
-
-Hệ thống được thiết kế tối ưu để deploy hoàn toàn miễn phí trên nền tảng đám mây:
-
-1. **Frontend (`client/`) $\rightarrow$ Deploy lên Cloudflare Pages:**
-   - **Framework Preset:** `None` (hoặc `Vite`)
-   - **Build Command:** `cd client && npm install && npm run build`
-   - **Output Directory:** `client/dist`
-   - **Environment Variable:** `VITE_API_URL=https://<your-render-backend>/api`
-
-2. **Backend (`server/`) $\rightarrow$ Deploy lên Render.com (Web Service):**
-   - **Root Directory:** `server`
-   - **Build Command:** `npm install`
-   - **Start Command:** `node src/server.js`
-   - **Environment Variables chính:** `NODE_ENV=production`, `MONGO_URI`, `CLIENT_URL`, `JWT_SECRET`, `ANONYMOUS_QUOTA_SALT`, `TRUST_PROXY=1`. Nếu dùng Cloudflare làm provider, thêm `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_IMAGE_MODEL`.
-   - **Fallback ảnh tùy chọn:** `ROOM_IMAGE_PROVIDER_ORDER`, `POLLINATIONS_API_KEY`, `POLLINATIONS_IMAGE_MODELS`, `HF_TOKEN`, `HUGGINGFACE_IMAGE_MODEL`. Thêm `ADMIN_USERNAME`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` chỉ khi chạy seed Admin.
-   - `TRUST_PROXY=1` phù hợp khi người dùng gọi trực tiếp một Render Web Service. Nếu đặt backend sau thêm Cloudflare/proxy khác, phải xác định lại số hop hoặc allowlist; cấu hình sai có thể làm giới hạn khách nhận nhầm IP.
-
-3. **Database $\rightarrow$ MongoDB Atlas Cloud:**
-   - Cần cấu hình **Network Access** $\rightarrow$ `0.0.0.0/0` để Backend Render kết nối được.
-
----
-
-## 🎓 9. Ứng dụng Fourgether ôn tập chung
-
-- `fourgether/` là ứng dụng tĩnh để **Hiệp, Phúc, Triều, Dũng** cùng ôn toàn bộ đồ án:
-  - Bấm **Học theo luồng** để đi hết dự án; bấm một node để chỉ ôn chủ đề đó.
-  - Cây đi theo người dùng → frontend → backend/AI → dữ liệu/deploy → câu hỏi bảo vệ; không chia theo độ khó hay thành viên.
-  - Mọi người học toàn bộ luồng; phân công công việc của nhóm không làm thay đổi nội dung phải biết.
-  - Tiến độ chỉ giữ trong phiên hiện tại, không lưu cache ứng dụng hay dữ liệu trình duyệt; tải lại là một phiên học mới.
-  - Đây là repo độc lập: <https://github.com/xinchaotamhon/fourgether>. Lần đầu clone vào thư mục `fourgether`; các lần sau chạy `git -C fourgether pull --ff-only`.
-  - Trước khi phát hành, chạy `node --test smoke.cjs` trong thư mục `fourgether`. Repo có thể deploy trực tiếp lên Cloudflare Pages.
+Trang học và luyện bảo vệ nằm ở repo riêng [Fourgether](https://github.com/xinchaotamhon/fourgether).

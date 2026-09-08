@@ -6,27 +6,27 @@ export default function Footer() {
       <div className="container fh-footer-grid">
         <div className="fh-footer-intro">
           <Link className="brand fh-brand" to="/">Furnee<span>Home</span></Link>
-          <p>Thử một ý tưởng nội thất trên ảnh phòng của bạn trước khi quyết định tìm hiểu sản phẩm.</p>
+          <p>Chọn nội thất và xem trước sản phẩm trong ảnh phòng của bạn.</p>
         </div>
         <div>
-          <h2>Bắt đầu</h2>
-          <Link to="/products">Chọn sản phẩm</Link>
-          <Link to="/room-studio">Tạo ảnh thử</Link>
-          <Link to="/collection">Bộ sưu tập của bạn</Link>
+          <h2>Chức năng</h2>
+          <Link to="/products">Sản phẩm</Link>
+          <Link to="/room-studio">Phòng thử</Link>
+          <Link to="/collection">Bộ sưu tập</Link>
+          <Link to="/feedback">Góp ý</Link>
         </div>
         <div>
-          <h2>Khám phá</h2>
-          <Link to="/collections/public">Mẫu công khai</Link>
-          <Link to="/room-studio">Gợi ý AI cho phòng</Link>
-          <Link to="/products">Danh mục sản phẩm</Link>
+          <h2>Phù hợp với</h2>
+          <p>Sinh viên, học sinh, công nhân và gia đình phổ thông.</p>
         </div>
         <div>
-          <h2>Lưu ý khi dùng</h2>
-          <p>Ảnh thử là gợi ý trực quan. Hãy kiểm tra kích thước thật và không gian sử dụng trước khi chọn mua.</p>
-          <p>Mẫu phòng chỉ được công khai khi chủ sở hữu tự bấm chia sẻ.</p>
+          <h2>Liên hệ</h2>
+          <p>Đồ án tốt nghiệp của nhóm FurneeHome.</p>
         </div>
       </div>
-      <div className="container fh-footer-bottom"><small>© 2026 FurneeHome</small><span>Thiết kế để người mới cũng có thể bắt đầu từng bước.</span></div>
+      <div className="container fh-footer-bottom">
+        <small>© 2026 FurneeHome</small>
+      </div>
     </footer>
   );
 }

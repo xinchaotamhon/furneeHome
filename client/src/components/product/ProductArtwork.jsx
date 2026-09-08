@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 const shapes = {
   desk: <><rect x="17" y="42" width="66" height="10" rx="3"/><rect x="22" y="52" width="6" height="36"/><rect x="72" y="52" width="6" height="36"/><rect x="31" y="55" width="38" height="4" opacity=".35"/></>,
   lowDeskWood: <><path d="M14 40h72l-9 14H23z"/><path d="M25 54h7l-5 30h-6zm43 0h7l4 30h-6z"/><path d="M31 57h38v4H31z" opacity=".35"/></>,
@@ -14,7 +16,7 @@ const shapes = {
 };
 
 export default function ProductArtwork({ product, className = '', onImageError }) {
-  const imageSource = product.image || product.sourceImages?.[0] || '';
+  const imageSource = product.transparentImage || product.image || product.sourceImages?.[0] || '';
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [imageSource]);
 
@@ -37,4 +39,3 @@ export default function ProductArtwork({ product, className = '', onImageError }
     </svg>
   );
 }
-import { useEffect, useState } from 'react';

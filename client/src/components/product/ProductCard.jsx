@@ -1,54 +1,86 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCart } from '../../context/CartContext';
 import { useCollection } from '../../context/CollectionContext';
+import { formatPrice } from '../../utils/formatPrice';
 import ProductArtwork from './ProductArtwork';
 
 export default function ProductCard({ product, onReferenceImageError }) {
   const navigate = useNavigate();
+  const { addToCart } = useCart();
   const { isProductSaved, toggleProduct } = useCollection();
-  const saved = isProductSaved(product._id);
-  const roomImage = product.transparentImage || product.image || '';
+  const saved = isProductSaved(product._id || product.id);
+  const roomImage = product.transparentImage || product.image || product.sourceImages?.[0] || '';
   const [hasReferenceImage, setHasReferenceImage] = useState(Boolean(roomImage));
+  const [justAdded, setJustAdded] = useState(false);
+
   useEffect(() => setHasReferenceImage(Boolean(roomImage)), [roomImage]);
 
-  const tryInRoom = () => {
+  const tryInRoom = (e) => {
+    e.stopPropagation();
     navigate('/room-studio', { state: { product } });
   };
 
-  const shopeeSearchUrl = product.shopeeSearchUrl
-    || product.sourceUrl
-    || `https://shopee.vn/search?keyword=${encodeURIComponent(product.searchKeyword || product.name)}`;
+  const handleQuickAdd = (e) => {
+    e.stopPropagation();
+    addToCart(product, 1);
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 2000);
+  };
 
   const categoryName = typeof product.category === 'object' && product.category?.name
     ? product.category.name
     : (product.category || product.categoryName || '');
 
+  const productId = product._id || product.id;
+
   return (
     <article className="product-card">
-      <div className="product-image-wrap">
-        <ProductArtwork product={product} onImageError={() => {
-          setHasReferenceImage(false);
-          onReferenceImageError?.(product);
-        }} />
-      </div>
+      <Link to={`/products/${productId}`} className="product-image-wrap">
+        <ProductArtwork
+          product={product}
+          onImageError={() => {
+            setHasReferenceImage(false);
+            onReferenceImageError?.(product);
+          }}
+        />
+      </Link>
       <div className="product-card-content">
         <div className="product-meta-tags">
-          {product.isOfficial && <span className="mall-badge">Mall</span>}
           {categoryName && <span className="category-tag">{categoryName}</span>}
         </div>
-        <h3 title={product.name}>{product.name}</h3>
+        <h3>
+          <Link to={`/products/${productId}`} className="product-card-title-link">
+            {product.name}
+          </Link>
+        </h3>
         <div className="price-row">
-          <span className="product-price">
-            {product.price > 0
-              ? `${new Intl.NumberFormat('vi-VN').format(product.price)} ₫`
-              : 'Giá sinh viên'}
-          </span>
-          {product.rating ? <span className="product-rating">⭐ {product.rating}</span> : null}
+          <span className="product-price">{formatPrice(product.price)}</span>
         </div>
         <div className="card-actions">
-          <button className="button" type="button" onClick={tryInRoom} disabled={!hasReferenceImage} title={hasReferenceImage ? 'Đưa sản phẩm vào phòng thử AI' : 'Admin cần thêm ảnh trước'}>{hasReferenceImage ? 'Thử phòng' : 'Chưa có ảnh'}</button>
-          <a className="button button-secondary" href={product.sourceUrl || shopeeSearchUrl} target="_blank" rel="noreferrer" title="Xem trên Shopee">Shopee ↗</a>
-          <button className={`icon-button ${saved ? 'is-saved' : ''}`} type="button" aria-label={saved ? 'Bỏ lưu' : 'Lưu sản phẩm'} onClick={() => toggleProduct(product)}>{saved ? '♥' : '♡'}</button>
+          <button
+            className={`button ${justAdded ? 'button-accent' : ''}`}
+            type="button"
+            onClick={handleQuickAdd}
+          >
+            {justAdded ? 'Đã thêm ✓' : 'Thêm giỏ'}
+          </button>
+          <button
+            className="button button-outline"
+            type="button"
+            onClick={tryInRoom}
+            disabled={!hasReferenceImage}
+          >
+            {hasReferenceImage ? 'Thử phòng' : 'Chưa có ảnh'}
+          </button>
+          <button
+            className={`button button-secondary ${saved ? 'is-saved' : ''}`}
+            type="button"
+            onClick={() => toggleProduct(product)}
+            title="Lưu vào bộ sưu tập"
+          >
+            {saved ? '♥ Đã lưu' : '♡ Lưu'}
+          </button>
         </div>
       </div>
     </article>

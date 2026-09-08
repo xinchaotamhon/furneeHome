@@ -74,11 +74,6 @@ export function ProductProvider({ children }) {
     products,
     loading,
     refreshProducts: fetchProducts,
-    async importShopeeProduct(sourceUrl) {
-      const createdProduct = await productService.importShopee(sourceUrl);
-      await fetchProducts();
-      return createdProduct;
-    },
     async addProduct(data) {
       const product = await productService.create(data);
       await fetchProducts();
@@ -97,9 +92,6 @@ export function ProductProvider({ children }) {
       const product = await productService.addImage(id, dataUrl);
       await fetchProducts();
       return product;
-    },
-    downloadProductJson() {
-      return productService.downloadJson();
     },
   }), [products, loading]);
 

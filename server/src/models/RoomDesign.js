@@ -1,109 +1,47 @@
 const mongoose = require('mongoose');
 
-const normalizedPointSchema = new mongoose.Schema({
+const pointSchema = new mongoose.Schema({
   x: { type: Number, required: true, min: 0, max: 1 },
   y: { type: Number, required: true, min: 0, max: 1 },
 }, { _id: false });
 
 const placementSchema = new mongoose.Schema({
   productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
-  productName: { type: String, required: true, trim: true },
+  productName: { type: String, default: '', trim: true },
   image: { type: String, default: '' },
   transparentImage: { type: String, default: '' },
-  productFacts: {
-    usageType: { type: String, enum: ['unknown', 'floor-seating', 'standard'], default: 'unknown' },
-    placementSurface: { type: String, enum: ['unknown', 'floor', 'wall', 'tabletop'], default: 'unknown' },
-    dimensionsCm: { width: Number, depth: Number, height: Number },
-    aiDescription: { type: String, maxlength: 300, default: '' },
-  },
-  target: {
-    x: { type: Number, required: true, min: 0, max: 1 },
-    y: { type: Number, required: true, min: 0, max: 1 },
-    anchor: { type: String, default: 'bottom-center' },
-  },
+  target: { type: pointSchema, required: true },
   scale: { type: Number, default: 1, min: 0.1, max: 4 },
-  rotation: { type: Number, default: 0, min: -180, max: 180 },
   isFlipped: { type: Boolean, default: false },
-  zIndex: { type: Number, default: 0, min: 0, max: 100 },
-}, { _id: false });
-
-const scaleReferenceSchema = new mongoose.Schema({
-  points: { type: [normalizedPointSchema], validate: (points) => points.length === 2 },
-  lengthCm: { type: Number, required: true, min: 1, max: 1000 },
-}, { _id: false });
-
-const inspirationProductSchema = new mongoose.Schema({
-  productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
-  productName: { type: String, required: true, trim: true, maxlength: 200 },
-  image: {
-    type: String,
-    required: true,
-    trim: true,
-    maxlength: 2_000,
-    validate: {
-      validator: (value) => !/^data:/i.test(value),
-      message: 'Ảnh sản phẩm gợi ý phải là URL, không phải data URL',
-    },
-  },
-  sourceUrl: { type: String, required: true, trim: true, maxlength: 2_000 },
 }, { _id: false });
 
 const roomDesignSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  name: { type: String, required: true, trim: true },
-
-  // Giữ các trường một sản phẩm để đọc được dữ liệu cũ.
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  name: { type: String, required: true, trim: true, maxlength: 120 },
   productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
-  productName: { type: String, default: '' },
+  productName: { type: String, default: '', trim: true, maxlength: 200 },
   productImage: { type: String, default: '' },
-  photo: { type: String, default: '' },
-  target: {
-    x: { type: Number, min: 0, max: 1 },
-    y: { type: Number, min: 0, max: 1 },
-    anchor: { type: String, default: 'bottom-center' },
-  },
-  resultImage: { type: String, default: '' },
-  // Small image used by public lists; full room/result images are only returned
-  // when opening one design.
-  previewImage: { type: String, default: '', maxlength: 500_000 },
-  resultMatchesLayout: { type: Boolean, default: true },
-  designMode: { type: String, enum: ['placement', 'inspiration'], default: 'placement' },
-  userPrompt: { type: String, default: '', trim: true, maxlength: 300 },
-  // Keep legacy fields so old saved designs still open; new UI uses
-  // desiredPosition + avoid, while userPrompt stores the third free note.
-  designBrief: { purpose: String, style: String, keepClear: String, desiredPosition: String, avoid: String },
-  model: { type: String, default: '' },
-  elapsedMs: Number,
-  scale: { type: Number, default: 1, min: 0.1, max: 4 },
-  rotation: { type: Number, default: 0, min: -180, max: 180 },
-  flip: { type: Boolean, default: false },
-  imageSize: {
-    width: Number,
-    height: Number,
-  },
-
-  placements: { type: [placementSchema], default: [] },
-  // Chỉ lưu các món AI đã tham chiếu; không gán placement giả cho ý tưởng cả phòng.
-  inspirationProducts: { type: [inspirationProductSchema], default: [] },
-  markedCorners: { type: [normalizedPointSchema], default: [] },
-  scaleReference: { type: scaleReferenceSchema, default: null },
   roomImage: { type: String, default: '' },
-  visibility: { type: String, enum: ['private', 'public'], default: 'private' },
-  shareSlug: { type: String, trim: true, unique: true, sparse: true },
-  creatorName: { type: String, default: '', trim: true },
-  // Snapshot creator data so a public post remains attributable even if a profile changes later.
-  creatorAvatar: { type: String, default: '', trim: true, maxlength: 2_000 },
-  // One user can like a design once. likeCount avoids exposing the whole liker list publicly.
-  likedBy: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
-  likeCount: { type: Number, default: 0, min: 0 },
-  // Keep reusedFrom for records created before lineage was introduced.
-  parentDesign: { type: mongoose.Schema.Types.ObjectId, ref: 'RoomDesign' },
-  rootDesign: { type: mongoose.Schema.Types.ObjectId, ref: 'RoomDesign' },
-  reusedFrom: { type: mongoose.Schema.Types.ObjectId, ref: 'RoomDesign' },
-  reuseCount: { type: Number, default: 0, min: 0 },
+  resultImage: { type: String, default: '' },
+  previewImage: { type: String, default: '' },
+  target: { type: pointSchema },
+  scale: { type: Number, default: 1, min: 0.1, max: 4 },
+  flip: { type: Boolean, default: false },
+  placements: { type: [placementSchema], default: [] },
+  imageSize: {
+    width: { type: Number, min: 1 },
+    height: { type: Number, min: 1 },
+  },
+  userPrompt: { type: String, default: '', trim: true, maxlength: 300 },
+  designBrief: {
+    desiredPosition: { type: String, default: '', trim: true, maxlength: 120 },
+    avoid: { type: String, default: '', trim: true, maxlength: 120 },
+  },
+  model: { type: String, default: '', trim: true, maxlength: 100 },
+  elapsedMs: { type: Number, min: 0, max: 600_000 },
+  resultMatchesLayout: { type: Boolean, default: true },
 }, { timestamps: true });
 
-roomDesignSchema.index({ visibility: 1, updatedAt: -1 });
-roomDesignSchema.index({ visibility: 1, user: 1, updatedAt: -1 });
+roomDesignSchema.index({ user: 1, updatedAt: -1 });
 
 module.exports = mongoose.model('RoomDesign', roomDesignSchema);

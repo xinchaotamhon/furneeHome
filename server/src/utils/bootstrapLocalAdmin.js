@@ -30,7 +30,7 @@ async function bootstrapLocalAdmin({ resetPassword = false } = {}) {
     }
     if (existing) {
       existing.name = existing.name || 'Local Administrator';
-      existing.role = 'admin';
+      existing.role = 'superadmin';
       existing.localOnly = true;
       existing.isActive = true;
       if (resetPassword) existing.password = await bcrypt.hash(configuration.password, 12);
@@ -39,7 +39,7 @@ async function bootstrapLocalAdmin({ resetPassword = false } = {}) {
     }
     const user = await User.create({
       name: 'Local Administrator', username: configuration.username, email: configuration.email,
-      password: await bcrypt.hash(configuration.password, 12), role: 'admin', localOnly: true, isActive: true,
+      password: await bcrypt.hash(configuration.password, 12), role: 'superadmin', localOnly: true, isActive: true,
     });
     return { created: true, passwordReset: true, username: user.username };
   } finally {

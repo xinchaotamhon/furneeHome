@@ -11,10 +11,6 @@ function localOnlyAccountAllowed(req, user, isProduction = env.isProduction) {
   return !user?.localOnly || (!isProduction && isLocalRequest(req));
 }
 
-function localShopeeImportAllowed(req, isProduction = env.isProduction) {
-  return !isProduction && isLocalRequest(req);
-}
-
 async function authenticate(req, res, next) {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
@@ -28,9 +24,6 @@ async function authenticate(req, res, next) {
   }
 }
 
-// A preview may be created by a guest, but a valid signed-in user must not
-// consume the guest's one-image allowance. A supplied invalid token is rejected
-// instead of silently downgrading the request to a guest session.
 async function optionalAuthenticate(req, res, next) {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
@@ -46,17 +39,15 @@ async function optionalAuthenticate(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
-  if (req.user?.role !== 'admin') return res.status(403).json({ success: false, message: 'Admin only', data: null });
+  if (!['admin', 'superadmin'].includes(req.user?.role)) {
+    return res.status(403).json({ success: false, message: 'Bạn không có quyền quản trị.', data: null });
+  }
   return next();
 }
 
-function requireLocalShopeeImport(req, res, next) {
-  if (!localShopeeImportAllowed(req)) {
-    return res.status(403).json({
-      success: false,
-      message: 'Thao tác này chỉ được phép trên localhost.',
-      data: null,
-    });
+function requireSuperadmin(req, res, next) {
+  if (req.user?.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Chỉ quản trị cao nhất được thực hiện thao tác này.', data: null });
   }
   return next();
 }
@@ -65,8 +56,7 @@ module.exports = {
   authenticate,
   optionalAuthenticate,
   requireAdmin,
-  requireLocalShopeeImport,
+  requireSuperadmin,
   isLocalRequest,
   localOnlyAccountAllowed,
-  localShopeeImportAllowed,
 };
