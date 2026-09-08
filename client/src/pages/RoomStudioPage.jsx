@@ -69,8 +69,6 @@ export default function RoomStudioPage() {
   const selectedProducts = useMemo(() => selectedIds
     .map((id) => products.find((product) => idOf(product) === String(id)))
     .filter(Boolean), [products, selectedIds]);
-  const positionsReady = selectedProducts.length > 0
-    && selectedProducts.every((product) => String(desiredPositions[idOf(product)] || '').trim());
 
   useEffect(() => {
     writeSession({ roomImage, selectedIds, selectedId: selectedIds[0] || '', desiredPositions, resultImage });
@@ -95,7 +93,7 @@ export default function RoomStudioPage() {
       const image = await toDataUrl(file);
       setRoomImage(image);
       resetResult();
-      setMessage('Ảnh phòng đã sẵn sàng. Hãy khai báo vị trí ở Bước 3.');
+      setMessage('Ảnh phòng đã sẵn sàng. Bạn có thể ghi vị trí mong muốn hoặc để AI tự bố trí.');
     } catch (error) { setMessage(error.message); }
   };
 
@@ -119,7 +117,6 @@ export default function RoomStudioPage() {
   const generate = async () => {
     if (!roomImage) return setMessage('Bạn cần tải ảnh phòng ở Bước 2 trước khi gửi.');
     if (!selectedProducts.length) return setMessage('Hãy chọn ít nhất một sản phẩm ở Bước 1.');
-    if (!positionsReady) return setMessage('Nhập vị trí cho từng sản phẩm ở Bước 3.');
     setGenerating(true);
     setMessage('Đang gửi yêu cầu tạo ảnh…');
     try {
@@ -138,7 +135,7 @@ export default function RoomStudioPage() {
         roomImageDataUrl: roomImage,
         mode: 'inspiration',
         inspirationProducts,
-        userPrompt: positionSummary || 'Đặt các sản phẩm đã chọn tự nhiên trong phòng, giữ nguyên cấu trúc và ánh sáng.',
+        userPrompt: positionSummary,
       });
       const generated = data?.imageDataUrl || data?.resultImage || data?.imageUrl;
       if (!generated) throw new Error('AI chưa trả về ảnh.');
@@ -154,7 +151,7 @@ export default function RoomStudioPage() {
 
   return (
     <main className="container page simple-studio">
-      <div className="page-heading"><p className="eyebrow">PHÒNG THỬ</p><h1>Thử sản phẩm trong phòng</h1><p>Chọn tối đa 3 món, tải ảnh phòng và gửi vị trí bạn mong muốn.</p></div>
+      <div className="page-heading"><p className="eyebrow">PHÒNG THỬ</p><h1>Thử sản phẩm trong phòng</h1><p>Chọn tối đa 3 món, tải ảnh phòng và tạo ảnh. Vị trí là tùy chọn.</p></div>
       <div className="studio-simple-steps">
         <section className="panel-card">
           <span className="step-label">BƯỚC 1</span>
@@ -170,9 +167,9 @@ export default function RoomStudioPage() {
         </section>
         <section className="panel-card studio-position-step">
           <span className="step-label">BƯỚC 3</span>
-          <h2>Ghi vị trí và gửi</h2>
-          {selectedProducts.length ? <div className="studio-position-fields">{selectedProducts.map((product, index) => <label key={idOf(product)}>{`Vị trí sản phẩm ${index + 1}`}<input type="text" value={desiredPositions[idOf(product)] || ''} onChange={(event) => updatePosition(idOf(product), event.target.value)} placeholder="Ví dụ: cạnh cửa sổ, bên trái bàn" required /></label>)}</div> : <p className="muted">Chọn sản phẩm ở Bước 1 để nhập từng vị trí.</p>}
-          <button className="button" type="button" disabled={isGenerating || !roomImage || !positionsReady} onClick={generate}>{isGenerating ? 'Đang gửi…' : 'Tạo ảnh'}</button>
+          <h2>Vị trí mong muốn (không bắt buộc)</h2>
+          {selectedProducts.length ? <div className="studio-position-fields">{selectedProducts.map((product, index) => <label key={idOf(product)}>{`Vị trí sản phẩm ${index + 1}`}<input type="text" value={desiredPositions[idOf(product)] || ''} onChange={(event) => updatePosition(idOf(product), event.target.value)} placeholder="Để trống để AI tự bố trí" /></label>)}</div> : <p className="muted">Chọn sản phẩm ở Bước 1 để tiếp tục.</p>}
+          <button className="button" type="button" disabled={isGenerating || !roomImage || !selectedProducts.length} onClick={generate}>{isGenerating ? 'Đang gửi…' : 'Tạo ảnh'}</button>
           <button className="button button-secondary" type="button" disabled={!resultImage} onClick={() => setShowResult((value) => !value)}>{showResult ? 'Xem ảnh gốc' : 'So sánh kết quả'}</button>
         </section>
       </div>

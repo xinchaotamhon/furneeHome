@@ -75,12 +75,14 @@ ADMIN_PASSWORD=123
 TEAM_ADMIN_PASSWORD=123
 ```
 
-Nạp sản phẩm và tài khoản mẫu:
+Nạp dữ liệu lần đầu và tạo tài khoản mẫu:
 
 ```powershell
 cd server
 npm run seed
 ```
+
+Lệnh seed chỉ thêm sản phẩm chưa có; tên, giá, tồn kho và ảnh đã sửa trong MongoDB không bị ghi đè.
 
 Sau đó chạy `start-furneehome.bat`, hoặc mở hai terminal:
 

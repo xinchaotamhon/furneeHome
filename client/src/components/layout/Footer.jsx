@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 
-const contactPhone = import.meta.env.VITE_CONTACT_PHONE || '0900 000 000';
-const contactAddress = import.meta.env.VITE_CONTACT_ADDRESS || 'TP. Hồ Chí Minh';
-const zaloPhone = (import.meta.env.VITE_ZALO_PHONE || contactPhone).replace(/\D/g, '');
+const contactPhone = '0372 208 100';
+const contactAddress = 'Địa chỉ: 71/5 Huỳnh Tấn Phát, Ấp 31, Xã Nhà Bè, TP.HCM';
+const zaloUrl = 'https://zalo.me/0372208100';
+
+
 
 export default function Footer() {
   return (
@@ -26,7 +28,7 @@ export default function Footer() {
           <h2>Liên hệ</h2>
           <address className="fh-contact-address">{contactAddress}</address>
           <a href={`tel:${contactPhone.replace(/[^+\d]/g, '')}`}>☎ {contactPhone}</a>
-          <a href={`https://zalo.me/${zaloPhone}`} target="_blank" rel="noreferrer">Zalo: {zaloPhone || contactPhone}</a>
+          <a href={zaloUrl} target="_blank" rel="noreferrer">Zalo: {contactPhone}</a>
         </div>
       </div>
       <div className="container fh-footer-bottom">
@@ -34,10 +36,10 @@ export default function Footer() {
       </div>
       <div className="fh-contact-float" aria-label="Liên hệ nhanh">
         <a className="fh-contact-float-button fh-phone-float" href={`tel:${contactPhone.replace(/[^+\d]/g, '')}`} aria-label={`Gọi ${contactPhone}`}>
-          <span aria-hidden="true">☎</span><small>{contactPhone}</small>
+          <span aria-hidden="true">☎</span>
         </a>
-        <a className="fh-contact-float-button fh-zalo-float" href={`https://zalo.me/${zaloPhone}`} target="_blank" rel="noreferrer" aria-label="Mở Zalo">
-          <span aria-hidden="true">Z</span><small>Zalo</small>
+        <a className="fh-contact-float-button fh-zalo-float" href={zaloUrl} target="_blank" rel="noreferrer" aria-label="Mở Zalo">
+          <span aria-hidden="true">Zalo</span>
         </a>
       </div>
     </footer>

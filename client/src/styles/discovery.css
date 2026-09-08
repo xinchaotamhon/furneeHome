@@ -41,12 +41,55 @@
 @media (prefers-reduced-motion: reduce) { .fh-room-slide { animation: none; opacity: 0; }.fh-room-slide:first-child { opacity: 1; } }
 @media (max-width: 600px) { .fh-guest-actions { width: 100%; }.fh-guest-actions .button { flex: 1; }.fh-account-menu { width: 100%; justify-content: space-between; }.fh-hero-grid { padding-top: 3rem; padding-bottom: 3rem; }.fh-hero-copy h1 { font-size: clamp(2.3rem, 12vw, 3.2rem); }.fh-room-story { width: 100%; }.fh-start-section, .fh-priority-section { padding-top: 4rem; padding-bottom: 4rem; }.fh-step-grid, .fh-footer-grid { grid-template-columns: 1fr; }.fh-step-grid article { min-height: 13.5rem; }.fh-guided-form-wrap { padding: 4rem 0; }.fh-home-callout { display: grid; align-items: start; padding-top: 4rem; padding-bottom: 4rem; }.fh-footer-bottom { display: grid; }.fh-footer-grid { gap: 1.4rem; }.fh-contact-float { right: .65rem; bottom: .65rem; }.fh-contact-float-button { width: 50px; height: 50px; } }
 
-/* Nút liên hệ nổi: số điện thoại nhìn thấy và gọi được ngay. */
-.fh-contact-float-button { width: auto; min-width: 58px; min-height: 54px; height: auto; padding: 0 14px; flex-direction: row; gap: 8px; border-radius: 999px; }
-.fh-contact-float-button small { margin-top: 0; font-size: .74rem; font-weight: 750; white-space: nowrap; }
-.fh-zalo-float { width: 58px; align-self: end; padding: 0; }
-.fh-zalo-float small { display: none; }
-@media (max-width: 600px) {
-  .fh-contact-float-button { width: auto; min-width: 48px; min-height: 48px; height: auto; padding: 0 11px; }
-  .fh-zalo-float { width: 48px; }
+/* Nút liên hệ nổi: icon tròn gọn gàng đồng bộ */
+.fh-footer .fh-contact-float-button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  min-height: 54px;
+  padding: 0;
+  border-radius: 50%;
+  margin: 0;
+  text-decoration: none !important;
+  align-self: flex-end;
+  color: #fff !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+.fh-footer .fh-contact-float-button:hover {
+  transform: scale(1.08);
+}
+.fh-footer .fh-contact-float-button span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 1.45rem;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+}
+.fh-phone-float {
+  background: #18864b;
+  box-shadow: 0 6px 18px rgb(24 134 75 / 45%);
+}
+.fh-zalo-float {
+  background: #087bea;
+  box-shadow: 0 6px 18px rgb(8 123 234 / 45%);
+}
+.fh-footer .fh-zalo-float span {
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.fh-contact-float-button small { display: none; }
+@media (max-width: 600px) {
+  .fh-footer .fh-contact-float-button { width: 48px; height: 48px; min-height: 48px; }
+  .fh-footer .fh-phone-float span { font-size: 1.25rem; }
+  .fh-footer .fh-zalo-float span { font-size: 0.75rem; }
+}
+
+
+

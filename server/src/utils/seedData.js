@@ -94,12 +94,12 @@ async function seedProducts(categories) {
     if (!category || !item.name || Number(item.price) <= 0) continue;
     const data = productData(item, category);
 
-    await Product.findOneAndUpdate(
+    const result = await Product.updateOne(
       { slug: data.slug },
-      { $set: data, $setOnInsert: { ratingAverage: 0, reviewCount: 0 } },
+      { $setOnInsert: { ...data, ratingAverage: 0, reviewCount: 0 } },
       { upsert: true, runValidators: true },
     );
-    count += 1;
+    if (result.upsertedCount) count += 1;
   }
 
   return count;
@@ -155,7 +155,7 @@ async function seed() {
   const categories = await seedCategories();
   const productCount = await seedProducts(categories);
   await seedAccounts();
-  console.log(`Đã nạp ${productCount} sản phẩm và tài khoản demo.`);
+  console.log(`Đã thêm ${productCount} sản phẩm mới và cập nhật tài khoản demo.`);
   await mongoose.disconnect();
 }
 

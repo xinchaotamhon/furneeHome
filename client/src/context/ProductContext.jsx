@@ -11,22 +11,15 @@ export function ProductProvider({ children }) {
     setLoading(true);
     try {
       const apiData = await productService.getAll();
-      if (Array.isArray(apiData) && apiData.length > 0) {
-        setProducts(apiData);
-        setLoading(false);
-        return apiData;
-      }
+      const loadedProducts = Array.isArray(apiData) ? apiData : [];
+      setProducts(loadedProducts);
+      return loadedProducts;
     } catch {
+      setProducts([]);
+      return [];
+    } finally {
+      setLoading(false);
     }
-
-    let loadedProducts = [];
-    try {
-      const response = await fetch(`/data_import/data_import.json?t=${Date.now()}`);
-      if (response.ok) loadedProducts = await response.json();
-    } catch {}
-    setProducts(Array.isArray(loadedProducts) ? loadedProducts : []);
-    setLoading(false);
-    return loadedProducts;
   };
 
   useEffect(() => {

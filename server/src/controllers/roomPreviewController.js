@@ -16,8 +16,6 @@ function cleanProduct(item, index) {
   const image = cleanText(item?.image || item?.imageDataUrl || item?.productImageDataUrl, 8_000_000);
   const desiredPosition = cleanText(item?.desiredPosition || item?.position, 160);
   if (!productName || !image) throw invalid(`Sản phẩm ${index + 1} chưa có đủ tên và ảnh.`);
-  if (!desiredPosition) throw invalid(`Nhập vị trí mong muốn cho sản phẩm ${index + 1}.`);
-
   return {
     productId: cleanText(item?.productId, 100),
     productName,
