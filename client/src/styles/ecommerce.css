@@ -1460,4 +1460,15 @@ textarea[rows="7"] {
   max-height: 350px;
 }
 
+.admin-products .category-pills {
+  margin: 10px 0 16px;
+  gap: 6px;
+}
+
+.admin-products .category-pills button {
+  padding: 5px 12px;
+  font-size: 0.82rem;
+}
+
+
 
