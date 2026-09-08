@@ -1,21 +1,30 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import orderService from '../services/orderService';
+import { formatPrice } from '../utils/formatPrice';
 import {
+  fetchProvinces,
+  fetchDistricts,
+  fetchWards,
   calculateShippingFee,
   FALLBACK_PROVINCES,
-  fetchDistricts,
-  fetchProvinces,
-  fetchWards,
 } from '../services/locationService';
-import { formatPrice } from '../utils/formatPrice';
-import { validateSpecificAddress, validateVietnamPhone } from '../utils/validation';
+import { validateVietnamPhone, validateDetailedAddress } from '../utils/validation';
+import QrPaymentCard from '../components/payment/QrPaymentCard';
 
 export default function CheckoutPage() {
+  const { items, rawSubtotal, totalCount, clearCart } = useCart();
   const { user, openLogin } = useAuth();
-  const { items, totalCount, rawSubtotal, clearCart } = useCart();
+  const navigate = useNavigate();
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState(null);
+
+  // Phương thức thanh toán (COD hoặc Chuyển khoản QR)
+  const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER');
 
   // Thông tin người nhận
   const [fullName, setFullName] = useState(user?.name || '');
@@ -32,10 +41,6 @@ export default function CheckoutPage() {
   const [selectedWard, setSelectedWard] = useState('');
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingWards, setLoadingWards] = useState(false);
-
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
 
   // Tải danh sách tỉnh thành online
   useEffect(() => {
@@ -88,7 +93,9 @@ export default function CheckoutPage() {
         <div className="empty-cart-card">
           <h1>Chưa có sản phẩm để thanh toán</h1>
           <p>Hãy chọn sản phẩm bạn yêu thích để bắt đầu mua sắm.</p>
-          <Link className="button" to="/products">Quay về cửa hàng</Link>
+          <Link className="button" to="/products">
+            Quay về cửa hàng
+          </Link>
         </div>
       </main>
     );
@@ -116,7 +123,7 @@ export default function CheckoutPage() {
     setError('');
 
     if (!fullName.trim()) return setError('Vui lòng nhập họ và tên người nhận.');
-    
+
     // Kiểm tra số điện thoại vùng Việt Nam
     const phoneCheck = validateVietnamPhone(phone);
     if (!phoneCheck.isValid) {
@@ -127,17 +134,21 @@ export default function CheckoutPage() {
     const districtObj = districts.find((d) => Number(d.code) === Number(selectedDistrict));
     const wardObj = wards.find((w) => Number(w.code) === Number(selectedWard));
 
-    if (!provinceObj) return setError('Vui lòng chọn Tỉnh/Thành phố.');
-    if (!districtObj) return setError('Vui lòng chọn Quận/Huyện.');
-    if (!wardObj) return setError('Vui lòng chọn Phường/Xã.');
+    if (!provinceObj) return setError('Vui lòng chọn Tỉnh / Thành phố nhận hàng.');
 
-    // Kiểm tra địa chỉ cụ thể hợp lệ, không chứa ký tự bậy
-    const addressCheck = validateSpecificAddress(specificAddress);
+    const addressCheck = validateDetailedAddress(specificAddress);
     if (!addressCheck.isValid) {
       return setError(addressCheck.message);
     }
 
-    const fullAddress = `${addressCheck.address}, ${wardObj.name}, ${districtObj.name}, ${provinceObj.name}`;
+    // Ghép địa chỉ đầy đủ
+    const addressParts = [
+      specificAddress.trim(),
+      wardObj ? wardObj.name : '',
+      districtObj ? districtObj.name : '',
+      provinceObj ? provinceObj.name : '',
+    ].filter(Boolean);
+    const fullAddress = addressParts.join(', ');
 
     setSaving(true);
     try {
@@ -153,7 +164,7 @@ export default function CheckoutPage() {
           note: note.trim(),
         },
         shippingFee,
-        paymentMethod: 'COD',
+        paymentMethod,
       });
       clearCart();
       setResult(order);
@@ -165,27 +176,47 @@ export default function CheckoutPage() {
   };
 
   if (result) {
+    const isBankTransfer = result.paymentMethod === 'BANK_TRANSFER';
+
     return (
       <main className="container page order-success-page">
-        <div className="success-card">
+        <div className="success-card qr-success-card">
+          <div className="success-status-icon">✓</div>
           <h1>Đặt hàng thành công!</h1>
-          <p>
-            Mã đơn hàng: <strong>{result.orderNumber || result._id}</strong>.
-            Chúng tôi sẽ liên hệ để xác nhận trước khi giao.
+          <p className="order-code-banner">
+            Mã đơn hàng: <strong>{result.orderNumber || result._id}</strong>
           </p>
+
           <div style={{ margin: '18px 0', textAlign: 'left', background: '#f9fafb', padding: '16px', borderRadius: '8px' }}>
-            <p style={{ margin: '4px 0' }}><strong>Người nhận:</strong> {result.shippingAddress?.fullName} ({result.shippingAddress?.phone})</p>
-            <p style={{ margin: '4px 0' }}><strong>Địa chỉ:</strong> {result.shippingAddress?.address}</p>
-            <p style={{ margin: '4px 0' }}><strong>Tiền hàng:</strong> {formatPrice(result.subtotal || rawSubtotal)}</p>
-            <p style={{ margin: '4px 0' }}><strong>Phí vận chuyển:</strong> {formatPrice(result.shippingFee ?? shippingFee)}</p>
-            <p style={{ margin: '4px 0', fontSize: '1.15rem', color: 'var(--color-primary)' }}>
-              <strong>Tổng thanh toán:</strong> {formatPrice(result.totalAmount || totalAmount)}
+            <p style={{ margin: '4px 0' }}>
+              <strong>Người nhận:</strong> {result.shippingAddress?.fullName} ({result.shippingAddress?.phone})
             </p>
-            <p style={{ margin: '4px 0', color: 'var(--color-muted)', fontSize: '0.9rem' }}>
-              Phương thức: <strong>Tiền mặt khi nhận hàng (COD)</strong>
+            <p style={{ margin: '4px 0' }}>
+              <strong>Địa chỉ:</strong> {result.shippingAddress?.address}
+            </p>
+            <p style={{ margin: '4px 0' }}>
+              <strong>Tổng thanh toán:</strong> {formatPrice(result.totalAmount)}
+              {Number(result.shippingFee) > 0 && ` (Đã gồm phí ship ${formatPrice(result.shippingFee)})`}
             </p>
           </div>
-          <Link className="button" to="/orders">Xem lịch sử đơn hàng</Link>
+
+          {isBankTransfer ? (
+            <div className="success-payment-wrapper">
+              <QrPaymentCard order={result} onComplete={() => navigate('/orders')} />
+            </div>
+          ) : (
+            <div className="cod-success-info">
+              <p>
+                Phương thức: <strong>Thanh toán tiền mặt khi nhận hàng (COD)</strong>.
+              </p>
+              <p>Chúng tôi sẽ liên hệ số điện thoại {result.shippingAddress?.phone} để xác nhận trước khi giao hàng.</p>
+              <div className="cod-success-actions">
+                <Link className="button" to="/orders">
+                  Xem đơn hàng
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     );
@@ -195,7 +226,7 @@ export default function CheckoutPage() {
     <main className="container page checkout-page">
       <div className="page-heading">
         <p className="eyebrow">THANH TOÁN</p>
-        <h1>Thanh toán khi nhận hàng (COD)</h1>
+        <h1>Thông tin đơn hàng & Giao hàng</h1>
       </div>
 
       <form className="checkout-layout" onSubmit={submit}>
@@ -215,34 +246,23 @@ export default function CheckoutPage() {
                 </thead>
                 <tbody>
                   {items.map((item) => {
-                    const id = item.product?._id || item.product?.id;
-                    const imgUrl = item.image || item.product?.image || item.product?.transparentImage || '';
+                    const prodId = item.product._id || item.product.id;
+                    const prodImage = item.product.image || (item.product.images && item.product.images[0]);
                     return (
-                      <tr key={id}>
+                      <tr key={prodId}>
                         <td>
                           <div className="checkout-prod-info">
-                            {imgUrl ? (
-                              <img src={imgUrl} alt={item.name} className="checkout-prod-thumb" />
+                            {prodImage ? (
+                              <img src={prodImage} alt={item.name} className="checkout-prod-thumb" />
                             ) : (
-                              <div className="checkout-prod-thumb-placeholder">⌂</div>
+                              <div className="checkout-prod-thumb-placeholder">🛋️</div>
                             )}
-                            <div>
-                              <div className="checkout-prod-name">{item.name}</div>
-                              {item.product?.category && (
-                                <small style={{ color: 'var(--color-muted)', fontSize: '0.78rem' }}>
-                                  {typeof item.product.category === 'object' ? item.product.category.name : item.product.category}
-                                </small>
-                              )}
-                            </div>
+                            <span className="checkout-prod-name">{item.name}</span>
                           </div>
                         </td>
-                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          {formatPrice(item.price)}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <strong>{item.quantity}</strong>
-                        </td>
-                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
+                        <td style={{ textAlign: 'right' }}>{formatPrice(item.price)}</td>
+                        <td style={{ textAlign: 'center' }}>{item.quantity}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 600 }}>
                           {formatPrice(item.price * item.quantity)}
                         </td>
                       </tr>
@@ -253,171 +273,183 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* Form thông tin giao hàng & chọn địa giới hành chính */}
+          {/* Form thông tin giao nhận */}
           <div className="checkout-section-card">
-            <h2>Thông tin giao hàng</h2>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '14px' }}>
-              <label>
-                Họ và tên
-                <input
-                  required
-                  placeholder="Ví dụ: Nguyễn Văn A"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                />
-              </label>
-
-              <label>
-                Số điện thoại (Việt Nam)
-                <input
-                  required
-                  inputMode="tel"
-                  placeholder="Ví dụ: 0912345678"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  maxLength="15"
-                />
-              </label>
-            </div>
-
-            {/* Chọn Tỉnh/Thành phố, Quận/Huyện, Phường/Xã */}
-            <div style={{ marginBottom: '14px' }}>
-              <p className="location-group-title">Tỉnh/Thành Phố, Quận/Huyện, Phường/Xã</p>
-              <div className="location-select-row">
-                <label className="location-field-label">
-                  <span>Tỉnh / Thành phố *</span>
-                  <select
-                    required
-                    value={selectedProvince}
-                    onChange={(e) => setSelectedProvince(Number(e.target.value))}
-                  >
-                    <option value="">-- Chọn Tỉnh/Thành phố --</option>
-                    {provinces.map((prov) => (
-                      <option key={prov.code} value={prov.code}>
-                        {prov.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="location-field-label">
-                  <span>Quận / Huyện *</span>
-                  <select
-                    required
-                    disabled={!selectedProvince || loadingDistricts}
-                    value={selectedDistrict}
-                    onChange={(e) => setSelectedDistrict(Number(e.target.value))}
-                  >
-                    <option value="">
-                      {loadingDistricts ? 'Đang tải…' : '-- Chọn Quận/Huyện --'}
-                    </option>
-                    {districts.map((dist) => (
-                      <option key={dist.code} value={dist.code}>
-                        {dist.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="location-field-label">
-                  <span>Phường / Xã *</span>
-                  <select
-                    required
-                    disabled={!selectedDistrict || loadingWards}
-                    value={selectedWard}
-                    onChange={(e) => setSelectedWard(Number(e.target.value))}
-                  >
-                    <option value="">
-                      {loadingWards ? 'Đang tải…' : '-- Chọn Phường/Xã --'}
-                    </option>
-                    {wards.map((w) => (
-                      <option key={w.code} value={w.code}>
-                        {w.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              {/* Huy hiệu hiển thị cước phí vận chuyển tính toán */}
-              <div className="shipping-fee-pill">
-                <span>🚚 Phí vận chuyển:</span>
-                <strong>{formatPrice(shippingFee)}</strong>
-                <span style={{ fontSize: '0.8rem', opacity: 0.85 }}>({shippingInfo.label})</span>
-              </div>
-            </div>
-
-            {/* Địa chỉ cụ thể */}
-            <label style={{ marginTop: '10px' }}>
-              Địa chỉ cụ thể (Số nhà, tên đường - không nhập ký tự đặc biệt)
-              <textarea
+            <h2>1. Thông tin người nhận</h2>
+            <label>
+              Họ và tên người nhận *
+              <input
+                value={fullName}
+                placeholder="Ví dụ: Nguyễn Văn A"
+                onChange={(event) => setFullName(event.target.value)}
                 required
-                rows="2"
-                placeholder="Ví dụ: 203/19/2F, Đường Huỳnh Văn Nghệ"
-                value={specificAddress}
-                onChange={(e) => setSpecificAddress(e.target.value)}
-                maxLength="150"
               />
             </label>
-
-            {/* Ghi chú */}
-            <label style={{ marginTop: '10px' }}>
-              Ghi chú đơn hàng (tùy chọn)
-              <textarea
-                rows="2"
-                placeholder="Giao giờ hành chính, gọi trước khi đến..."
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
+            <label>
+              Số điện thoại người nhận *
+              <input
+                inputMode="tel"
+                value={phone}
+                placeholder="Ví dụ: 0912345678"
+                onChange={(event) => setPhone(event.target.value)}
+                required
               />
             </label>
           </div>
+
+          <div className="checkout-section-card">
+            <h2>2. Địa chỉ giao hàng</h2>
+            <p className="location-group-title">Khu vực hành chính</p>
+            <div className="location-select-row">
+              <label className="location-field-label">
+                Tỉnh / Thành phố *
+                <select
+                  value={selectedProvince}
+                  onChange={(e) => setSelectedProvince(Number(e.target.value))}
+                  required
+                >
+                  {provinces.map((p) => (
+                    <option key={p.code} value={p.code}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="location-field-label">
+                Quận / Huyện
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => setSelectedDistrict(e.target.value)}
+                  disabled={loadingDistricts || districts.length === 0}
+                >
+                  <option value="">{loadingDistricts ? 'Đang tải...' : '-- Chọn Quận/Huyện --'}</option>
+                  {districts.map((d) => (
+                    <option key={d.code} value={d.code}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="location-field-label">
+                Phường / Xã
+                <select
+                  value={selectedWard}
+                  onChange={(e) => setSelectedWard(e.target.value)}
+                  disabled={loadingWards || wards.length === 0}
+                >
+                  <option value="">{loadingWards ? 'Đang tải...' : '-- Chọn Phường/Xã --'}</option>
+                  {wards.map((w) => (
+                    <option key={w.code} value={w.code}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <label>
+              Số nhà, tên đường cụ thể *
+              <input
+                value={specificAddress}
+                placeholder="Ví dụ: 71/5 Huỳnh Tấn Phát, Ấp 31"
+                onChange={(event) => setSpecificAddress(event.target.value)}
+                required
+              />
+            </label>
+
+            <label>
+              Ghi chú cho đơn hàng (tùy chọn)
+              <textarea
+                rows="2"
+                value={note}
+                placeholder="Ví dụ: Giao giờ hành chính, gọi trước khi đến..."
+                onChange={(event) => setNote(event.target.value)}
+              />
+            </label>
+          </div>
+
+          {/* Phương thức thanh toán */}
+          <div className="checkout-section-card">
+            <h2>3. Phương thức thanh toán</h2>
+            <div className="payment-options-grid">
+              <label className={`payment-method-card ${paymentMethod === 'BANK_TRANSFER' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="BANK_TRANSFER"
+                  checked={paymentMethod === 'BANK_TRANSFER'}
+                  onChange={() => setPaymentMethod('BANK_TRANSFER')}
+                />
+                <div className="payment-card-content">
+                  <div className="payment-card-icon">📱</div>
+                  <div className="payment-card-text">
+                    <strong>Chuyển khoản QR (VietQR / VNPAY)</strong>
+                    <span>Quét mã QR tiện lợi qua VNPAY hoặc bất kỳ App ngân hàng nào (VCB, MB, Techcombank...)</span>
+                    <div className="payment-tag-list">
+                      <span className="mini-tag">VNPAY</span>
+                      <span className="mini-tag">Vietcombank</span>
+                      <span className="mini-tag">MoMo</span>
+                      <span className="mini-tag">+40 Ngân hàng</span>
+                    </div>
+                  </div>
+                </div>
+              </label>
+
+              <label className={`payment-method-card ${paymentMethod === 'COD' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="COD"
+                  checked={paymentMethod === 'COD'}
+                  onChange={() => setPaymentMethod('COD')}
+                />
+                <div className="payment-card-content">
+                  <div className="payment-card-icon">💵</div>
+                  <div className="payment-card-text">
+                    <strong>Thanh toán khi nhận hàng (COD)</strong>
+                    <span>Thanh toán tiền mặt cho nhân viên giao hàng khi nhận sản phẩm</span>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
         </section>
 
-        {/* Cột Tóm tắt thanh toán */}
+        {/* Cột tóm tắt thanh toán */}
         <aside className="checkout-summary-column">
           <div className="checkout-summary-card">
             <h2>Tóm tắt thanh toán</h2>
-
-            <div className="summary-row">
-              <span>Tiền hàng ({totalCount} món):</span>
-              <strong>{formatPrice(rawSubtotal)}</strong>
+            <div className="checkout-items-list">
+              <p className="line">
+                <span>Tiền hàng ({totalCount} món)</span>
+                <strong>{formatPrice(rawSubtotal)}</strong>
+              </p>
+              <p className="line">
+                <span>Phí vận chuyển ({shippingInfo.regionName})</span>
+                <strong>{shippingFee === 0 ? 'Miễn phí' : formatPrice(shippingFee)}</strong>
+              </p>
             </div>
 
-            <div className="summary-row">
-              <span>Phí vận chuyển:</span>
-              <strong style={{ color: 'var(--color-primary)' }}>{formatPrice(shippingFee)}</strong>
-            </div>
-
-            <div style={{ fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '-8px' }}>
-              {selectedProvince === 79
-                ? '• Nội thành TP.HCM: 30.000₫'
-                : selectedProvince >= 48
-                ? '• Đà Nẵng đến TP.HCM: 40.000₫'
-                : '• Hà Nội & miền Bắc: 60.000₫'}
-            </div>
-
-            <div className="summary-total-divider" />
-
-            <div className="total-row summary-row">
-              <span>Tổng thanh toán:</span>
-              <strong className="total-amount">{formatPrice(totalAmount)}</strong>
-            </div>
-
-            <p style={{ fontSize: '0.82rem', color: 'var(--color-muted)', margin: '4px 0 0' }}>
-              Phương thức: <strong>Tiền mặt khi nhận hàng (COD)</strong>. Kiểm tra hàng trước khi thanh toán.
+            <p className="line-total">
+              <span>Tổng thanh toán</span>
+              <strong>{formatPrice(totalAmount)}</strong>
             </p>
 
-            {error && <p className="form-error" role="alert">{error}</p>}
+            {error && <p className="form-error">{error}</p>}
 
-            <button
-              className="button button-full button-accent"
-              style={{ fontSize: '1rem', padding: '12px' }}
-              disabled={saving}
-              type="submit"
-            >
-              {saving ? 'Đang gửi đơn hàng…' : 'Đặt hàng COD ngay'}
+            <button className="button button-full" disabled={saving} type="submit">
+              {saving
+                ? 'Đang tạo đơn hàng…'
+                : paymentMethod === 'BANK_TRANSFER'
+                ? 'Tiếp tục thanh toán QR'
+                : 'Đặt hàng COD'}
             </button>
+
+            <p className="checkout-guarantee">
+              🔒 Đảm bảo thông tin giao hàng và giao dịch được bảo mật tuyệt đối.
+            </p>
           </div>
         </aside>
       </form>

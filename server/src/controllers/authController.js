@@ -37,7 +37,7 @@ async function registerRequest(req, res, next) {
     if (!smtpConfigured() && !localOtpAllowed(req)) return res.status(503).json({ success: false, message: 'Máy chủ chưa cấu hình gửi email.', data: null });
 
     let user = await User.findOne({ email }).select('+registrationOtpHash +registrationOtpExpiresAt +registrationOtpAttempts');
-    if (user?.emailVerified !== false) return res.status(409).json({ success: false, message: 'Email đã được sử dụng. Hãy đăng nhập.', data: null });
+    if (user && user.emailVerified !== false) return res.status(409).json({ success: false, message: 'Email đã được sử dụng. Hãy đăng nhập.', data: null });
     if (!user) {
       user = new User({ name: email.split('@')[0].slice(0, 80), email, password: await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10), emailVerified: false, role: 'customer', isActive: true });
     }
