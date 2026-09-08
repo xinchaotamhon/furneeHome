@@ -9,24 +9,24 @@ Người mua thường chỉ thấy ảnh, kích thước và giá sản phẩm 
 ## Mục tiêu
 
 - Xây dựng website bán nội thất dễ hiểu và dễ sử dụng.
-- Hỗ trợ tìm kiếm, lọc, xem chi tiết, đánh giá và đặt hàng COD.
+- Hỗ trợ tìm kiếm, lọc, xem chi tiết, đánh giá và đặt hàng COD hoặc chuyển khoản QR.
 - Cho phép người dùng thử tối đa 3 sản phẩm trên ảnh phòng bằng AI.
-- Quản lý sản phẩm, khách hàng, đơn hàng và liên hệ trong một trang quản trị riêng.
+- Quản lý sản phẩm, khách hàng, đơn hàng và báo nội dung trong một trang quản trị riêng.
 - Giữ mã nguồn đơn giản để nhóm có thể học, trình bày và bảo trì.
 
 ## Người sử dụng
 
 - Khách: xem và tìm sản phẩm.
-- Khách hàng: mua hàng, theo dõi đơn, đánh giá, sửa hồ sơ, gửi liên hệ và dùng Phòng thử.
-- Admin: quản lý sản phẩm, khách hàng, đơn hàng và liên hệ.
+- Khách hàng: mua hàng, theo dõi đơn, đánh giá, sửa hồ sơ, báo nội dung và dùng Phòng thử.
+- Admin: quản lý sản phẩm, khách hàng, đơn hàng và báo nội dung.
 - Orchestra Admin: có toàn bộ quyền admin và được phân quyền admin cấp dưới.
 
 ## Chức năng chính
 
 - Đăng ký bằng OTP email, đăng nhập, ghi nhớ tên đăng nhập và đặt lại mật khẩu.
 - Danh sách sản phẩm, tìm kiếm, lọc danh mục và xem chi tiết.
-- Giỏ hàng, thanh toán COD, lịch sử đơn và hủy đơn chưa giao.
-- Đánh giá sản phẩm, báo nội dung và gửi góp ý.
+- Giỏ hàng, thanh toán COD hoặc chuyển khoản QR, lịch sử đơn và hủy đơn chưa giao.
+- Đánh giá sản phẩm và báo nội dung xấu.
 - Phòng thử AI: chọn 1–3 sản phẩm, tải ảnh phòng, nhập vị trí từng món và tạo ảnh.
 - Quản trị sản phẩm, ảnh, tồn kho, khách hàng, đơn hàng, liên hệ và quyền admin.
 
@@ -82,9 +82,11 @@ cd server
 npm run seed
 ```
 
-Lệnh seed chỉ thêm sản phẩm chưa có; tên, giá, tồn kho và ảnh đã sửa trong MongoDB không bị ghi đè.
+`data_import.json` là dữ liệu nhập ban đầu. Lệnh seed đọc file này và chỉ thêm sản phẩm chưa có. Website luôn đọc sản phẩm đang dùng từ MongoDB, vì vậy không cần nút đồng bộ hai chiều và tên, giá, tồn kho, ảnh đã sửa trong MongoDB không bị ghi đè.
 
-Sau đó chạy `start-furneehome.bat`, hoặc mở hai terminal:
+Lệnh seed cũng tạo tài khoản mẫu, đánh giá 3–5 sao và ba đơn minh họa: đang xử lý, đã giao thành công và đã hủy.
+
+Sau đó mở hai terminal:
 
 ```powershell
 cd server
@@ -118,3 +120,9 @@ Có thể đổi mật khẩu quản trị bằng `ADMIN_PASSWORD` và `TEAM_ADM
 - Database: MongoDB Atlas.
 - Đặt `VITE_API_URL` trên Cloudflare theo dạng `https://ten-server.onrender.com/api`.
 - Chỉ lưu `.env` và API key trong máy cá nhân hoặc biến môi trường của dịch vụ deploy.
+
+## Liên hệ
+
+- Địa chỉ: 71/5 Huỳnh Tấn Phát, Ấp 31, Xã Nhà Bè, TP.HCM
+- Điện thoại và Zalo: 0372 208 100
+- Email: furneehome@gmail.com

@@ -5,6 +5,8 @@ const connectDatabase = require('../config/db');
 const Category = require('../models/Category');
 const Product = require('../models/Product');
 const User = require('../models/User');
+const Review = require('../models/Review');
+const Order = require('../models/Order');
 
 const catalogPath = path.resolve(__dirname, '../../../client/public/data_import/data_import.json');
 const catalog = require(catalogPath);
@@ -150,12 +152,97 @@ async function seedAccounts() {
   await customer.save();
 }
 
+async function seedDemoContent() {
+  const customerInfo = [
+    { name: 'Minh Anh', username: 'minhanh', email: 'minhanh@furneehome.vn' },
+    { name: 'Hoàng Nam', username: 'hoangnam', email: 'hoangnam@furneehome.vn' },
+    { name: 'Thu Hà', username: 'thuha', email: 'thuha@furneehome.vn' },
+  ];
+  const password = await bcrypt.hash('user123456', 10);
+  const customers = [];
+
+  for (const info of customerInfo) {
+    let customer = await User.findOne({ username: info.username });
+    if (!customer) {
+      customer = await User.create({ ...info, password, role: 'customer', emailVerified: true, isActive: true });
+    }
+    customers.push(customer);
+  }
+
+  const products = await Product.find({ isActive: true, price: { $gt: 0 } }).sort({ createdAt: -1 }).limit(6);
+  if (products.length < 3) return;
+
+  const demoReviews = [
+    [customers[0], products[0], 5, 'Sản phẩm chắc chắn, đúng mô tả và giao hàng cẩn thận.'],
+    [customers[1], products[0], 4, 'Mẫu đẹp, kích thước phù hợp với phòng nhỏ.'],
+    [customers[2], products[0], 5, 'Dễ sử dụng và màu sắc giống hình.'],
+    [customers[0], products[1], 4, 'Đóng gói tốt, sản phẩm dùng ổn.'],
+    [customers[1], products[1], 3, 'Sản phẩm ổn trong tầm giá.'],
+    [customers[2], products[2], 5, 'Thiết kế gọn, phù hợp với nhu cầu gia đình.'],
+  ];
+
+  for (const [customer, product, rating, comment] of demoReviews) {
+    await Review.updateOne(
+      { user: customer._id, product: product._id },
+      { $setOnInsert: { rating, comment, isHidden: false } },
+      { upsert: true },
+    );
+  }
+
+  for (const product of products.slice(0, 3)) {
+    const reviews = await Review.find({ product: product._id, isHidden: { $ne: true } }).select('rating');
+    const total = reviews.reduce((sum, review) => sum + review.rating, 0);
+    await Product.updateOne({ _id: product._id }, { $set: {
+      ratingAverage: reviews.length ? Number((total / reviews.length).toFixed(1)) : 0,
+      reviewCount: reviews.length,
+    } });
+  }
+
+  function item(product, qty = 1) {
+    return {
+      product: product._id,
+      name: product.name,
+      slug: product.slug,
+      categoryName: product.categoryName,
+      qty,
+      price: product.price,
+      image: product.image || product.transparentImage || product.sourceImages?.[0] || '',
+    };
+  }
+
+  async function addOrder(orderNumber, customer, orderItems, orderStatus, paymentStatus) {
+    const subtotal = orderItems.reduce((sum, orderItem) => sum + orderItem.price * orderItem.qty, 0);
+    await Order.updateOne(
+      { orderNumber },
+      { $setOnInsert: {
+        orderNumber,
+        user: customer._id,
+        orderItems,
+        shippingAddress: { fullName: customer.name, phone: '0372208100', address: '71/5 Huỳnh Tấn Phát, Xã Nhà Bè, TP.HCM', note: 'Đơn hàng minh họa' },
+        paymentMethod: 'COD',
+        paymentStatus,
+        orderStatus,
+        subtotal,
+        shippingFee: 30000,
+        totalAmount: subtotal + 30000,
+        stockRestored: orderStatus === 'Cancelled',
+      } },
+      { upsert: true },
+    );
+  }
+
+  await addOrder('DEMO-SUCCESS-001', customers[0], [item(products[0]), item(products[1])], 'Delivered', 'Paid');
+  await addOrder('DEMO-PROCESSING-001', customers[1], [item(products[2])], 'Processing', 'Pending');
+  await addOrder('DEMO-CANCELLED-001', customers[2], [item(products[0])], 'Cancelled', 'Pending');
+}
+
 async function seed() {
   await connectDatabase();
   const categories = await seedCategories();
   const productCount = await seedProducts(categories);
   await seedAccounts();
-  console.log(`Đã thêm ${productCount} sản phẩm mới và cập nhật tài khoản demo.`);
+  await seedDemoContent();
+  console.log(`Đã thêm ${productCount} sản phẩm mới và cập nhật dữ liệu demo.`);
   await mongoose.disconnect();
 }
 
@@ -167,4 +254,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { seed };
+module.exports = { seed, seedDemoContent };

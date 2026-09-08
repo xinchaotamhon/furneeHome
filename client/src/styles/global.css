@@ -618,3 +618,10 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
 .studio-selected-products .simple-selected-product { position: relative; display: grid; grid-template-columns: 1fr; min-width: 0; min-height: 112px; place-items: center; padding: 10px; }
 .studio-selected-products .simple-selected-product .product-artwork { width: 100%; height: 92px; object-fit: contain; }
 .studio-selected-products .simple-selected-product > button { position: absolute; top: 5px; right: 5px; display: grid; width: 24px; height: 24px; place-items: center; padding: 0; border: 1px solid #e0aba5; border-radius: 50%; color: #9d392f; background: #fff; font: 800 1rem/1 sans-serif; cursor: pointer; }
+.studio-product-number { position: absolute; top: 6px; left: 6px; display: grid; width: 24px; height: 24px; place-items: center; border-radius: 50%; color: #fff; background: #1e674b; font-size: .75rem; font-weight: 800; }
+.studio-position-step .button { white-space: normal; }
+.simple-room-compare figure:only-child { grid-column: 1 / -1; }
+.admin-payment-button { display: block; margin-top: 6px; }
+.contact-card { display: grid; max-width: 680px; gap: 0; margin: 0 auto; padding: 8px 22px; }
+.contact-card a { padding: 16px 4px; border-bottom: 1px solid var(--color-border); color: var(--color-primary); font-weight: 750; text-decoration: none; }
+.contact-card a:last-child { border-bottom: 0; }

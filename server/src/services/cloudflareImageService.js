@@ -47,7 +47,9 @@ function productPrompt(product, index) {
 
   return [
     `Product ${index + 1}: ${JSON.stringify(product.productName)}.`,
-    product.desiredPosition ? `Place it ${product.desiredPosition}.` : 'Choose a natural, physically possible position for it in the room.',
+    product.desiredPosition
+      ? `MANDATORY POSITION FOR PRODUCT ${index + 1}: ${JSON.stringify(product.desiredPosition)}. Put the product at that location without covering or changing nearby objects.`
+      : 'Choose a natural, physically possible empty position for it in the room.',
     `Reference image ${index + 2} is this exact product. Preserve its silhouette, color, material, proportions, legs, shelves, doors, handles and supports.`,
     dimensions ? `Known dimensions: ${dimensions}.` : '',
     usage,
@@ -61,10 +63,10 @@ function buildPrompt(input) {
     'Create one photorealistic edit of the original room in image 1.',
     `Add exactly ${input.products.length} selected product${input.products.length > 1 ? 's' : ''}, using the following reference images in order.`,
     ...input.products.map(productPrompt),
-    input.userPrompt ? `Other request: ${input.userPrompt}.` : '',
-    'Keep the original camera, framing, walls, floor, ceiling, doors, windows, stairs, bathroom, fixtures, room shape and existing large objects unchanged.',
-    'Place every selected product exactly once. Follow each user-provided position when present; otherwise choose a natural, physically possible position. Match perspective, scale, lighting and contact shadows.',
-    'Do not add unselected furniture. Do not duplicate, replace or redesign a selected product. Do not add text, logos or watermarks.',
+    'Keep image 1 as the unchanged base photo. Keep its camera, framing, walls, floor, ceiling, doors, windows, stairs, bathroom, fixtures, room shape and every existing object.',
+    'Only add the selected products into unoccupied space. Do not remove, move, cover, resize, redesign or replace anything already visible in image 1.',
+    'Place every selected product exactly once. A MANDATORY POSITION written above has priority over decorative composition. If that place is tight, use the nearest free space without changing the room or its existing objects.',
+    'Match perspective, real product dimensions, lighting and contact shadows. Do not add unselected furniture, duplicate a product, add text, logos or watermarks.',
     'Return only the finished room image.',
   ].filter(Boolean).join(' ');
 }

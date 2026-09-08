@@ -5,7 +5,6 @@ import feedbackService from '../services/feedbackService';
 export default function FeedbackPage() {
   const location = useLocation();
   const reportedProduct = location.state?.product;
-  const [type, setType] = useState(location.state?.type || 'suggestion');
   const [content, setContent] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -19,9 +18,9 @@ export default function FeedbackPage() {
 
     try {
       await feedbackService.create({
-        type,
+        type: 'report',
         content: content.trim(),
-        targetType: reportedProduct ? 'product' : 'general',
+        targetType: 'product',
         targetId: reportedProduct?._id || reportedProduct?.id || '',
         targetName: reportedProduct?.name || '',
       });
@@ -34,22 +33,28 @@ export default function FeedbackPage() {
     }
   };
 
+  if (!reportedProduct) {
+    return (
+      <main className="container page">
+        <div className="page-heading"><h1>Liên hệ FurneeHome</h1></div>
+        <section className="panel-card contact-card">
+          <a href="https://maps.google.com/?q=71%2F5+Hu%E1%BB%B3nh+T%E1%BA%A5n+Ph%C3%A1t%2C+Nh%C3%A0+B%C3%A8%2C+TP.HCM" target="_blank" rel="noreferrer">71/5 Huỳnh Tấn Phát, Ấp 31, Xã Nhà Bè, TP.HCM</a>
+          <a href="tel:0372208100">0372 208 100</a>
+          <a href="mailto:furneehome@gmail.com">furneehome@gmail.com</a>
+          <a href="https://zalo.me/0372208100" target="_blank" rel="noreferrer">Zalo: 0372 208 100</a>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="container page">
       <div className="page-heading">
-        <h1>Liên hệ FurneeHome</h1>
-        <p>Gửi góp ý, báo nội dung hoặc để lại lời nhắn cho nhóm FurneeHome.</p>
+        <h1>Báo nội dung</h1>
       </div>
 
       <form className="panel-card admin-form feedback-card" onSubmit={submit}>
-        {reportedProduct && <p className="feedback-target"><strong>Sản phẩm:</strong> {reportedProduct.name}</p>}
-        <label>
-            Nội dung liên hệ
-          <select value={type} onChange={(event) => setType(event.target.value)}>
-            <option value="suggestion">Góp ý</option>
-            <option value="report">Báo nội dung</option>
-          </select>
-        </label>
+        <p className="feedback-target"><strong>Sản phẩm:</strong> {reportedProduct.name}</p>
         <label>
           Nội dung
           <textarea rows="7" minLength="10" maxLength="2000" value={content} onChange={(event) => setContent(event.target.value)} required />

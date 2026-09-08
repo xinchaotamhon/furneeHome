@@ -242,19 +242,18 @@ async function updateOrderStatus(req, res, next) {
         throw createError('Chuyển trạng thái đơn hàng không hợp lệ.', 409);
       }
       const update = { orderStatus };
-      if (orderStatus === 'Delivered') {
-        update.paymentStatus = 'Paid';
-      } else if (paymentStatus && ['Pending', 'Paid'].includes(paymentStatus)) {
-        update.paymentStatus = paymentStatus;
-      }
       const result = await Order.findOneAndUpdate({ _id: order._id, orderStatus: order.orderStatus }, { $set: update }, { returnDocument: 'after' });
       if (!result) throw createError('Đơn hàng vừa được thay đổi, vui lòng tải lại.', 409);
       return res.json({ success: true, message: 'Đã cập nhật trạng thái đơn hàng.', data: result });
     }
-    if (paymentStatus && ['Pending', 'Paid'].includes(paymentStatus)) {
-      if (order.orderStatus === 'Delivered' && paymentStatus !== 'Paid') throw createError('Đơn đã giao phải có trạng thái đã thanh toán.');
-      order.paymentStatus = paymentStatus;
+    if (paymentStatus) {
+      if (paymentStatus !== 'Paid') throw createError('Trạng thái thanh toán không hợp lệ.');
+      if (order.paymentMethod === 'COD' && order.orderStatus !== 'Delivered') {
+        throw createError('Đơn COD chỉ xác nhận thanh toán sau khi giao thành công.', 409);
+      }
+      order.paymentStatus = 'Paid';
       await order.save();
+      return res.json({ success: true, message: 'Đã xác nhận thanh toán thành công.', data: order });
     }
     return res.json({ success: true, message: 'Đã cập nhật đơn hàng.', data: order });
   } catch (error) {

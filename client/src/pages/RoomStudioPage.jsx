@@ -49,7 +49,7 @@ export default function RoomStudioPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const saved = readSession();
-  const { products, loading } = useProducts();
+  const { products } = useProducts();
   const incomingProductId = idOf(location.state?.product);
   const incomingIds = Array.isArray(location.state?.selectedIds) ? location.state.selectedIds : [];
   const initialIds = [...new Set([
@@ -62,7 +62,6 @@ export default function RoomStudioPage() {
   const [selectedIds, setSelectedIds] = useState(initialIds);
   const [desiredPositions, setDesiredPositions] = useState(saved.desiredPositions || {});
   const [resultImage, setResultImage] = useState(saved.resultImage || '');
-  const [showResult, setShowResult] = useState(Boolean(saved.resultImage));
   const [isGenerating, setGenerating] = useState(false);
   const [message, setMessage] = useState('Chọn tối đa 3 sản phẩm để bắt đầu.');
 
@@ -80,7 +79,7 @@ export default function RoomStudioPage() {
     if (nextIds.join('|') !== selectedIds.join('|')) setSelectedIds(nextIds);
   }, [incomingProductId, incomingIds.join('|')]);
 
-  const resetResult = () => { setResultImage(''); setShowResult(false); };
+  const resetResult = () => setResultImage('');
 
   const upload = async (event) => {
     const file = event.target.files?.[0];
@@ -118,7 +117,7 @@ export default function RoomStudioPage() {
     if (!roomImage) return setMessage('Bạn cần tải ảnh phòng ở Bước 2 trước khi gửi.');
     if (!selectedProducts.length) return setMessage('Hãy chọn ít nhất một sản phẩm ở Bước 1.');
     setGenerating(true);
-    setMessage('Đang gửi yêu cầu tạo ảnh…');
+    setMessage('');
     try {
       const inspirationProducts = await Promise.all(selectedProducts.map(async (product) => ({
         productId: idOf(product),
@@ -127,24 +126,17 @@ export default function RoomStudioPage() {
         desiredPosition: desiredPositions[idOf(product)] || '',
         ...productFacts(product),
       })));
-      const positionSummary = inspirationProducts
-        .filter((item) => item.desiredPosition)
-        .map((item) => `${item.productName}: ${item.desiredPosition}`)
-        .join('; ');
       const data = await createRoomPreview({
         roomImageDataUrl: roomImage,
         mode: 'inspiration',
         inspirationProducts,
-        userPrompt: positionSummary,
       });
       const generated = data?.imageDataUrl || data?.resultImage || data?.imageUrl;
       if (!generated) throw new Error('AI chưa trả về ảnh.');
       setResultImage(generated);
-      setShowResult(true);
-      setMessage('Ảnh AI đã sẵn sàng để so sánh.');
+      setMessage('Ảnh đã tạo xong.');
     } catch (error) {
       setResultImage('');
-      setShowResult(false);
       setMessage(error.message || 'Không thể tạo ảnh. Vui lòng thử lại.');
     } finally { setGenerating(false); }
   };
@@ -158,7 +150,7 @@ export default function RoomStudioPage() {
           <h2>Chọn sản phẩm (tối đa 3)</h2>
           <button className="button button-outline" type="button" onClick={openProductList}>Chọn từ danh sách sản phẩm</button>
           <p className="studio-selection-count">Đã chọn {selectedProducts.length}/{MAX_PRODUCTS}</p>
-          {selectedProducts.length ? <div className="studio-selected-products">{selectedProducts.map((product, index) => <div className="simple-selected-product" key={idOf(product)}><ProductArtwork product={product} /><button type="button" aria-label={`Bỏ sản phẩm ${index + 1}`} title="Bỏ chọn" onClick={() => removeProduct(idOf(product))}>×</button></div>)}</div> : <p className="muted">Bạn có thể chọn 1 đến 3 sản phẩm.</p>}
+          {selectedProducts.length ? <div className="studio-selected-products">{selectedProducts.map((product, index) => <div className="simple-selected-product" key={idOf(product)}><span className="studio-product-number">{index + 1}</span><ProductArtwork product={product} /><button type="button" aria-label={`Bỏ sản phẩm ${index + 1}`} title="Bỏ chọn" onClick={() => removeProduct(idOf(product))}>×</button></div>)}</div> : <p className="muted">Bạn có thể chọn 1 đến 3 sản phẩm.</p>}
         </section>
         <section className="panel-card">
           <span className="step-label">BƯỚC 2</span>
@@ -169,12 +161,11 @@ export default function RoomStudioPage() {
           <span className="step-label">BƯỚC 3</span>
           <h2>Vị trí mong muốn (không bắt buộc)</h2>
           {selectedProducts.length ? <div className="studio-position-fields">{selectedProducts.map((product, index) => <label key={idOf(product)}>{`Vị trí sản phẩm ${index + 1}`}<input type="text" value={desiredPositions[idOf(product)] || ''} onChange={(event) => updatePosition(idOf(product), event.target.value)} placeholder="Để trống để AI tự bố trí" /></label>)}</div> : <p className="muted">Chọn sản phẩm ở Bước 1 để tiếp tục.</p>}
-          <button className="button" type="button" disabled={isGenerating || !roomImage || !selectedProducts.length} onClick={generate}>{isGenerating ? 'Đang gửi…' : 'Tạo ảnh'}</button>
-          <button className="button button-secondary" type="button" disabled={!resultImage} onClick={() => setShowResult((value) => !value)}>{showResult ? 'Xem ảnh gốc' : 'So sánh kết quả'}</button>
+          <button className="button" type="button" disabled={isGenerating || !roomImage || !selectedProducts.length} onClick={generate}>{isGenerating ? 'Ảnh đang được tạo, bạn đợi xíu nghen ^_^' : 'Tạo ảnh'}</button>
         </section>
       </div>
-      <p className="studio-message" role="status">{loading ? 'Đang tải danh sách sản phẩm…' : message}</p>
-      {roomImage && <section className="simple-room-compare"><figure><figcaption>{showResult && resultImage ? 'Ảnh tạo' : 'Ảnh gốc'}</figcaption><img src={showResult && resultImage ? resultImage : roomImage} alt="Kết quả thử sản phẩm" /></figure>{resultImage && <figure><figcaption>Ảnh gốc</figcaption><img src={roomImage} alt="Ảnh phòng gốc" /></figure>}</section>}
+      <p className="studio-message" role="status">{message}</p>
+      {roomImage && <section className="simple-room-compare">{resultImage && <figure><figcaption>Ảnh tạo</figcaption><img src={resultImage} alt="Kết quả thử sản phẩm" /></figure>}<figure><figcaption>Ảnh gốc</figcaption><img src={roomImage} alt="Ảnh phòng gốc" /></figure></section>}
     </main>
   );
 }
