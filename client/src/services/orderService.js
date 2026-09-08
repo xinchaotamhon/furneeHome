@@ -14,11 +14,11 @@ const orderService = {
     return response.data.data;
   },
   async getAllOrders(params = {}) {
-    const response = await apiClient.get('/admin/orders', { params });
+    const response = await apiClient.get('/orders', { params });
     return response.data.data;
   },
-  async updateOrderStatus(id, status) {
-    const response = await apiClient.put(`/admin/orders/${id}/status`, { status });
+  async updateOrderStatus(id, orderStatus) {
+    const response = await apiClient.put(`/orders/${id}/status`, { orderStatus });
     return response.data.data;
   },
 };

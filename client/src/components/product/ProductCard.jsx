@@ -23,7 +23,8 @@ export default function ProductCard({ product, onReferenceImageError }) {
 
   const handleQuickAdd = (e) => {
     e.stopPropagation();
-    addToCart(product, 1);
+    const result = addToCart(product, 1);
+    if (result?.ok === false) return;
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 2000);
   };
@@ -33,6 +34,7 @@ export default function ProductCard({ product, onReferenceImageError }) {
     : (product.category || product.categoryName || '');
 
   const productId = product._id || product.id;
+  const inStock = Number(product.stock ?? product.countInStock ?? 99) > 0;
 
   return (
     <article className="product-card">
@@ -62,8 +64,9 @@ export default function ProductCard({ product, onReferenceImageError }) {
             className={`button ${justAdded ? 'button-accent' : ''}`}
             type="button"
             onClick={handleQuickAdd}
+            disabled={!inStock}
           >
-            {justAdded ? 'Đã thêm ✓' : 'Thêm giỏ'}
+            {inStock ? (justAdded ? 'Đã thêm ✓' : 'Thêm giỏ') : 'Hết hàng'}
           </button>
           <button
             className="button button-outline"

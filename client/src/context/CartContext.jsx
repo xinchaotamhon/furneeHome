@@ -1,113 +1,86 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { clearStoredCart, getStoredCart, saveStoredCart } from '../services/cartService';
+import { clearStoredCart, cartService, getStoredCart, saveStoredCart } from '../services/cartService';
+import { useAuth } from './AuthContext';
 
 const CartContext = createContext(null);
+const productId = (product) => String(product?._id || product?.id || '');
+const stockOf = (product) => {
+  const value = Number(product?.stock ?? product?.countInStock ?? 99);
+  return Number.isFinite(value) ? Math.max(0, value) : 99;
+};
+const fromRemote = (cart) => (cart?.items || []).map((item) => ({
+  product: item.product,
+  quantity: Number(item.quantity) || 1,
+  price: Number(item.price ?? item.product?.price) || 0,
+  name: item.product?.name || item.name || 'Sản phẩm',
+  image: item.product?.image || item.product?.transparentImage || item.image || '',
+})).filter((item) => productId(item.product));
 
 export function CartProvider({ children }) {
+  const { user } = useAuth();
   const [items, setItems] = useState(() => getStoredCart());
-  const [couponCode, setCouponCode] = useState('');
-  const [discountPercent, setDiscountPercent] = useState(0);
+
+  useEffect(() => { saveStoredCart(items); }, [items]);
 
   useEffect(() => {
-    saveStoredCart(items);
-  }, [items]);
-
-  function addToCart(product, quantity = 1) {
-    if (!product || !product._id) return;
-    const qty = Math.max(1, Number(quantity) || 1);
-    setItems((current) => {
-      const index = current.findIndex((item) => item.product._id === product._id);
-      if (index >= 0) {
-        const next = [...current];
-        const updatedQty = next[index].quantity + qty;
-        next[index] = { ...next[index], quantity: updatedQty };
-        return next;
+    let active = true;
+    if (!user) return undefined;
+    (async () => {
+      try {
+        const local = getStoredCart();
+        const remote = fromRemote(await cartService.get());
+        const remoteIds = new Set(remote.map((item) => productId(item.product)));
+        for (const item of local) {
+          const id = productId(item.product);
+          if (remoteIds.has(id)) await cartService.update(id, item.quantity);
+          else await cartService.add(id, item.quantity);
+        }
+        if (active) setItems(fromRemote(await cartService.get()));
+      } catch {
+        // Guest storage remains available if the signed-in cart cannot be reached.
       }
-      return [...current, {
-        product,
-        quantity: qty,
-        price: product.price || 0,
-        name: product.name,
-        image: product.image || (product.sourceImages && product.sourceImages[0]) || '',
-      }];
-    });
-  }
+    })();
+    return () => { active = false; };
+  }, [user]);
 
-  function updateQuantity(productId, quantity) {
-    const qty = Number(quantity);
-    if (qty <= 0) {
-      removeFromCart(productId);
-      return;
-    }
-    setItems((current) =>
-      current.map((item) =>
-        item.product._id === productId ? { ...item, quantity: qty } : item
-      )
-    );
-  }
-
-  function removeFromCart(productId) {
-    setItems((current) => current.filter((item) => item.product._id !== productId));
-  }
-
-  function clearCart() {
-    setItems([]);
-    setCouponCode('');
-    setDiscountPercent(0);
-    clearStoredCart();
-  }
-
-  function applyCoupon(code) {
-    const trimmed = String(code || '').trim().toUpperCase();
-    if (trimmed === 'FURNEE10') {
-      setCouponCode(trimmed);
-      setDiscountPercent(10);
-      return { success: true, message: 'Áp dụng mã giảm 10% thành công.' };
-    }
-    if (trimmed === 'VIP20') {
-      setCouponCode(trimmed);
-      setDiscountPercent(20);
-      return { success: true, message: 'Áp dụng mã VIP giảm 20% thành công.' };
-    }
-    return { success: false, message: 'Mã giảm giá không hợp lệ hoặc đã hết hạn.' };
-  }
-
-  function removeCoupon() {
-    setCouponCode('');
-    setDiscountPercent(0);
-  }
-
-  const totalCount = useMemo(() => {
-    return items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-  }, [items]);
-
-  const rawSubtotal = useMemo(() => {
-    return items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
-  }, [items]);
-
-  const discountAmount = useMemo(() => {
-    return Math.round((rawSubtotal * discountPercent) / 100);
-  }, [rawSubtotal, discountPercent]);
-
-  const totalPrice = useMemo(() => {
-    return Math.max(0, rawSubtotal - discountAmount);
-  }, [rawSubtotal, discountAmount]);
-
-  const value = {
-    items,
-    totalCount,
-    rawSubtotal,
-    discountPercent,
-    discountAmount,
-    totalPrice,
-    couponCode,
-    addToCart,
-    updateQuantity,
-    removeFromCart,
-    clearCart,
-    applyCoupon,
-    removeCoupon,
-  };
+  const value = useMemo(() => {
+    const sync = (action) => { if (user) action().catch(() => {}); };
+    return {
+      items,
+      totalCount: items.reduce((sum, item) => sum + item.quantity, 0),
+      rawSubtotal: items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+      addToCart(product, quantity = 1) {
+        const id = productId(product);
+        const stock = stockOf(product);
+        if (!id || stock < 1) return { ok: false, message: 'Sản phẩm hiện đã hết hàng.' };
+        const qty = Math.min(stock, Math.max(1, Number(quantity) || 1));
+        setItems((current) => {
+          const existing = current.find((item) => productId(item.product) === id);
+          if (!existing) return [...current, { product, quantity: qty, price: Number(product.price) || 0, name: product.name, image: product.image || product.transparentImage || product.sourceImages?.[0] || '' }];
+          return current.map((item) => productId(item.product) === id ? { ...item, product, quantity: Math.min(stock, item.quantity + qty), price: Number(product.price) || 0 } : item);
+        });
+        sync(() => cartService.add(id, qty));
+        return { ok: true };
+      },
+      updateQuantity(id, quantity) {
+        const qty = Number(quantity);
+        if (qty <= 0) {
+          setItems((current) => current.filter((item) => productId(item.product) !== String(id)));
+          sync(() => cartService.remove(id));
+          return;
+        }
+        setItems((current) => current.map((item) => productId(item.product) === String(id) ? { ...item, quantity: Math.min(stockOf(item.product), qty) } : item));
+        sync(() => cartService.update(id, qty));
+      },
+      removeFromCart(id) {
+        setItems((current) => current.filter((item) => productId(item.product) !== String(id)));
+        sync(() => cartService.remove(id));
+      },
+      clearCart() {
+        setItems([]); clearStoredCart(); sync(() => cartService.clear());
+      },
+    };
+  }, [items, user]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
