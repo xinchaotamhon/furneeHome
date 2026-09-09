@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-const apiClient = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api' });
+const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+export const API_BASE_URL = import.meta.env.VITE_API_URL
+  || (isLocalhost ? 'http://localhost:5000/api' : 'https://furneehome.onrender.com/api');
+
+const apiClient = axios.create({ baseURL: API_BASE_URL });
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken');
   if (token) config.headers.Authorization = `Bearer ${token}`;

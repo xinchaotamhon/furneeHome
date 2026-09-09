@@ -117,10 +117,11 @@ Có thể đổi mật khẩu quản trị bằng `ADMIN_PASSWORD` và `TEAM_ADM
 
 ## Deploy
 
-- Frontend: Cloudflare Pages, thư mục `client`, lệnh `npm run build`, kết quả `dist`.
-- Backend: Render, thư mục `server`, lệnh `npm start`.
+- Frontend Cloudflare Pages: nhánh `main`, thư mục gốc `client`, lệnh build `npm run build`, thư mục kết quả `dist`.
+- Backend Render: nhánh `main`, thư mục gốc `server`, lệnh build `npm install`, lệnh chạy `npm start`, Health Check Path `/api/health`.
 - Database: MongoDB Atlas.
-- Đặt `VITE_API_URL` trên Cloudflare theo dạng `https://ten-server.onrender.com/api`.
+- Frontend tự dùng `http://localhost:5000/api` khi chạy local và `https://furneehome.onrender.com/api` khi deploy. Có thể đặt `VITE_API_URL` trên Cloudflare nếu muốn dùng backend khác.
+- Project Cloudflare tạo bằng Direct Upload phải build lại rồi tải thư mục `client/dist` lên sau mỗi lần sửa. Muốn tự deploy khi push Git thì tạo một Pages project mới và kết nối repository GitHub.
 - Chỉ lưu `.env` và API key trong máy cá nhân hoặc biến môi trường của dịch vụ deploy.
 
 ## Liên hệ
