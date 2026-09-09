@@ -27,8 +27,8 @@ Mỗi bước đọc theo 6 dòng: **Nói · Demo · Thành công · Lỗi/thay 
 - **Nói:** Khách tìm theo tên, lọc danh mục, sắp xếp giá và chuyển trang; chỉ sản phẩm đang bán, giá hợp lệ mới hiện. Khi vào từ Phòng thử, chọn tối đa 3 món.
 - **Demo:** Mở `/products` → gõ từ khóa → chọn danh mục → đổi giá thấp/cao → bấm **Sau** nếu có nhiều trang → mở một thẻ.
 - **Thành công:** Số lượng, kết quả và trang thay đổi đúng; có thể quay lại Phòng thử với các ID đã chọn.
-- **Lỗi/thay đổi:** Không có kết quả thì đổi từ khóa/danh mục. MongoDB chậm thì hiện trạng thái tải, không lấy JSON cũ làm giá thay thế. Tìm kiếm có ký tự đặc biệt vẫn được xử lý an toàn.
-- **Hỏi đáp:** *Giá lấy từ đâu?* MongoDB; frontend chỉ hiển thị API. *Sản phẩm hết hàng đặt được không?* Không, server kiểm tra lại lúc thêm giỏ và tạo đơn. *Tại sao có phân trang?* Giảm dữ liệu mỗi lần tải; API nhận `page`/`limit`.
+- **Lỗi/thay đổi:** Khi mới mở trang, bản chụp `data_import.json` giúp hiện sản phẩm nhanh; kết quả MongoDB tải xong sẽ thay thế ngay. Không có kết quả thì đổi từ khóa/danh mục. Tìm kiếm có ký tự đặc biệt vẫn được xử lý an toàn.
+- **Hỏi đáp:** *Giá chính thức lấy từ đâu?* MongoDB; JSON chỉ giúp hiện danh sách ban đầu. *Sản phẩm hết hàng đặt được không?* Không, server kiểm tra lại lúc thêm giỏ và tạo đơn. *Tại sao có phân trang?* Giảm dữ liệu mỗi lần tải; API nhận `page`/`limit`.
 - **Hàm + đường dẫn:** `ProductListPage()` — `client/src/pages/ProductListPage.jsx`: gửi điều kiện tìm/lọc/trang; `getPage()` — `client/src/services/productService.js`: gọi API và lấy sản phẩm cùng thông tin trang; `ProductCard()` — `client/src/components/product/ProductCard.jsx`: thẻ sản phẩm; `list()`/`escapeRegex()` — `server/src/controllers/productController.js`: lọc, sắp xếp, phân trang và vô hiệu ký tự regex nguy hiểm; API `GET /api/products`.
 
 ## Bước 4 — Liên hệ và bàn giao
@@ -55,5 +55,5 @@ Mỗi bước đọc theo 6 dòng: **Nói · Demo · Thành công · Lỗi/thay 
 
 - Nói được đối tượng, vấn đề và 4 nhóm quyền.
 - Demo được `/products`, tìm kiếm, lọc, phân trang và mở chi tiết.
-- Nhớ: MongoDB là nguồn vận hành; JSON chỉ nhập ban đầu.
+- Nhớ: MongoDB là nguồn vận hành; JSON chỉ là bản chụp hiển thị nhanh và không ghi ngược vào MongoDB.
 - Nhớ câu bàn giao.

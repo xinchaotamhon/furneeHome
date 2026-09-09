@@ -37,6 +37,9 @@ async function imageUrlToDataUrl(source) {
 
 function productFacts(product) {
   const facts = {
+    categoryName: typeof product?.category === 'object' ? product.category?.name : product?.categoryName,
+    description: String(product?.description || '').slice(0, 600),
+    specifications: Array.isArray(product?.specifications) ? product.specifications.slice(0, 8) : [],
     usageType: product?.usageType,
     placementSurface: product?.placementSurface,
     dimensionsCm: product?.dimensionsCm,
@@ -59,6 +62,7 @@ export default function RoomStudioPage() {
   ].filter(Boolean).map(String))].slice(0, MAX_PRODUCTS);
 
   const [roomImage, setRoomImage] = useState('');
+  const [roomImageSize, setRoomImageSize] = useState(null);
   const [selectedIds, setSelectedIds] = useState(initialIds);
   const [desiredPositions, setDesiredPositions] = useState(saved.desiredPositions || {});
   const [resultImage, setResultImage] = useState('');
@@ -92,7 +96,11 @@ export default function RoomStudioPage() {
     }
     try {
       const image = await toDataUrl(file);
+      const preview = new Image();
+      preview.src = image;
+      await preview.decode();
       setRoomImage(image);
+      setRoomImageSize({ width: preview.naturalWidth, height: preview.naturalHeight });
       resetResult();
       setMessage('Ảnh phòng đã sẵn sàng. Bạn có thể ghi vị trí mong muốn hoặc để AI tự bố trí.');
     } catch (error) { setMessage(error.message); }
@@ -130,6 +138,7 @@ export default function RoomStudioPage() {
       })));
       const data = await createRoomPreview({
         roomImageDataUrl: roomImage,
+        imageSize: roomImageSize,
         mode: 'inspiration',
         inspirationProducts,
       });
@@ -167,7 +176,7 @@ export default function RoomStudioPage() {
         </section>
       </div>
       <p className="studio-message" role="status">{message}</p>
-      {roomImage && <section className="simple-room-compare">{resultImage && <figure><figcaption>Ảnh tạo</figcaption><img src={resultImage} alt="Kết quả thử sản phẩm" /></figure>}<figure><figcaption>Ảnh gốc</figcaption><img src={roomImage} alt="Ảnh phòng gốc" /></figure></section>}
+      {roomImage && <section className="simple-room-compare" style={roomImageSize ? { '--room-ratio': `${roomImageSize.width} / ${roomImageSize.height}` } : undefined}>{resultImage && <figure><figcaption>Ảnh tạo</figcaption><img src={resultImage} alt="Kết quả thử sản phẩm" /></figure>}<figure><figcaption>Ảnh gốc</figcaption><img src={roomImage} alt="Ảnh phòng gốc" /></figure></section>}
     </main>
   );
 }

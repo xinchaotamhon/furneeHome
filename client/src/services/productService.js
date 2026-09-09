@@ -33,6 +33,14 @@ const productService = {
     const response = await apiClient.delete('/products/' + id);
     return response.data.data;
   },
+  async permanentRemove(id) {
+    const response = await apiClient.delete(`/products/${id}/permanent`);
+    return response.data.data;
+  },
+  async syncJson() {
+    const response = await apiClient.post('/products/sync-json');
+    return response.data;
+  },
 };
 
 export default productService;

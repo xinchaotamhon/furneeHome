@@ -1,17 +1,25 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import userService from '../services/userService';
+
+function errorMessage(error) {
+  return error.response?.data?.message || error.message || 'Không thể xử lý yêu cầu.';
+}
 
 export default function ProfilePage() {
   const { user, openLogin, updateProfile } = useAuth();
   const [name, setName] = useState(user?.name || '');
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || '');
+  const [passwords, setPasswords] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setName(user?.name || '');
-    setAvatarUrl(user?.avatarUrl || '');
   }, [user]);
 
   if (!user) {
@@ -24,21 +32,41 @@ export default function ProfilePage() {
     );
   }
 
-  const submit = async (event) => {
+  async function saveProfile(event) {
     event.preventDefault();
     setMessage('');
     setError('');
     setIsSaving(true);
-
     try {
-      await updateProfile({ name: name.trim(), avatarUrl: avatarUrl.trim() });
+      await updateProfile({ name: name.trim() });
       setMessage('Đã cập nhật hồ sơ.');
-    } catch (submitError) {
-      setError(submitError.message || 'Không thể cập nhật hồ sơ.');
+    } catch (saveError) {
+      setError(errorMessage(saveError));
     } finally {
       setIsSaving(false);
     }
-  };
+  }
+
+  async function savePassword(event) {
+    event.preventDefault();
+    setMessage('');
+    setError('');
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      setError('Mật khẩu nhập lại chưa khớp.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await userService.changePassword(passwords);
+      setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setMessage('Đã đổi mật khẩu.');
+    } catch (saveError) {
+      setError(errorMessage(saveError));
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   return (
     <main className="container page">
@@ -47,30 +75,25 @@ export default function ProfilePage() {
         <p>Thông tin cá nhân của bạn.</p>
       </div>
 
-      <section className="panel-card profile-card">
-        {avatarUrl && <img className="profile-avatar" src={avatarUrl} alt="Ảnh đại diện" />}
-        <form className="admin-form" onSubmit={submit}>
-          <label>
-            Họ và tên
-            <input value={name} onChange={(event) => setName(event.target.value)} required maxLength="80" />
-          </label>
-          <label>
-            Email
-            <input value={user.email || ''} readOnly />
-          </label>
-          <label>
-            URL ảnh đại diện
-            <input type="url" value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} placeholder="https://..." />
-          </label>
+      {error && <p className="form-error profile-message" role="alert">{error}</p>}
+      {message && <p className="form-success profile-message" role="status">{message}</p>}
 
-          {error && <p className="form-error" role="alert">{error}</p>}
-          {message && <p className="form-success" role="status">{message}</p>}
-
-          <button className="button" type="submit" disabled={isSaving}>
-            {isSaving ? 'Đang lưu…' : 'Lưu thay đổi'}
-          </button>
+      <div className="profile-layout">
+        <form className="panel-card admin-form" onSubmit={saveProfile}>
+          <h2>Thông tin cá nhân</h2>
+          <label>Họ và tên<input value={name} onChange={(event) => setName(event.target.value)} required maxLength="80" /></label>
+          <label>Email<input value={user.email || ''} readOnly /></label>
+          <button className="button" type="submit" disabled={isSaving}>Lưu thay đổi</button>
         </form>
-      </section>
+
+        <form className="panel-card admin-form" onSubmit={savePassword}>
+          <h2>Đổi mật khẩu</h2>
+          <label>Mật khẩu hiện tại<input type="password" value={passwords.currentPassword} onChange={(event) => setPasswords({ ...passwords, currentPassword: event.target.value })} required /></label>
+          <label>Mật khẩu mới<input type="password" minLength="6" value={passwords.newPassword} onChange={(event) => setPasswords({ ...passwords, newPassword: event.target.value })} required /></label>
+          <label>Nhập lại mật khẩu mới<input type="password" minLength="6" value={passwords.confirmPassword} onChange={(event) => setPasswords({ ...passwords, confirmPassword: event.target.value })} required /></label>
+          <button className="button" type="submit" disabled={isSaving}>Đổi mật khẩu</button>
+        </form>
+      </div>
     </main>
   );
 }

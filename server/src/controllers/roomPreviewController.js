@@ -19,6 +19,14 @@ function cleanProduct(item, index) {
   return {
     productId: cleanText(item?.productId, 100),
     productName,
+    categoryName: cleanText(item?.categoryName, 100),
+    description: cleanText(item?.description, 600),
+    specifications: Array.isArray(item?.specifications)
+      ? item.specifications.slice(0, 8).map((specification) => ({
+        name: cleanText(specification?.name, 80),
+        value: cleanText(specification?.value, 120),
+      })).filter((specification) => specification.name && specification.value)
+      : [],
     image,
     desiredPosition,
     usageType: ['floor-seating', 'standard', 'unknown'].includes(item?.usageType) ? item.usageType : 'unknown',
@@ -36,7 +44,7 @@ function readProducts(body) {
       ...scene,
       productName: body.productName,
       image: body.productImageDataUrl,
-      desiredPosition: body.designBrief?.desiredPosition || body.userPrompt || 'vị trí phù hợp trong phòng',
+      desiredPosition: body.designBrief?.desiredPosition || body.userPrompt || '',
     }];
   }
   if (!Array.isArray(items) || items.length < 1 || items.length > 3) {

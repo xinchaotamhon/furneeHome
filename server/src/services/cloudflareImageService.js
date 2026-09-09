@@ -44,13 +44,19 @@ function productPrompt(product, index) {
     wall: 'It must be mounted naturally on the wall.',
     tabletop: 'It must rest naturally on an existing tabletop or shelf.',
   }[product.placementSurface] || '';
+  const specifications = (product.specifications || [])
+    .map((item) => `${item.name}: ${item.value}`)
+    .join(', ');
 
   return [
     `Product ${index + 1}: ${JSON.stringify(product.productName)}.`,
     product.desiredPosition
-      ? `MANDATORY POSITION FOR PRODUCT ${index + 1}: ${JSON.stringify(product.desiredPosition)}. Put the product at that location without covering or changing nearby objects.`
-      : 'Choose a natural, physically possible empty position for it in the room.',
+      ? `USER-REQUESTED POSITION FOR PRODUCT ${index + 1}: ${JSON.stringify(product.desiredPosition)}. This location has highest priority. Place the product there. If a movable item occupies that exact spot, replace only that item. Keep every other object and all fixed structures unchanged.`
+      : 'No position was requested. Choose a balanced empty area away from stairs, doors and walking paths. Do not use the space beside or in front of stairs as the default.',
     `Reference image ${index + 2} is this exact product. Preserve its silhouette, color, material, proportions, legs, shelves, doors, handles and supports.`,
+    product.categoryName ? `Category: ${product.categoryName}.` : '',
+    product.description ? `Description: ${product.description}.` : '',
+    specifications ? `Specifications: ${specifications}.` : '',
     dimensions ? `Known dimensions: ${dimensions}.` : '',
     usage,
     support,
@@ -63,9 +69,9 @@ function buildPrompt(input) {
     'Create one photorealistic edit of the original room in image 1.',
     `Add exactly ${input.products.length} selected product${input.products.length > 1 ? 's' : ''}, using the following reference images in order.`,
     ...input.products.map(productPrompt),
-    'Keep image 1 as the unchanged base photo. Keep its camera, framing, walls, floor, ceiling, doors, windows, stairs, bathroom, fixtures, room shape and every existing object.',
-    'Only add the selected products into unoccupied space. Do not remove, move, cover, resize, redesign or replace anything already visible in image 1.',
-    'Place every selected product exactly once. A MANDATORY POSITION written above has priority over decorative composition. If that place is tight, use the nearest free space without changing the room or its existing objects.',
+    'Keep image 1 as the unchanged base photo. Preserve its camera, framing, walls, floor, ceiling, doors, windows, stairs, bathroom, fixed fixtures, room shape and existing objects.',
+    'For a product without a requested position, add it only to empty space. For a product with a requested position, the user request has highest priority and only a movable object occupying that exact place may be replaced. Do not alter anything else.',
+    'Place every selected product exactly once. Interpret each requested position separately and do not copy one product position to another product.',
     'Match perspective, real product dimensions, lighting and contact shadows. Do not add unselected furniture, duplicate a product, add text, logos or watermarks.',
     'Return only the finished room image.',
   ].filter(Boolean).join(' ');

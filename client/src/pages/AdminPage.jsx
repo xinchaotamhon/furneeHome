@@ -7,7 +7,13 @@ import orderService from '../services/orderService';
 import userService from '../services/userService';
 import { formatPrice } from '../utils/formatPrice';
 
-const emptyForm = { name: '', categoryName: 'Nội thất', price: '', stock: '20', description: '', width: '', depth: '', height: '', usageType: 'standard', placementSurface: 'floor', aiDescription: '' };
+const emptyForm = {
+  name: '',
+  categoryName: 'Nội thất',
+  price: '',
+  stock: '20',
+  description: '',
+};
 const ORDER_TRANSITIONS = {
   Pending: ['Processing', 'Cancelled'],
   Processing: ['Shipped', 'Cancelled'],
@@ -29,12 +35,23 @@ function categoryName(product) {
 }
 
 function formFromProduct(product) {
-  const size = product.dimensionsCm || product.dimensions || {};
-  return { name: product.name || '', categoryName: categoryName(product), price: product.price ?? '', stock: product.stock ?? 0, description: product.description || '', width: size.width || size.widthCm || '', depth: size.depth || size.depthCm || '', height: size.height || size.heightCm || '', usageType: product.usageType || 'standard', placementSurface: product.placementSurface || 'floor', aiDescription: product.aiDescription || '' };
+  return {
+    name: product.name || '',
+    categoryName: categoryName(product),
+    price: product.price ?? '',
+    stock: product.stock ?? 0,
+    description: product.description || '',
+  };
 }
 
 function productFromForm(form) {
-  return { name: form.name.trim(), categoryName: form.categoryName.trim(), price: Number(form.price) || 0, stock: Math.max(0, Math.round(Number(form.stock) || 0)), description: form.description.trim(), usageType: form.usageType, placementSurface: form.placementSurface, aiDescription: form.aiDescription.trim(), dimensionsCm: { width: Number(form.width) || undefined, depth: Number(form.depth) || undefined, height: Number(form.height) || undefined } };
+  return {
+    name: form.name.trim(),
+    categoryName: form.categoryName.trim(),
+    price: Number(form.price) || 0,
+    stock: Math.max(0, Math.round(Number(form.stock) || 0)),
+    description: form.description.trim(),
+  };
 }
 
 function messageFrom(error) {
@@ -52,12 +69,23 @@ function fileToDataUrl(file) {
 
 export default function AdminPage() {
   const { user } = useAuth();
-  const { products, loading, addProduct, updateProduct, removeProduct, refreshProducts, addProductImage } = useProducts();
+  const {
+    products,
+    loading,
+    addProduct,
+    updateProduct,
+    removeProduct,
+    deleteProduct,
+    refreshProducts,
+    addProductImage,
+    syncProductJson,
+  } = useProducts();
   const [tab, setTab] = useState('products');
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState('');
   const [isNewCategory, setNewCategory] = useState(false);
   const [query, setQuery] = useState('');
+  const [adminQuery, setAdminQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tất cả');
   const [users, setUsers] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -84,20 +112,28 @@ export default function AdminPage() {
   }, [products, query, selectedCategory]);
   const categories = useMemo(() => [...new Set([...products.map(categoryName), form.categoryName].filter(Boolean))].sort((first, second) => first.localeCompare(second, 'vi')), [products, form.categoryName]);
   const customers = users.filter((account) => account.role === 'customer');
-  const managedAccounts = users.filter((account) => account.role !== 'superadmin');
+  const adminAccounts = users.filter((account) => ['admin', 'superadmin'].includes(account.role));
+  const visibleAdmins = adminAccounts.filter((account) => {
+    const search = adminQuery.trim().toLocaleLowerCase('vi');
+    if (!search) return true;
+    return [account.name, account.username, account.email]
+      .filter(Boolean)
+      .some((value) => value.toLocaleLowerCase('vi').includes(search));
+  });
 
   useEffect(() => {
     setNotice('');
     setError('');
     if (tab === 'products') refreshProducts();
-    if (tab === 'customers' || tab === 'admins') loadUsers();
+    if (tab === 'customers') loadUsers('customers');
+    if (tab === 'admins') loadUsers('admins');
     if (tab === 'orders') loadOrders();
     if (tab === 'contact') loadFeedback();
   }, [tab]);
 
-  async function loadUsers() {
+  async function loadUsers(scope = tab === 'admins' ? 'admins' : 'customers') {
     setWorking(true);
-    try { setUsers(await userService.listAdmin()); } catch (loadError) { setError(messageFrom(loadError)); } finally { setWorking(false); }
+    try { setUsers(await userService.listAdmin(scope)); } catch (loadError) { setError(messageFrom(loadError)); } finally { setWorking(false); }
   }
 
   async function loadOrders() {
@@ -137,6 +173,32 @@ export default function AdminPage() {
       setNotice(active ? 'Đã ngừng bán sản phẩm.' : 'Đã mở bán lại sản phẩm.');
       if (editingId === (product._id || product.id)) resetForm();
     } catch (statusError) { setError(messageFrom(statusError)); } finally { setWorking(false); }
+  }
+
+  async function deleteForever(product) {
+    if (!window.confirm(`Xóa vĩnh viễn sản phẩm “${product.name}” khỏi MongoDB?`)) return;
+    setWorking(true); setNotice(''); setError('');
+    try {
+      await deleteProduct(product._id || product.id);
+      setNotice('Đã xóa sản phẩm khỏi MongoDB.');
+      if (editingId === (product._id || product.id)) resetForm();
+    } catch (deleteError) {
+      setError(messageFrom(deleteError));
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function syncJson() {
+    setWorking(true); setNotice(''); setError('');
+    try {
+      const result = await syncProductJson();
+      setNotice(result.message || 'Đã đồng bộ JSON.');
+    } catch (syncError) {
+      setError(messageFrom(syncError));
+    } finally {
+      setWorking(false);
+    }
   }
 
   async function uploadImage(product, file) {
@@ -191,15 +253,15 @@ export default function AdminPage() {
         <label>Giá<input type="number" min="1" step="1" value={form.price} onChange={(event) => updateField('price', event.target.value)} required /></label>
         <label>Tồn kho<input type="number" min="0" step="1" value={form.stock} onChange={(event) => updateField('stock', event.target.value)} required /></label>
         <label>Mô tả<textarea rows="3" value={form.description} onChange={(event) => updateField('description', event.target.value)} /></label>
-        <details className="admin-product-details"><summary>Thông tin Phòng thử</summary><div className="admin-detail-fields"><div className="admin-dimensions"><label>Rộng (cm)<input type="number" min="1" value={form.width} onChange={(event) => updateField('width', event.target.value)} /></label><label>Sâu (cm)<input type="number" min="1" value={form.depth} onChange={(event) => updateField('depth', event.target.value)} /></label><label>Cao (cm)<input type="number" min="1" value={form.height} onChange={(event) => updateField('height', event.target.value)} /></label></div><label>Cách sử dụng<select value={form.usageType} onChange={(event) => updateField('usageType', event.target.value)}><option value="standard">Thông thường</option><option value="floor-seating">Ngồi bệt</option><option value="unknown">Chưa xác định</option></select></label><label>Vị trí đặt<select value={form.placementSurface} onChange={(event) => updateField('placementSurface', event.target.value)}><option value="floor">Trên sàn</option><option value="wall">Trên tường</option><option value="tabletop">Trên mặt bàn</option><option value="unknown">Chưa xác định</option></select></label><label>Mô tả hình dạng<textarea rows="3" maxLength="300" value={form.aiDescription} onChange={(event) => updateField('aiDescription', event.target.value)} /></label></div></details>
         <div className="admin-form-actions"><button className="button" type="submit" disabled={isWorking}>{isWorking ? 'Đang lưu…' : editingId ? 'Cập nhật' : 'Thêm sản phẩm'}</button>{editingId && <button className="text-button" type="button" onClick={resetForm}>Hủy</button>}</div>
       </form>
       <section className="admin-products panel-card">
         <div className="section-title">
           <h2>Danh sách sản phẩm ({visibleProducts.length})</h2>
-          <button className="text-button" type="button" onClick={refreshProducts} disabled={loading || isWorking}>
-            {loading ? 'Đang tải…' : 'Tải lại'}
-          </button>
+          <div className="row-actions">
+            {['localhost', '127.0.0.1'].includes(window.location.hostname) && <button className="text-button" type="button" onClick={syncJson} disabled={isWorking}>Đồng bộ JSON</button>}
+            <button className="text-button" type="button" onClick={refreshProducts} disabled={loading || isWorking}>{loading ? 'Đang tải…' : 'Tải lại'}</button>
+          </div>
         </div>
         <input
           className="admin-search"
@@ -242,6 +304,7 @@ export default function AdminPage() {
                   <button className={active ? 'admin-delete' : 'admin-edit'} type="button" onClick={() => changeProductStatus(product)}>
                     {active ? 'Ngừng bán' : 'Bán lại'}
                   </button>
+                  <button className="admin-delete" type="button" onClick={() => deleteForever(product)}>Xóa</button>
                 </div>
               </article>
             );
@@ -251,12 +314,12 @@ export default function AdminPage() {
       </section>
     </div>}
 
-    {tab === 'customers' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Khách hàng ({customers.length})</h2><button className="text-button" type="button" onClick={loadUsers}>Tải lại</button></div>{isWorking && !customers.length ? <p className="muted">Đang tải…</p> : <div className="admin-user-list">{customers.map((account) => { const id = account._id || account.id; return <article key={id}><div><strong>{account.name}</strong><span>{account.username ? `@${account.username} · ` : ''}{account.email}</span></div><span className="admin-role">Khách hàng</span><button type="button" className={account.isActive ? 'admin-delete' : 'admin-edit'} onClick={() => updateAccount(id, { isActive: !account.isActive })} disabled={isWorking}>{account.isActive ? 'Khóa' : 'Mở khóa'}</button></article>; })}</div>}</section>}
+    {tab === 'customers' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Khách hàng ({customers.length})</h2><button className="text-button" type="button" onClick={() => loadUsers('customers')}>Tải lại</button></div>{isWorking && !customers.length ? <p className="muted">Đang tải…</p> : <div className="admin-user-list">{customers.map((account) => { const id = account._id || account.id; return <article key={id}><div><strong>{account.name}</strong><span>{account.username ? `@${account.username} · ` : ''}{account.email}</span></div><span className="admin-role">Khách hàng</span><button type="button" className={account.isActive ? 'admin-delete' : 'admin-edit'} onClick={() => updateAccount(id, { isActive: !account.isActive })} disabled={isWorking}>{account.isActive ? 'Khóa' : 'Mở khóa'}</button></article>; })}</div>}</section>}
 
-    {tab === 'orders' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Đơn hàng ({orders.length})</h2><button className="text-button" type="button" onClick={loadOrders}>Tải lại</button></div>{isWorking && !orders.length ? <p className="muted">Đang tải…</p> : !orders.length ? <p className="muted">Chưa có đơn hàng.</p> : <div className="admin-table-container"><table className="admin-table"><thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Sản phẩm</th><th>Tổng tiền</th><th>Phương thức</th><th>Thanh toán</th><th>Trạng thái đơn</th></tr></thead><tbody>{orders.map((order) => { const isBank = order.paymentMethod === 'BANK_TRANSFER'; const paid = order.paymentStatus === 'Paid'; const canConfirmPayment = !paid && (isBank || order.orderStatus === 'Delivered'); const nextStates = ORDER_TRANSITIONS[order.orderStatus] || []; return <tr key={order._id}><td><strong>{order.orderNumber || String(order._id).slice(-8).toUpperCase()}</strong></td><td>{order.shippingAddress?.fullName}<br /><small>{order.shippingAddress?.phone}</small></td><td>{(order.orderItems || []).map((item) => `${item.name} × ${item.qty ?? item.quantity}`).join(', ')}</td><td><strong>{formatPrice(order.totalAmount)}</strong></td><td><span className={`payment-badge ${isBank ? 'bank' : 'cod'}`}>{isBank ? 'Chuyển khoản QR' : 'COD'}</span></td><td><span>{paid ? 'Đã thanh toán' : 'Chờ thanh toán'}</span>{canConfirmPayment && <button className="text-button admin-payment-button" type="button" disabled={isWorking} onClick={() => updateOrder(order._id, { paymentStatus: 'Paid' })}>Xác nhận thanh toán</button>}</td><td>{nextStates.length ? <select value={order.orderStatus} disabled={isWorking} onChange={(event) => updateOrder(order._id, { orderStatus: event.target.value })}>{[order.orderStatus, ...nextStates].map((state) => <option key={state} value={state}>{ORDER_LABELS[state]}</option>)}</select> : <span>{ORDER_LABELS[order.orderStatus] || order.orderStatus}</span>}</td></tr>; })}</tbody></table></div>}</section>}
+    {tab === 'orders' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Đơn hàng ({orders.length})</h2><button className="text-button" type="button" onClick={loadOrders}>Tải lại</button></div>{isWorking && !orders.length ? <p className="muted">Đang tải…</p> : !orders.length ? <p className="muted">Chưa có đơn hàng.</p> : <div className="admin-table-container"><table className="admin-table"><thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Sản phẩm</th><th>Tổng tiền</th><th>Phương thức</th><th>Thanh toán</th><th>Trạng thái đơn</th></tr></thead><tbody>{orders.map((order) => { const isBank = order.paymentMethod === 'BANK_TRANSFER'; const paid = order.paymentStatus === 'Paid'; const canConfirmPayment = !paid && (isBank || order.orderStatus === 'Delivered'); const nextStates = isSuperadmin && order.orderStatus !== 'Cancelled' ? ['Pending', 'Processing', 'Shipped', 'Delivered'] : (ORDER_TRANSITIONS[order.orderStatus] || []); return <tr key={order._id}><td><strong>{order.orderNumber || String(order._id).slice(-8).toUpperCase()}</strong></td><td>{order.shippingAddress?.fullName}<br /><small>{order.shippingAddress?.phone}</small></td><td>{(order.orderItems || []).map((item) => `${item.name} × ${item.qty ?? item.quantity}`).join(', ')}</td><td><strong>{formatPrice(order.totalAmount)}</strong></td><td><span className={`payment-badge ${isBank ? 'bank' : 'cod'}`}>{isBank ? 'Chuyển khoản QR' : 'COD'}</span></td><td><span>{paid ? 'Đã thanh toán' : 'Chờ thanh toán'}</span>{canConfirmPayment && <button className="text-button admin-payment-button" type="button" disabled={isWorking} onClick={() => updateOrder(order._id, { paymentStatus: 'Paid' })}>Xác nhận thanh toán</button>}</td><td>{nextStates.length ? <select value={order.orderStatus} disabled={isWorking} onChange={(event) => updateOrder(order._id, { orderStatus: event.target.value })}>{[...new Set([order.orderStatus, ...nextStates])].map((state) => <option key={state} value={state}>{ORDER_LABELS[state]}</option>)}</select> : <span>{ORDER_LABELS[order.orderStatus] || order.orderStatus}</span>}</td></tr>; })}</tbody></table></div>}</section>}
 
-    {tab === 'contact' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Báo nội dung ({feedback.length})</h2><button className="text-button" type="button" onClick={loadFeedback}>Tải lại</button></div>{isWorking && !feedback.length ? <p className="muted">Đang tải…</p> : <div className="admin-feedback-list">{feedback.map((item) => <article key={item._id || item.id}><div><strong>Báo nội dung xấu</strong><span>{item.user?.email || item.email || 'Khách'}</span><p>{item.targetName ? `${item.targetName}: ${item.content}` : item.content}</p></div><select value={item.status} onChange={(event) => updateFeedback(item._id || item.id, event.target.value)} disabled={isWorking}><option value="new">Mới</option><option value="reviewed">Đã xem</option><option value="resolved">Đã xử lý</option></select></article>)}</div>}</section>}
+    {tab === 'contact' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Báo nội dung ({feedback.length})</h2><button className="text-button" type="button" onClick={loadFeedback}>Tải lại</button></div>{isWorking && !feedback.length ? <p className="muted">Đang tải…</p> : !feedback.length ? <p className="muted">Chưa có báo cáo.</p> : <div className="admin-feedback-list">{feedback.map((item) => <article key={item._id || item.id}><div><strong>{item.targetName || 'Nội dung chung'}</strong><span>{item.user?.email || item.email || 'Khách'}</span><p>{item.content}</p></div><select value={item.status} onChange={(event) => updateFeedback(item._id || item.id, event.target.value)} disabled={isWorking}><option value="new">Mới</option><option value="reviewed">Đã xem</option><option value="resolved">Đã xử lý</option></select></article>)}</div>}</section>}
 
-    {isSuperadmin && tab === 'admins' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Quản trị admin</h2><button className="text-button" type="button" onClick={loadUsers}>Tải lại</button></div>{isWorking && !managedAccounts.length ? <p className="muted">Đang tải…</p> : <div className="admin-user-list">{managedAccounts.map((account) => { const id = account._id || account.id; return <article key={id}><div><strong>{account.name}</strong><span>{account.username ? `@${account.username} · ` : ''}{account.email}</span></div><select value={account.role} onChange={(event) => updateAccount(id, { role: event.target.value })} disabled={isWorking}><option value="customer">Khách hàng</option><option value="admin">Admin</option></select><button type="button" className={account.isActive ? 'admin-delete' : 'admin-edit'} onClick={() => updateAccount(id, { isActive: !account.isActive })} disabled={isWorking}>{account.isActive ? 'Khóa' : 'Mở khóa'}</button></article>; })}</div>}</section>}
+    {isSuperadmin && tab === 'admins' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Quản trị admin ({visibleAdmins.length})</h2><button className="text-button" type="button" onClick={() => loadUsers('admins')}>Tải lại</button></div><input className="admin-search" type="search" value={adminQuery} placeholder="Tìm tên, tên đăng nhập hoặc email" onChange={(event) => setAdminQuery(event.target.value)} />{isWorking && !adminAccounts.length ? <p className="muted">Đang tải…</p> : <div className="admin-user-list">{visibleAdmins.map((account) => { const id = account._id || account.id; const orchestra = account.role === 'superadmin'; return <article key={id}><div><strong>{account.name}</strong><span>{account.username ? `@${account.username} · ` : ''}{account.email}</span></div><span className="admin-role">{orchestra ? 'Orchestra Admin' : 'Admin'}</span>{orchestra ? <span /> : <button type="button" className={account.isActive ? 'admin-delete' : 'admin-edit'} onClick={() => updateAccount(id, { isActive: !account.isActive })} disabled={isWorking}>{account.isActive ? 'Khóa' : 'Mở khóa'}</button>}</article>; })}</div>}</section>}
   </main>;
 }

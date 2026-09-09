@@ -1,8 +1,15 @@
+const fs = require('node:fs/promises');
+const path = require('node:path');
 const mongoose = require('mongoose');
+const env = require('../config/env');
+const Cart = require('../models/Cart');
 const Category = require('../models/Category');
+const Order = require('../models/Order');
 const Product = require('../models/Product');
+const Review = require('../models/Review');
 
 const MAX_IMAGE_LENGTH = 5_000_000;
+const JSON_FILE = path.resolve(__dirname, '../../../client/public/data_import/data_import.json');
 
 function createError(message, status = 400) {
   const error = new Error(message);
@@ -98,6 +105,71 @@ function checkId(id) {
 
 function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function publicImage(value) {
+  const image = String(value || '').trim();
+  return image && !image.startsWith('data:') ? image : '';
+}
+
+function publicImages(values) {
+  return Array.isArray(values) ? values.map(publicImage).filter(Boolean) : [];
+}
+
+function jsonProduct(product, oldProduct = {}) {
+  const data = product.toObject();
+  const categoryName = data.category?.name || data.categoryName || 'Nội thất';
+  const images = publicImages(data.images);
+  const oldImages = publicImages(oldProduct.images);
+  const image = publicImage(data.image)
+    || publicImage(data.transparentImage)
+    || images[0]
+    || publicImage(oldProduct.image);
+
+  return {
+    ...oldProduct,
+    _id: String(data._id),
+    name: data.name,
+    slug: data.slug,
+    category: categoryName,
+    categoryName,
+    price: data.price,
+    stock: data.stock,
+    dimensions: data.dimensions || '',
+    dimensionsCm: data.dimensionsCm || {},
+    description: data.description || '',
+    image: image || '',
+    images: images.length ? images : oldImages,
+    transparentImage: publicImage(data.transparentImage) || image || '',
+    sourceImages: publicImages(data.sourceImages).length
+      ? publicImages(data.sourceImages)
+      : publicImages(oldProduct.sourceImages),
+    specifications: Array.isArray(data.specifications) ? data.specifications : [],
+    usageType: data.usageType || 'unknown',
+    placementSurface: data.placementSurface || 'unknown',
+    aiDescription: data.aiDescription || '',
+    ratingAverage: data.ratingAverage || 0,
+    reviewCount: data.reviewCount || 0,
+    isActive: data.isActive !== false,
+  };
+}
+
+async function buildJsonProducts() {
+  let oldProducts = [];
+  try {
+    oldProducts = JSON.parse(await fs.readFile(JSON_FILE, 'utf8'));
+  } catch {
+    oldProducts = [];
+  }
+
+  const oldById = new Map(oldProducts.map((product) => [String(product._id), product]));
+  const oldBySlug = new Map(oldProducts.map((product) => [product.slug, product]));
+  const products = await Product.find().populate('category', 'name').sort({ createdAt: -1 });
+
+  return products.map((product) => {
+    const oldProduct = oldById.get(String(product._id)) || oldBySlug.get(product.slug) || {};
+    return jsonProduct(product, oldProduct);
+  });
 }
 
 async function list(req, res, next) {
@@ -208,6 +280,38 @@ async function remove(req, res, next) {
   }
 }
 
+async function permanentRemove(req, res, next) {
+  try {
+    checkId(req.params.id);
+
+    const [hasOrder, hasReview, hasCart] = await Promise.all([
+      Order.exists({ 'orderItems.product': req.params.id }),
+      Review.exists({ product: req.params.id }),
+      Cart.exists({ 'items.product': req.params.id }),
+    ]);
+    if (hasOrder || hasReview || hasCart) {
+      throw createError('Sản phẩm đã có đơn hàng, đánh giá hoặc giỏ hàng. Hãy dùng Ngừng bán để giữ lịch sử.', 409);
+    }
+
+    const product = await Product.findByIdAndDelete(req.params.id);
+    if (!product) throw createError('Không tìm thấy sản phẩm.', 404);
+    return res.json({ success: true, message: 'Đã xóa sản phẩm khỏi MongoDB.', data: null });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function syncJson(req, res, next) {
+  try {
+    if (env.isProduction) throw createError('Chỉ đồng bộ JSON khi chạy localhost.', 409);
+    const products = await buildJsonProducts();
+    await fs.writeFile(JSON_FILE, `${JSON.stringify(products, null, 2)}\n`, 'utf8');
+    return res.json({ success: true, message: `Đã đồng bộ ${products.length} sản phẩm từ MongoDB sang JSON.`, data: { count: products.length } });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function addImage(req, res, next) {
   try {
     checkId(req.params.id);
@@ -234,7 +338,10 @@ module.exports = {
   create,
   update,
   remove,
+  permanentRemove,
   addImage,
+  syncJson,
+  buildJsonProducts,
   productData,
   toSlug,
   escapeRegex,

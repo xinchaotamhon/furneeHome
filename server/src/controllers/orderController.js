@@ -19,6 +19,7 @@ const ADMIN_TRANSITIONS = {
   Delivered: [],
   Cancelled: [],
 };
+const CORRECTION_STATES = ['Pending', 'Processing', 'Shipped', 'Delivered'];
 
 function createError(message, status = 400) {
   const error = new Error(message);
@@ -256,12 +257,20 @@ async function updateOrderStatus(req, res, next) {
     const { orderStatus, paymentStatus } = req.body;
     const order = await Order.findById(req.params.id);
     if (!order) throw createError('Không tìm thấy đơn hàng.', 404);
+    const normalNextStates = ADMIN_TRANSITIONS[order.orderStatus] || [];
     if (orderStatus === 'Cancelled') {
+      if (!normalNextStates.includes('Cancelled')) {
+        throw createError('Đơn hàng ở trạng thái này không thể hủy.', 409);
+      }
       const cancelled = await cancelOrder(req.params.id);
       return res.json({ success: true, message: 'Đã hủy đơn hàng và hoàn lại tồn kho.', data: cancelled });
     }
     if (orderStatus) {
-      if (!Object.hasOwn(ADMIN_TRANSITIONS, orderStatus) || !ADMIN_TRANSITIONS[order.orderStatus]?.includes(orderStatus)) {
+      if (order.orderStatus === 'Cancelled') {
+        throw createError('Không thể mở lại đơn đã hủy vì tồn kho đã được hoàn.', 409);
+      }
+      const allowedStates = req.user.role === 'superadmin' ? CORRECTION_STATES : normalNextStates;
+      if (!allowedStates.includes(orderStatus)) {
         throw createError('Chuyển trạng thái đơn hàng không hợp lệ.', 409);
       }
       const update = { orderStatus };

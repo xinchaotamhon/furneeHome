@@ -12,6 +12,7 @@ import ProductDetailPage from './pages/ProductDetailPage';
 import ProductListPage from './pages/ProductListPage';
 import ProfilePage from './pages/ProfilePage';
 import RoomStudioPage from './pages/RoomStudioPage';
+import OrderReviewPage from './pages/OrderReviewPage';
 
 function AdminRoute() {
   const { user, openLogin } = useAuth();
@@ -37,6 +38,7 @@ const router = createBrowserRouter([
       { path: '/cart', element: <CartPage /> },
       { path: '/checkout', element: <CheckoutPage /> },
       { path: '/orders', element: <OrderHistoryPage /> },
+      { path: '/orders/:orderId/review', element: <OrderReviewPage /> },
       { path: '/room-studio', element: <RoomStudioPage /> },
       { path: '/profile', element: <ProfilePage /> },
       { path: '/feedback', element: <FeedbackPage /> },

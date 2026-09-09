@@ -33,10 +33,10 @@ Phúc nói sau Triều. Mỗi bước: **Nói · Demo · Thành công · Lỗi/t
 
 - **Nói:** Admin quản lý Sản phẩm, Khách hàng, Đơn hàng và Báo nội dung. Orchestra Admin có thêm Quản trị admin; admin thường chỉ khóa/mở khách hàng.
 - **Demo:** Đăng nhập `admin` / `123` → `/admin` → lần lượt mở 4 tab; nếu đủ thời gian đăng nhập admin thường để chứng minh không có tab nâng quyền; với `admin` superadmin mở **Quản trị admin**.
-- **Thành công:** Thêm/sửa/ngừng bán/bán lại sản phẩm; khóa user; chuyển đơn đúng bước; báo cáo đi `new → reviewed → resolved`; tab quyền cao nhất hiển thị đúng role.
-- **Lỗi/thay đổi:** Không xóa sản phẩm đang có lịch sử nếu chỉ cần ngừng bán; không đổi role superadmin hoặc tự đổi quyền của chính mình. API vẫn chặn dù có sửa giao diện.
+- **Thành công:** Thêm/sửa/ngừng bán/bán lại/xóa sản phẩm chưa có dữ liệu liên quan; khóa user; chuyển đơn đúng bước; báo cáo đi `new → reviewed → resolved`; tab quyền cao nhất hiển thị đúng role.
+- **Lỗi/thay đổi:** Sản phẩm đã có đơn, đánh giá hoặc giỏ hàng không được xóa vĩnh viễn; dùng **Ngừng bán** để giữ lịch sử. Không đổi role superadmin hoặc tự đổi quyền của chính mình. API vẫn chặn dù có sửa giao diện.
 - **Hỏi đáp:** *Admin thường tự thành Orchestra Admin được không?* Không, chỉ `superadmin` được đổi role. *Tại sao ngừng bán?* Giữ đơn/đánh giá cũ và có thể bán lại. *Báo nội dung ở đâu?* Tab **Báo nội dung**, backend `feedbacks`.
-- **Hàm + đường dẫn:** `AdminPage()` — `client/src/pages/AdminPage.jsx`: admin có 4 tab, superadmin có thêm tab thứ 5; `AdminRoute()` — `client/src/router.jsx`: bảo vệ giao diện; `requireAdmin()` — `server/src/middleware/authMiddleware.js`: bảo vệ API; `updateUser()`/`updateFeedback()` — `server/src/controllers/adminController.js`: tài khoản và báo cáo; `create()`/`update()`/`remove()`/`addImage()` — `server/src/controllers/productController.js`: sản phẩm.
+- **Hàm + đường dẫn:** `AdminPage()` — `client/src/pages/AdminPage.jsx`: admin có 4 tab, superadmin có thêm tab thứ 5; `AdminRoute()` — `client/src/router.jsx`: bảo vệ giao diện; `requireAdmin()` — `server/src/middleware/authMiddleware.js`: bảo vệ API; `updateUser()`/`updateFeedback()` — `server/src/controllers/adminController.js`: tài khoản và báo cáo; `create()`/`update()`/`remove()`/`permanentRemove()`/`addImage()`/`syncJson()` — `server/src/controllers/productController.js`: CRUD sản phẩm và đồng bộ JSON một chiều khi chạy local.
 
 **Câu bàn giao cho Hiệp:** “Phần tài khoản, giao dịch và quản trị đã hoàn tất. Cuối cùng, Hiệp sẽ giải thích kiến trúc MongoDB, dữ liệu, Phòng thử AI, triển khai và giới hạn thực tế.”
 

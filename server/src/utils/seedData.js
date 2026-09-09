@@ -232,6 +232,8 @@ async function seedDemoContent() {
   }
 
   await addOrder('DEMO-SUCCESS-001', customers[0], [item(products[0]), item(products[1])], 'Delivered', 'Paid');
+  await addOrder('DEMO-SUCCESS-002', customers[1], [item(products[0]), item(products[1])], 'Delivered', 'Paid');
+  await addOrder('DEMO-SUCCESS-003', customers[2], [item(products[0]), item(products[2])], 'Delivered', 'Paid');
   await addOrder('DEMO-PROCESSING-001', customers[1], [item(products[2])], 'Processing', 'Pending');
   await addOrder('DEMO-CANCELLED-001', customers[2], [item(products[0])], 'Cancelled', 'Pending');
 }

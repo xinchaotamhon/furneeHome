@@ -57,7 +57,15 @@ export default function FeedbackPage() {
         <p className="feedback-target"><strong>Sản phẩm:</strong> {reportedProduct.name}</p>
         <label>
           Nội dung
-          <textarea rows="7" minLength="10" maxLength="2000" value={content} onChange={(event) => setContent(event.target.value)} required />
+          <textarea
+            rows="7"
+            minLength="10"
+            maxLength="2000"
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            placeholder={"Ví dụ:\n- Ảnh sản phẩm không đúng mô tả.\n- Giá hoặc kích thước chưa chính xác.\n- Bình luận có nội dung không phù hợp."}
+            required
+          />
         </label>
 
         {error && <p className="form-error" role="alert">{error}</p>}

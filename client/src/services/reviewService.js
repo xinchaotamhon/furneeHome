@@ -5,8 +5,12 @@ const reviewService = {
     const response = await apiClient.get(`/reviews/product/${productId}`);
     return response.data.data;
   },
-  async addReview(productId, data) {
-    const response = await apiClient.post('/reviews', { productId, ...data });
+  async getOrderReviewStatus(orderId) {
+    const response = await apiClient.get(`/reviews/order/${orderId}`);
+    return response.data.data;
+  },
+  async addOrderReview(orderId, productId, data) {
+    const response = await apiClient.post(`/reviews/order/${orderId}`, { productId, ...data });
     return response.data.data;
   },
   async moderateReview(reviewId, isHidden, reason = '') {

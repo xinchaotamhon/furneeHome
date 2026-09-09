@@ -75,14 +75,16 @@ ADMIN_PASSWORD=123
 TEAM_ADMIN_PASSWORD=123
 ```
 
-Nạp dữ liệu lần đầu và tạo tài khoản mẫu:
+Nếu MongoDB đang có dữ liệu thì không cần chạy `npm run seed`. Chỉ dùng lệnh sau một lần khi tạo database hoàn toàn mới:
 
 ```powershell
 cd server
 npm run seed
 ```
 
-`data_import.json` là dữ liệu nhập ban đầu. Lệnh seed đọc file này và chỉ thêm sản phẩm chưa có. Website luôn đọc sản phẩm đang dùng từ MongoDB, vì vậy không cần nút đồng bộ hai chiều và tên, giá, tồn kho, ảnh đã sửa trong MongoDB không bị ghi đè.
+`data_import.json` chỉ là bản chụp sản phẩm để danh sách hiện nhanh lúc mới mở trang. Sau đó website luôn lấy lại dữ liệu chính thức từ MongoDB. Mọi thao tác thêm, sửa, ngừng bán, xóa, đặt hàng và đánh giá đều xử lý trên MongoDB.
+
+Khi chạy localhost, Orchestra Admin hoặc Admin có thể bấm **Đồng bộ JSON** trong trang Quản trị sản phẩm. Nút này chỉ sao chép một chiều từ MongoDB sang `data_import.json`, không ghi ngược vào MongoDB nên không làm mất tên, giá hoặc tồn kho đã sửa.
 
 Lệnh seed cũng tạo tài khoản mẫu, đánh giá 3–5 sao và ba đơn minh họa: đang xử lý, đã giao thành công và đã hủy.
 

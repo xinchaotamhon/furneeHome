@@ -11,14 +11,14 @@ Hiệp nói cuối. Mỗi bước: **Nói · Demo · Thành công · Lỗi/thay 
 - **Hỏi đáp:** *Tại sao không nối React thẳng MongoDB?* Sẽ lộ chuỗi kết nối và bỏ qua kiểm tra quyền/giá/tồn kho. *JSON API có dạng gì?* `success`, `message`, `data` và pagination khi danh sách có phân trang.
 - **Hàm + đường dẫn:** `app` — `server/src/app.js`: Express, CORS, JSON limit và `/api`; `router` — `server/src/routes/index.js`: nối route; `connectDatabase()` — `server/src/config/db.js`: kết nối Atlas; `getPage()`/`getById()` — `client/src/services/productService.js`: tải theo trang hoặc ID; `ProductProvider()`/`refreshProducts()` — `client/src/context/ProductContext.jsx`: chỉ tải toàn catalog khi Admin hoặc Phòng thử cần.
 
-## Bước 2 — MongoDB và dữ liệu nhập ban đầu
+## Bước 2 — MongoDB và bản chụp JSON
 
-- **Nói:** Collection vận hành gồm `users`, `products`, `categories`, `carts`, `orders`, `reviews`, `feedbacks`. `data_import.json` chỉ là dữ liệu nhập ban đầu; sau seed MongoDB là nguồn vận hành.
-- **Demo:** Mở `client/public/data_import/data_import.json` để chỉ dữ liệu mẫu; vào admin sửa giá/tồn kho rồi tải lại để chứng minh giá lấy từ MongoDB.
-- **Thành công:** Seed lần đầu thêm catalog; chạy lại không ghi đè giá/tồn kho/mô tả/ảnh đã sửa vì dùng `slug` + `$setOnInsert`.
-- **Lỗi/thay đổi:** Sửa JSON không làm website đổi ngay; phải chạy seed, và sản phẩm đã có vẫn không bị ghi đè. Không có nút đồng bộ hai chiều.
-- **Hỏi đáp:** *Quan hệ NoSQL ở đâu?* Mongoose dùng ObjectId; `orderItems` nhúng tên/giá để giữ lịch sử. *`roomdesigns` có dùng không?* Không dùng trong bản chốt, không trình bày Bộ sưu tập; nếu còn dữ liệu cũ thì không ảnh hưởng luồng mới.
-- **Hàm + đường dẫn:** `seedCategories()`/`seedProducts()`/`productData()`/`seedAccounts()` — `server/src/utils/seedData.js`: seed danh mục, catalog, tài khoản và dữ liệu demo; `list()` — `server/src/controllers/productController.js`: đọc MongoDB cho khách/admin.
+- **Nói:** Collection vận hành gồm `users`, `products`, `categories`, `carts`, `orders`, `reviews`, `feedbacks`. MongoDB là nguồn thật cho mọi truy vấn và thay đổi. `data_import.json` chỉ là bản chụp để danh sách hiện nhanh trước khi API trả về.
+- **Demo:** Mở trang Sản phẩm để thấy bản chụp hiện trước rồi dữ liệu API thay thế; vào quản trị sửa một món, tải lại để chứng minh dữ liệu chính thức lấy từ MongoDB; khi chạy localhost bấm **Đồng bộ JSON**.
+- **Thành công:** Nút đồng bộ sao chép đúng 101 sản phẩm một chiều từ MongoDB sang JSON, không ghi ngược nên không làm mất tên, giá, tồn kho hoặc ảnh đã sửa. Nếu MongoDB đã có dữ liệu thì không cần chạy seed.
+- **Lỗi/thay đổi:** Sửa JSON không thay đổi MongoDB. Trên website deploy, CRUD vẫn cập nhật MongoDB; muốn cập nhật bản chụp cho lần build sau thì đồng bộ ở localhost, commit JSON rồi rebuild Cloudflare.
+- **Hỏi đáp:** *Quan hệ NoSQL ở đâu?* Mongoose dùng ObjectId; `orderItems` nhúng tên/giá để giữ lịch sử. *`roomdesigns` có dùng không?* Không dùng trong bản chốt, không trình bày Bộ sưu tập; để lại collection cũ không ảnh hưởng hệ thống và chỉ xóa khi đã sao lưu.
+- **Hàm + đường dẫn:** `list()` — `server/src/controllers/productController.js`: truy vấn MongoDB; `buildJsonProducts()`/`syncJson()` — cùng file: xuất bản chụp một chiều; `ProductListPage()` — `client/src/pages/ProductListPage.jsx`: hiện JSON trước rồi thay bằng kết quả MongoDB; API `GET /api/products`, `POST /api/products/sync-json`.
 
 ## Bước 3 — Tính toàn vẹn đơn và đánh giá
 
@@ -61,8 +61,8 @@ Hiệp nói cuối. Mỗi bước: **Nói · Demo · Thành công · Lỗi/thay 
 ## Phản biện nhanh cuối phần
 
 1. **MongoDB là gì trong dự án?** Database NoSQL lưu document; Mongoose định nghĩa cấu trúc và kết nối Node.js với MongoDB.
-2. **Tại sao vẫn có `data_import.json`?** Đây là nguồn nhập lần đầu; `seedProducts()` dùng `$setOnInsert` nên không ghi đè tên, giá, tồn kho hay ảnh đã sửa trong MongoDB.
-3. **Nếu sửa JSON rồi F5?** Website không đổi vì runtime đọc MongoDB; phải seed, và seed chỉ thêm sản phẩm chưa có.
+2. **Tại sao vẫn có `data_import.json`?** Để sản phẩm hiện nhanh lúc mở danh sách; MongoDB vẫn là dữ liệu chính thức cho mọi nghiệp vụ.
+3. **Nếu sửa JSON rồi F5?** Có thể thấy bản chụp trong chốc lát, nhưng kết quả MongoDB sẽ thay thế; JSON không thể sửa database.
 4. **Tại sao chi tiết gọi API riêng?** Danh sách chỉ tải 12 món/trang; `getById()` tải đúng món khi mở URL mà không cần tải toàn catalog.
 5. **Phòng thử gửi gì?** Ảnh phòng, 1–3 ảnh sản phẩm, tên, đặc điểm và `desiredPosition` của từng món.
 6. **Vị trí người dùng nhập nằm ở đâu?** `generate()` đưa vào `inspirationProducts`; `productPrompt()` ghép thành yêu cầu vị trí cho model.

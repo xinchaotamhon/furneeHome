@@ -6,9 +6,27 @@ function validId(id) {
   return mongoose.isValidObjectId(id);
 }
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 async function listUsers(req, res, next) {
   try {
-    const users = await User.find()
+    const filter = {};
+    if (req.query.scope === 'admins') filter.role = { $in: ['admin', 'superadmin'] };
+    if (req.query.scope === 'customers') filter.role = 'customer';
+
+    const search = String(req.query.search || '').trim();
+    if (search) {
+      const keyword = escapeRegex(search);
+      filter.$or = [
+        { name: { $regex: keyword, $options: 'i' } },
+        { username: { $regex: keyword, $options: 'i' } },
+        { email: { $regex: keyword, $options: 'i' } },
+      ];
+    }
+
+    const users = await User.find(filter)
       .select('name username email avatarUrl role isActive createdAt')
       .sort({ createdAt: -1 });
     return res.json({ success: true, message: 'Đã tải người dùng.', data: users });

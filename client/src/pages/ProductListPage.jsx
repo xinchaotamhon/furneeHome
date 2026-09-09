@@ -60,18 +60,47 @@ export default function ProductListPage() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    const params = { page, limit: 12 };
-    if (search.trim()) params.search = search.trim();
-    if (category !== 'Tất cả') params.category = category;
-    if (sort !== 'default') params.sort = sort;
-    productService.getPage(params).then((result) => {
-      if (!active) return;
-      setProducts(result.products);
-      setPagination(result.pagination);
-      setCategories(['Tất cả', ...result.categories.filter(Boolean)]);
-    }).catch(() => {
-      if (active) { setProducts([]); setPagination(null); setCategories(['Tất cả']); }
-    }).finally(() => { if (active) setLoading(false); });
+
+    async function loadProducts() {
+      let snapshotShown = false;
+      const keyword = search.trim();
+      if (page === 1 && !keyword && category === 'Tất cả' && sort === 'default') {
+        try {
+          const response = await fetch('/data_import/data_import.json');
+          const snapshot = await response.json();
+          if (active && Array.isArray(snapshot)) {
+            const visible = snapshot.filter((product) => product.isActive !== false && Number(product.price) > 0);
+            setProducts(visible.slice(0, 12));
+            setPagination({ total: visible.length, page: 1, totalPages: Math.max(1, Math.ceil(visible.length / 12)) });
+            setCategories(['Tất cả', ...new Set(visible.map((product) => product.categoryName).filter(Boolean))]);
+            snapshotShown = true;
+          }
+        } catch {}
+      }
+
+      const params = { page, limit: 12 };
+      if (keyword) params.search = keyword;
+      if (category !== 'Tất cả') params.category = category;
+      if (sort !== 'default') params.sort = sort;
+
+      try {
+        const result = await productService.getPage(params);
+        if (!active) return;
+        setProducts(result.products);
+        setPagination(result.pagination);
+        setCategories(['Tất cả', ...result.categories.filter(Boolean)]);
+      } catch {
+        if (active && !snapshotShown) {
+          setProducts([]);
+          setPagination(null);
+          setCategories(['Tất cả']);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadProducts();
     return () => { active = false; };
   }, [page, search, category, sort]);
 

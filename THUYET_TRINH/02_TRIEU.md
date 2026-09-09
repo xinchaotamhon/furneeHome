@@ -14,7 +14,7 @@ Triều nói sau Dũng. Mỗi bước: **Nói · Demo · Thành công · Lỗi/t
 ## Bước 2 — Đánh giá và báo nội dung
 
 - **Nói:** Chỉ người đã có đơn `Delivered` chứa sản phẩm mới được đánh giá; điểm 1–5 sao; mỗi tài khoản chỉ một đánh giá cho một sản phẩm. Admin có thể ẩn/xóa nội dung xấu.
-- **Demo:** Mở vùng đánh giá → gửi thử; nếu dùng dữ liệu mẫu thì chỉ 6 đánh giá mẫu từ 3–5 sao; từ chi tiết bấm **Báo nội dung**.
+- **Demo:** Mở một đơn đã giao → bấm **Đánh giá đơn hàng** → chọn sản phẩm, số sao và nhập bình luận; từ chi tiết sản phẩm bấm **Báo nội dung**.
 - **Thành công:** Đánh giá hợp lệ xuất hiện; điểm trung bình cập nhật; đánh giá bị ẩn biến khỏi khách và không còn tính điểm.
 - **Lỗi/thay đổi:** Chưa mua/chưa nhận hàng, điểm ngoài 1–5, bình luận rỗng hoặc đánh giá lần hai đều bị server từ chối. Admin ẩn rồi hiện lại sẽ tính lại điểm.
 - **Hỏi đáp:** *Ẩn nút ở frontend đủ chưa?* Chưa, server kiểm tra đơn đã giao. *Một người đánh giá hai lần?* Chỉ mục `user + product` chặn lần hai. *Báo xấu lưu ở đâu?* Collection `feedbacks`, trạng thái `new → reviewed → resolved`.
@@ -40,12 +40,12 @@ Triều nói sau Dũng. Mỗi bước: **Nói · Demo · Thành công · Lỗi/t
 
 ## Bước 5 — Lịch sử đơn và bàn giao
 
-- **Nói:** Khách chỉ xem đơn của mình; chỉ `Pending`/`Processing` được hủy; hủy hoàn kho đúng một lần. Hồ sơ cho phép đổi tên và ảnh đại diện.
+- **Nói:** Khách chỉ xem đơn của mình; chỉ `Pending`/`Processing` được hủy; hủy hoàn kho đúng một lần. Hồ sơ cho phép đổi tên, email và đổi mật khẩu bằng mật khẩu hiện tại.
 - **Demo:** Mở `/orders` → xem mã/trạng thái → hủy một đơn hợp lệ → mở `/profile`.
 - **Thành công:** Đơn chuyển `Cancelled`, kho được cộng lại; đơn `Shipped`/`Delivered` không có nút hủy.
 - **Lỗi/thay đổi:** Hủy lần hai hoặc hủy đơn người khác bị từ chối; nếu cập nhật đồng thời, server yêu cầu tải lại.
 - **Hỏi đáp:** *Tại sao không hủy khi đang giao?* Đơn đã qua bước xử lý, cần liên hệ cửa hàng. *Đơn cũ có đổi giá không?* Không, `orderItems` giữ bản chụp tên/giá lúc mua.
-- **Hàm + đường dẫn:** `OrderHistoryPage()` — `client/src/pages/OrderHistoryPage.jsx`: lịch sử và nút hủy; `cancelMyOrder()`/`cancelOrder()` — `server/src/controllers/orderController.js`: giới hạn người hủy và hoàn kho; `updateMe()` — `server/src/controllers/userController.js`: sửa hồ sơ; API `GET /api/orders/my-orders`, `PATCH /api/orders/:id/cancel`, `PATCH /api/users/me`.
+- **Hàm + đường dẫn:** `OrderHistoryPage()` — `client/src/pages/OrderHistoryPage.jsx`: lịch sử và nút hủy; `cancelMyOrder()`/`cancelOrder()` — `server/src/controllers/orderController.js`: giới hạn người hủy và hoàn kho; `updateMe()`/`changePassword()` — `server/src/controllers/userController.js`: sửa hồ sơ và đổi mật khẩu; API `GET /api/orders/my-orders`, `PATCH /api/orders/:id/cancel`, `PATCH /api/users/me`, `POST /api/users/me/password`.
 
 **Câu bàn giao cho Phúc:** “Phần khách hàng đã tạo được một đơn hoàn chỉnh. Tiếp theo, Phúc sẽ trình bày OTP, vòng đời đơn ở phía quản trị và phân quyền Admin.”
 

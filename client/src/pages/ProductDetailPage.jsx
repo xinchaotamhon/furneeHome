@@ -36,14 +36,13 @@ export default function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { user, openLogin } = useAuth();
+  const { user } = useAuth();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [notice, setNotice] = useState('');
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
-  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
   const [reviewNotice, setReviewNotice] = useState('');
   const productId = product?._id || product?.id;
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
@@ -79,16 +78,6 @@ export default function ProductDetailPage() {
       return;
     }
     navigate('/checkout');
-  };
-  const submitReview = async (event) => {
-    event.preventDefault();
-    setReviewNotice('');
-    try {
-      await reviewService.addReview(productId, reviewForm);
-      setReviewForm({ rating: 5, comment: '' });
-      setReviewNotice('Đã gửi đánh giá. Cảm ơn bạn!');
-      await loadReviews();
-    } catch (error) { setReviewNotice(errorMessage(error)); }
   };
   const moderate = async (reviewId, isHidden, reason) => {
     try { await reviewService.moderateReview(reviewId, isHidden, reason); await loadReviews(); } catch (error) { setReviewNotice(errorMessage(error)); }
@@ -142,13 +131,7 @@ export default function ProductDetailPage() {
     <section className="product-reviews" aria-labelledby="reviews-heading">
       <h2 id="reviews-heading">Đánh giá từ khách hàng</h2>
       {reviewsLoading ? <p>Đang tải đánh giá…</p> : reviews.length ? reviews.map((review) => <ReviewItem key={review._id} review={review} isAdmin={isAdmin} onModerate={moderate} onDelete={removeReview} />) : <p>Chưa có đánh giá nào.</p>}
-      {user ? <form onSubmit={submitReview} className="review-form">
-        <h3>Viết đánh giá</h3>
-        <label>Số sao <select value={reviewForm.rating} onChange={(event) => setReviewForm((current) => ({ ...current, rating: Number(event.target.value) }))}>{[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} sao</option>)}</select></label>
-        <label>Nhận xét <textarea required maxLength="1000" value={reviewForm.comment} onChange={(event) => setReviewForm((current) => ({ ...current, comment: event.target.value }))} /></label>
-        <button className="button" type="submit">Gửi đánh giá</button>
-        <p>Chỉ khách đã nhận sản phẩm mới có thể gửi đánh giá.</p>
-      </form> : <p><button className="button button-outline" type="button" onClick={() => openLogin('login')}>Đăng nhập để viết đánh giá</button></p>}
+      {user?.role === 'customer' && <p><Link className="button button-outline" to="/orders">Đánh giá đơn đã nhận</Link></p>}
       {reviewNotice && <p role="status">{reviewNotice}</p>}
     </section>
   </main>;
