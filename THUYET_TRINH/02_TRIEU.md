@@ -266,15 +266,15 @@ Không. `refreshRating()` chỉ lấy review có `isHidden != true`; `moderateRe
 
 1. Mở `/profile`.
 2. Chỉ ra phần sửa họ tên; email chỉ đọc.
-3. Chỉ ra form đổi mật khẩu gồm mật khẩu hiện tại, mật khẩu mới và nhập lại.
+3. Chỉ ra form đổi mật khẩu hoạt động qua OTP gửi về Gmail: bấm gửi mã xác minh -> nhập mã OTP, mật khẩu mới và xác nhận (không cần nhớ mật khẩu cũ).
 
 Không đổi mật khẩu tài khoản demo khi đang thuyết trình.
 
 ### Nếu bị hỏi
 
-**Tại sao đổi mật khẩu cần mật khẩu hiện tại?**
+**Cơ chế đổi mật khẩu trong Hồ sơ hoạt động thế nào?**
 
-`changePassword()` dùng `bcrypt.compare()` xác nhận chủ tài khoản rồi mới băm mật khẩu mới.
+Đã được đồng bộ với cơ chế Quên mật khẩu: thay vì bắt khách hàng nhớ mật khẩu cũ, hệ thống gửi mã xác minh OTP 6 số về đúng Gmail tài khoản qua Google App Password để xác nhận chủ tài khoản, sau đó mới băm `bcrypt` lưu mật khẩu mới.
 
 **Hồ sơ hiện sửa được gì?**
 
@@ -296,7 +296,7 @@ Giao diện hiện cho sửa họ tên. Model vẫn có `avatarUrl`, nhưng tran
 | Lịch sử đơn | `OrderHistoryPage()` | `client/src/pages/OrderHistoryPage.jsx` |
 | Đánh giá theo đơn | `OrderReviewPage()` | `client/src/pages/OrderReviewPage.jsx` |
 | Kiểm tra và lưu review | `createOrderReview()`, `refreshRating()` | `server/src/controllers/reviewController.js` |
-| Hồ sơ/mật khẩu | `ProfilePage()`, `changePassword()` | `client/src/pages/ProfilePage.jsx`, `server/src/controllers/userController.js` |
+| Hồ sơ/mật khẩu | `ProfilePage()`, `handleSendOtp()`, `handleResetPassword()` | `client/src/pages/ProfilePage.jsx`, `client/src/services/authService.js` |
 
 ## Câu bàn giao cho Phúc
 

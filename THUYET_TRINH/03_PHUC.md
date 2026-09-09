@@ -131,9 +131,9 @@ Kiểm thử thực tế đã xác nhận mã bị hủy sau lần sai thứ 5; 
 
 Mỗi mã chỉ sống 10 phút và bị hủy sau 5 lần sai, nên không thể thử đủ 000000–999999.
 
-**Đổi mật khẩu trong Hồ sơ khác gì Quên mật khẩu?**
+**Đổi mật khẩu trong Hồ sơ và Quên mật khẩu liên hệ với nhau thế nào?**
 
-Hồ sơ yêu cầu mật khẩu hiện tại. Quên mật khẩu dùng OTP email để xác nhận chủ tài khoản.
+Cả hai đều dùng chung cơ chế bảo mật xác thực OTP qua Gmail bằng Google App Password. Người dùng trong trang cá nhân cũng không cần nhớ mật khẩu cũ mà chỉ cần xác nhận quyền sở hữu qua mã OTP 6 số gửi về hòm thư Gmail, tái sử dụng các hàm `requestPasswordReset` và `resetPassword`.
 
 ## Bước 4 — Trang quản trị riêng và hai cấp quyền
 
