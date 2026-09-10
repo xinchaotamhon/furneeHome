@@ -1,36 +1,33 @@
-import { formatPrice } from "../../utils/formatPrice";
+import { formatPrice } from '../../utils/formatPrice';
 
 export const SHIP_VOUCHERS = [
   {
-    id: "ship_20k",
-    label: "Giam 20.000d phi van chuyen",
-    labelVi: "Giảm 20.000₫ phí vận chuyển",
-    description: "Áp dụng cho đơn hàng từ 100.000₫",
+    id: 'ship_hcm_20k',
+    labelVi: 'Giảm 20.000₫ phí vận chuyển khu vực TP.HCM',
     discount: 20000,
     minOrder: 100000,
-    code: "SHIP20K",
+    region: 'hcm',
+    code: 'HCM20K',
   },
   {
-    id: "ship_30k",
-    label: "Giam 30.000d phi van chuyen",
-    labelVi: "Giảm 30.000₫ phí vận chuyển",
-    description: "Áp dụng cho đơn hàng từ 200.000₫",
+    id: 'ship_south_30k',
+    labelVi: 'Giảm 30.000₫ phí vận chuyển vào miền Nam',
     discount: 30000,
     minOrder: 200000,
-    code: "SHIP30K",
+    region: 'central_south',
+    code: 'NAM30K',
   },
   {
-    id: "ship_40k",
-    label: "Giam 40.000d phi van chuyen",
-    labelVi: "Giảm 40.000₫ phí vận chuyển",
-    description: "Áp dụng cho đơn hàng từ 300.000₫",
-    discount: 40000,
+    id: 'ship_north_35k',
+    labelVi: 'Giảm 35.000₫ phí vận chuyển ra miền Bắc',
+    discount: 35000,
     minOrder: 300000,
-    code: "SHIP40K",
+    region: 'north',
+    code: 'BAC35K',
   },
 ];
 
-export default function VoucherModal({ onClose, onApply, subtotal, appliedVoucherId, baseShippingFee }) {
+export default function VoucherModal({ onClose, onApply, subtotal, region, appliedVoucherId, baseShippingFee }) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div
@@ -42,13 +39,13 @@ export default function VoucherModal({ onClose, onApply, subtotal, appliedVouche
       >
         <button className="modal-close" type="button" aria-label="Đóng" onClick={onClose}>×</button>
         <h2 id="voucher-modal-title">Voucher vận chuyển</h2>
-        <p style={{ margin: "0 0 4px", fontSize: "0.85rem", color: "#6b7280" }}>
-          Chọn voucher phù hợp với đơn hàng của bạn.
+        <p style={{ margin: '0 0 4px', fontSize: '0.85rem', color: '#6b7280' }}>
+          Voucher không giới hạn thời gian sử dụng. Chọn voucher đủ điều kiện với đơn hàng.
         </p>
 
         <div className="voucher-list">
           {SHIP_VOUCHERS.map((v) => {
-            const eligible = subtotal >= v.minOrder;
+            const eligible = region === v.region && subtotal >= v.minOrder;
             const effectiveDiscount = Math.min(v.discount, baseShippingFee);
             const isSelected = appliedVoucherId === v.id;
 
@@ -63,10 +60,12 @@ export default function VoucherModal({ onClose, onApply, subtotal, appliedVouche
                 <div className="voucher-item-left">
                   <div className="voucher-tag">{v.code}</div>
                   <div className="voucher-label">{v.labelVi}</div>
-                  <div className="voucher-desc">{v.description}</div>
+                  <div className="voucher-desc">Đơn tối thiểu {formatPrice(v.minOrder)}</div>
                   {eligible && <div className="voucher-save">Tiết kiệm {formatPrice(effectiveDiscount)}</div>}
                   {!eligible && (
-                    <div className="voucher-locked">Cần thêm {formatPrice(v.minOrder - subtotal)} để dùng</div>
+                    <div className="voucher-locked">
+                      {region !== v.region ? 'Không áp dụng cho khu vực này' : `Cần thêm ${formatPrice(v.minOrder - subtotal)} để dùng`}
+                    </div>
                   )}
                 </div>
                 <div className="voucher-item-right">

@@ -5,17 +5,22 @@ import { useAuth } from '../context/AuthContext';
 import orderService from '../services/orderService';
 import { formatPrice } from '../utils/formatPrice';
 import {
-  fetchProvinces,
-  fetchDistricts,
-  fetchWards,
   calculateShippingFee,
   FALLBACK_PROVINCES,
 } from '../services/locationService';
 import { validateVietnamPhone, validateSpecificAddress } from '../utils/validation';
 import QrPaymentCard from '../components/payment/QrPaymentCard';
+import VoucherModal from '../components/checkout/VoucherModal';
 
 function hasCompleteDeliveryProfile(user) {
-  return Boolean(user?.name?.trim() && user?.phone && user?.address?.trim() && user?.provinceCode && user?.deliveryNote?.trim());
+  return Boolean(
+    user?.name?.trim()
+    && user?.phone
+    && user?.address?.trim()
+    && user?.provinceCode
+    && user?.districtCode
+    && user?.wardCode,
+  );
 }
 
 function provinceName(code) {
@@ -57,80 +62,8 @@ export default function CheckoutPage() {
 
   // Phương thức thanh toán (COD hoặc Chuyển khoản QR)
   const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER');
-
-  // Thông tin người nhận
-  const [fullName, setFullName] = useState(user?.name || '');
-  const [phone, setPhone] = useState(user?.phone || '');
-  const [specificAddress, setSpecificAddress] = useState(user?.address || '');
-  const [note, setNote] = useState(user?.deliveryNote || '');
-
-  // Tỉnh / Quận / Phường
-  const [provinces, setProvinces] = useState(FALLBACK_PROVINCES);
-  const [selectedProvince, setSelectedProvince] = useState(Number(user?.provinceCode) || 79);
-  const [districts, setDistricts] = useState([]);
-  const [selectedDistrict, setSelectedDistrict] = useState(String(user?.districtCode || ''));
-  const [selectedDistrictName, setSelectedDistrictName] = useState(user?.districtName || '');
-  const [wards, setWards] = useState([]);
-  const [selectedWard, setSelectedWard] = useState(String(user?.wardCode || ''));
-  const [selectedWardName, setSelectedWardName] = useState(user?.wardName || '');
-  const [loadingDistricts, setLoadingDistricts] = useState(false);
-  const [loadingWards, setLoadingWards] = useState(false);
-
-  // Điền sẵn thông tin đã lưu trong Trang tài khoản.
-  useEffect(() => {
-    if (!user) return;
-    setFullName(user.name || '');
-    setPhone(user.phone || '');
-    setSpecificAddress(user.address || '');
-    setNote(user.deliveryNote || '');
-    setSelectedProvince(Number(user.provinceCode) || 79);
-    setSelectedDistrict(String(user.districtCode || ''));
-    setSelectedDistrictName(user.districtName || '');
-    setSelectedWard(String(user.wardCode || ''));
-    setSelectedWardName(user.wardName || '');
-  }, [user]);
-
-  // Tải danh sách tỉnh thành online
-  useEffect(() => {
-    fetchProvinces().then((data) => {
-      if (Array.isArray(data) && data.length > 0) {
-        setProvinces(data);
-      }
-    });
-  }, []);
-
-  // Tải quận/huyện khi đổi tỉnh
-  useEffect(() => {
-    if (!selectedProvince) {
-      setDistricts([]);
-      setWards([]);
-      return;
-    }
-    setLoadingDistricts(true);
-    fetchDistricts(selectedProvince)
-      .then((data) => {
-        setDistricts(data);
-        const savedDistrict = data.find((item) => Number(item.code) === Number(selectedDistrict));
-        if (savedDistrict) setSelectedDistrictName(savedDistrict.name);
-      })
-      .finally(() => setLoadingDistricts(false));
-  }, [selectedProvince]);
-
-  // Tải phường/xã khi đổi quận/huyện
-  useEffect(() => {
-    if (!selectedDistrict) {
-      setWards([]);
-      return;
-    }
-    setLoadingWards(true);
-    fetchWards(selectedDistrict)
-      .then((data) => {
-        setWards(data);
-        const savedWard = data.find((item) => Number(item.code) === Number(selectedWard));
-        if (savedWard) setSelectedWardName(savedWard.name);
-      })
-      .finally(() => setLoadingWards(false));
-  }, [selectedDistrict]);
+  const [isVoucherOpen, setVoucherOpen] = useState(false);
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
 
   if (!items.length && !result) {
     return (
@@ -177,31 +110,24 @@ export default function CheckoutPage() {
   }
 
   // Tính tiền phí ship theo quy tắc
-  const shippingInfo = calculateShippingFee(selectedProvince);
-  const shippingFee = shippingInfo.fee;
+  const shippingInfo = calculateShippingFee(user.provinceCode);
+  const shippingDiscount = appliedVoucher ? Math.min(appliedVoucher.discount, shippingInfo.fee) : 0;
+  const shippingFee = shippingInfo.fee - shippingDiscount;
   const totalAmount = rawSubtotal + shippingFee;
 
   const submit = async (event) => {
     event.preventDefault();
     setError('');
 
-    if (!fullName.trim()) return setError('Vui lòng nhập họ và tên người nhận.');
+    if (!user.name.trim()) return setError('Vui lòng cập nhật họ và tên trong hồ sơ.');
 
     // Kiểm tra số điện thoại vùng Việt Nam
-    const phoneCheck = validateVietnamPhone(phone);
+    const phoneCheck = validateVietnamPhone(user.phone);
     if (!phoneCheck.isValid) {
       return setError(phoneCheck.message);
     }
 
-    const provinceObj = provinces.find((p) => Number(p.code) === Number(selectedProvince));
-    const districtObj = districts.find((d) => Number(d.code) === Number(selectedDistrict));
-    const wardObj = wards.find((w) => Number(w.code) === Number(selectedWard));
-
-    if (!provinceObj) return setError('Vui lòng chọn Tỉnh / Thành phố nhận hàng.');
-    if (!districtObj && !selectedDistrictName) return setError('Vui lòng chọn Quận / Huyện nhận hàng.');
-    if (!wardObj && !selectedWardName) return setError('Vui lòng chọn Phường / Xã nhận hàng.');
-
-    const addressCheck = validateSpecificAddress(specificAddress);
+    const addressCheck = validateSpecificAddress(user.address);
     if (!addressCheck.isValid) {
       return setError(addressCheck.message);
     }
@@ -209,9 +135,9 @@ export default function CheckoutPage() {
     // Ghép địa chỉ đầy đủ
     const addressParts = [
       addressCheck.address,
-      wardObj ? wardObj.name : selectedWardName,
-      districtObj ? districtObj.name : selectedDistrictName,
-      provinceObj ? provinceObj.name : '',
+      user.wardName,
+      user.districtName,
+      provinceName(user.provinceCode),
     ].filter(Boolean);
     const fullAddress = addressParts.join(', ');
 
@@ -223,12 +149,13 @@ export default function CheckoutPage() {
           quantity: item.quantity,
         })),
         shippingAddress: {
-          fullName: fullName.trim(),
-          phone: phone.trim(),
+          fullName: user.name.trim(),
+          phone: user.phone.trim(),
           address: fullAddress,
-          provinceCode: selectedProvince,
-          note: note.trim(),
+          provinceCode: user.provinceCode,
+          note: user.deliveryNote.trim(),
         },
+        voucherCode: appliedVoucher?.code || '',
         paymentMethod,
       });
       const purchasedIds = items.map((item) => item.product._id || item.product.id);
@@ -240,26 +167,6 @@ export default function CheckoutPage() {
       setSaving(false);
     }
   };
-
-  function changeProvince(value) {
-    setSelectedProvince(Number(value));
-    setSelectedDistrict('');
-    setSelectedDistrictName('');
-    setSelectedWard('');
-    setSelectedWardName('');
-  }
-
-  function changeDistrict(value) {
-    setSelectedDistrict(value);
-    setSelectedDistrictName(districts.find((item) => String(item.code) === String(value))?.name || '');
-    setSelectedWard('');
-    setSelectedWardName('');
-  }
-
-  function changeWard(value) {
-    setSelectedWard(value);
-    setSelectedWardName(wards.find((item) => String(item.code) === String(value))?.name || '');
-  }
 
   if (result) {
     const isBankTransfer = result.paymentMethod === 'BANK_TRANSFER';
@@ -359,7 +266,7 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* Form thông tin giao nhận */}
+          {/* Địa chỉ mặc định lấy từ hồ sơ */}
           <div className="checkout-section-card delivery-address-card">
             <div className="delivery-address-heading">
               <h2>⌖ Địa chỉ nhận hàng</h2>
@@ -367,93 +274,14 @@ export default function CheckoutPage() {
             </div>
             <div className="delivery-address-content">
               <strong>{user.name} (+84) {user.phone}</strong>
-              <span>{user.address}, {provinceName(user.provinceCode)}</span>
+              <span>{[user.address, user.wardName, user.districtName, provinceName(user.provinceCode)].filter(Boolean).join(', ')}</span>
               <em>Mặc định</em>
             </div>
           </div>
 
-          <div className="checkout-section-card">
-            <h2>2. Địa chỉ giao hàng</h2>
-            <p className="location-group-title">Khu vực hành chính</p>
-            <div className="location-select-row">
-              <label className="location-field-label">
-                Tỉnh / Thành phố *
-                <select
-                  value={selectedProvince}
-                  onChange={(e) => changeProvince(e.target.value)}
-                  required
-                >
-                  {provinces.map((p) => (
-                    <option key={p.code} value={p.code}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="location-field-label">
-                Quận / Huyện
-                <select
-                  value={selectedDistrict}
-                  onChange={(e) => changeDistrict(e.target.value)}
-                  disabled={loadingDistricts || (districts.length === 0 && !selectedDistrict)}
-                >
-                  <option value="">{loadingDistricts ? 'Đang tải...' : '-- Chọn Quận/Huyện --'}</option>
-                  {selectedDistrict && !districts.some((item) => String(item.code) === String(selectedDistrict)) && (
-                    <option value={selectedDistrict}>{selectedDistrictName || 'Quận / Huyện đã lưu'}</option>
-                  )}
-                  {districts.map((d) => (
-                    <option key={d.code} value={d.code}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="location-field-label">
-                Phường / Xã
-                <select
-                  value={selectedWard}
-                  onChange={(e) => changeWard(e.target.value)}
-                  disabled={loadingWards || (wards.length === 0 && !selectedWard)}
-                >
-                  <option value="">{loadingWards ? 'Đang tải...' : '-- Chọn Phường/Xã --'}</option>
-                  {selectedWard && !wards.some((item) => String(item.code) === String(selectedWard)) && (
-                    <option value={selectedWard}>{selectedWardName || 'Phường / Xã đã lưu'}</option>
-                  )}
-                  {wards.map((w) => (
-                    <option key={w.code} value={w.code}>
-                      {w.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <label>
-              Số nhà, tên đường cụ thể *
-              <input
-                value={specificAddress}
-                placeholder="Ví dụ: 71/5 Huỳnh Tấn Phát, Ấp 31"
-                onChange={(event) => setSpecificAddress(event.target.value)}
-                required
-              />
-            </label>
-
-            <label>
-              Ghi chú cho đơn hàng (tùy chọn)
-              <textarea
-                rows="2"
-                value={note}
-                placeholder="Ví dụ: Giao giờ hành chính, gọi trước khi đến..."
-                onChange={(event) => setNote(event.target.value)}
-              />
-            </label>
-          </div>
-
           {/* Phương thức thanh toán */}
           <div className="checkout-section-card">
-            <h2>3. Phương thức thanh toán</h2>
+            <h2>2. Phương thức thanh toán</h2>
             <div className="payment-options-grid">
               <label className={`payment-method-card ${paymentMethod === 'BANK_TRANSFER' ? 'selected' : ''}`}>
                 <input
@@ -511,6 +339,14 @@ export default function CheckoutPage() {
                 <span>Phí vận chuyển ({shippingInfo.label})</span>
                 <strong>{shippingFee === 0 ? 'Miễn phí' : formatPrice(shippingFee)}</strong>
               </p>
+              <button className="checkout-voucher-button" type="button" onClick={() => setVoucherOpen(true)}>
+                {appliedVoucher ? `Đã áp dụng ${appliedVoucher.code}` : 'Chọn voucher vận chuyển'}
+              </button>
+              {appliedVoucher && (
+                <p className="checkout-voucher-discount">
+                  Đã giảm {formatPrice(shippingDiscount)} phí vận chuyển
+                </p>
+              )}
             </div>
 
             <p className="line-total">
@@ -534,6 +370,16 @@ export default function CheckoutPage() {
           </div>
         </aside>
       </form>
+      {isVoucherOpen && (
+        <VoucherModal
+          onClose={() => setVoucherOpen(false)}
+          onApply={setAppliedVoucher}
+          subtotal={rawSubtotal}
+          region={shippingInfo.region}
+          appliedVoucherId={appliedVoucher?.id}
+          baseShippingFee={shippingInfo.fee}
+        />
+      )}
     </main>
   );
 }

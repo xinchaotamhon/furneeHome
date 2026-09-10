@@ -73,17 +73,16 @@ export default function ProductDetailPage() {
   const category = typeof product.category === 'object' ? product.category?.name : (product.category || product.categoryName || 'Nội thất');
   const add = () => { const outcome = addToCart(product, quantity); setNotice(outcome?.ok === false ? outcome.message : 'Đã thêm vào giỏ hàng.'); };
   const buyNow = () => {
-    navigate('/checkout', {
-      state: {
-        buyNowItem: {
-          product,
-          quantity,
-          price: Number(product.price) || 0,
-          name: product.name,
-          image: product.image || product.transparentImage || product.sourceImages?.[0] || '',
-        },
+    const checkoutState = {
+      buyNowItem: {
+        product,
+        quantity,
+        price: Number(product.price) || 0,
+        name: product.name,
+        image: product.image || product.transparentImage || product.sourceImages?.[0] || '',
       },
-    });
+    };
+    navigate('/checkout', { state: checkoutState });
   };
   const moderate = async (reviewId, isHidden, reason) => {
     try { await reviewService.moderateReview(reviewId, isHidden, reason); await loadReviews(); } catch (error) { setReviewNotice(errorMessage(error)); }

@@ -44,9 +44,25 @@ function escapeRegex(value) {
 function calculateShippingFee(provinceCode) {
   const code = Number(provinceCode);
   if (!PROVINCE_CODES.has(code)) throw createError('Tỉnh hoặc thành phố không hợp lệ.');
-  if (code === 79) return 30000;
-  if (code >= 48) return 40000;
-  return 60000;
+  if (code === 79) return 20000;
+  if (code >= 48) return 35000;
+  return 45000;
+}
+
+function calculateVoucherDiscount(voucherCode, provinceCode, subtotal) {
+  const code = Number(provinceCode);
+  const voucherRules = {
+    HCM20K: { region: 'hcm', discount: 20000, minOrder: 100000 },
+    NAM30K: { region: 'central_south', discount: 30000, minOrder: 200000 },
+    BAC35K: { region: 'north', discount: 35000, minOrder: 300000 },
+  };
+  const voucher = voucherRules[String(voucherCode || '').trim()];
+  if (!voucher) return 0;
+  const region = code === 79 ? 'hcm' : (code >= 48 ? 'central_south' : 'north');
+  if (voucher.region !== region || subtotal < voucher.minOrder) {
+    throw createError('Voucher không áp dụng cho khu vực hoặc giá trị đơn hàng này.');
+  }
+  return voucher.discount;
 }
 
 function cleanAddress(input) {
@@ -115,12 +131,12 @@ async function createOrder(req, res, next) {
   const reserved = [];
   let persisted = false;
   try {
-    const { shippingAddress, paymentMethod = 'COD' } = req.body;
+    const { shippingAddress, paymentMethod = 'COD', voucherCode = '' } = req.body;
     if (paymentMethod !== 'COD' && paymentMethod !== 'BANK_TRANSFER') {
       throw createError('Phương thức thanh toán không hợp lệ.');
     }
     const address = cleanAddress(shippingAddress);
-    const shippingFee = calculateShippingFee(address.provinceCode);
+    const baseShippingFee = calculateShippingFee(address.provinceCode);
     const items = await sourceItems(req.user._id, req.body);
     const orderItems = [];
     let subtotal = 0;
@@ -147,6 +163,12 @@ async function createOrder(req, res, next) {
         image: product.image || product.transparentImage || product.sourceImages?.[0] || '',
       });
     }
+
+    const voucherDiscount = Math.min(
+      calculateVoucherDiscount(voucherCode, address.provinceCode, subtotal),
+      baseShippingFee,
+    );
+    const shippingFee = baseShippingFee - voucherDiscount;
 
     const order = await Order.create({
       orderNumber: orderNumber(),

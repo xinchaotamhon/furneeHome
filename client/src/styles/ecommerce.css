@@ -533,6 +533,118 @@
   color: var(--color-primary-dark);
 }
 
+.checkout-voucher-button {
+  align-self: flex-start;
+  margin: -4px 0 0;
+  padding: 4px 0;
+  border: 0;
+  color: var(--color-primary);
+  background: transparent;
+  font-size: .82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.checkout-voucher-button:hover {
+  text-decoration: underline;
+}
+
+.checkout-voucher-discount {
+  margin: -8px 0 0;
+  color: var(--color-primary);
+  font-size: .78rem;
+}
+
+.voucher-modal-card {
+  max-height: min(680px, calc(100vh - 36px));
+  overflow-y: auto;
+}
+
+.voucher-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.voucher-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text);
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.voucher-item:hover:not(:disabled),
+.voucher-item--selected {
+  border-color: #8fc6a9;
+  background: #f1faf4;
+}
+
+.voucher-item--disabled,
+.voucher-item:disabled {
+  color: #9ca3af;
+  background: #f7f7f5;
+  cursor: not-allowed;
+}
+
+.voucher-item-left {
+  display: grid;
+  gap: 3px;
+}
+
+.voucher-tag {
+  width: max-content;
+  padding: 2px 6px;
+  color: #fff;
+  background: var(--color-primary);
+  font-size: .7rem;
+  font-weight: 800;
+}
+
+.voucher-label {
+  font-size: .88rem;
+  font-weight: 700;
+}
+
+.voucher-desc,
+.voucher-locked,
+.voucher-save {
+  font-size: .76rem;
+}
+
+.voucher-save {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.voucher-locked {
+  color: #a16207;
+}
+
+.voucher-item-right {
+  flex: 0 0 auto;
+  color: var(--color-primary);
+  font-size: .82rem;
+  font-weight: 800;
+}
+
+.voucher-remove-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  background: #fff;
+  cursor: pointer;
+}
+
 .profile-required-backdrop {
   position: fixed;
   z-index: 90;

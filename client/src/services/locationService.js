@@ -71,39 +71,35 @@ const wardCache = new Map();
 
 /**
  * Tính toán phí vận chuyển theo vùng miền:
- * - TP. Hồ Chí Minh: 30.000₫
- * - Đà Nẵng đổ lại vào Hồ Chí Minh (code >= 48, trừ 79): 40.000₫
- * - Đổ vào Hà Nội & các tỉnh phía Bắc (code < 48): 60.000₫
+ * - TP. Hồ Chí Minh: 20.000₫
+ * - Đà Nẵng vào miền Nam: 35.000₫
+ * - Đà Nẵng ra miền Bắc: 45.000₫
  */
 export function calculateShippingFee(provinceCode) {
   if (!provinceCode) {
-    return {
-      fee: 30000,
-      label: 'Nội thành TP.HCM (30.000₫)',
-      region: 'hcm',
-    };
+    return { fee: 20000, label: 'TP. Hồ Chí Minh (20.000₫)', region: 'hcm' };
   }
 
   const code = Number(provinceCode);
   if (code === 79) {
     return {
-      fee: 30000,
-      label: 'Nội thành TP. Hồ Chí Minh (30.000₫)',
+      fee: 20000,
+      label: 'TP. Hồ Chí Minh (20.000₫)',
       region: 'hcm',
     };
   }
 
   if (code >= 48) {
     return {
-      fee: 40000,
-      label: 'Khu vực Đà Nẵng - TP. Hồ Chí Minh (40.000₫)',
+      fee: 35000,
+      label: 'Đà Nẵng vào miền Nam (35.000₫)',
       region: 'central_south',
     };
   }
 
   return {
-    fee: 60000,
-    label: 'Khu vực Hà Nội & các tỉnh phía Bắc (60.000₫)',
+    fee: 45000,
+    label: 'Đà Nẵng ra miền Bắc (45.000₫)',
     region: 'north',
   };
 }

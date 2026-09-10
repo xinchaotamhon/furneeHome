@@ -1,10 +1,11 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { formatPrice } from '../utils/formatPrice';
 
 const idOf = (item) => item.product?._id || item.product?.id;
 
 export default function CartPage() {
+  const navigate = useNavigate();
   const {
     items,
     totalCount,
@@ -40,6 +41,10 @@ export default function CartPage() {
     if (window.confirm(`Bạn có chắc muốn xóa ${selectedItems.length} sản phẩm đã chọn?`)) {
       clearPurchasedItems(selectedItems.map(idOf));
     }
+  };
+
+  const continueToCheckout = () => {
+    navigate('/checkout');
   };
 
   return (
@@ -165,9 +170,9 @@ export default function CartPage() {
           </p>
 
           {selectedCount > 0 ? (
-            <Link className="button button-full" to="/checkout">
+            <button className="button button-full" type="button" onClick={continueToCheckout}>
               Mua hàng ({selectedCount})
-            </Link>
+            </button>
           ) : (
             <button
               className="button button-full button-disabled"
