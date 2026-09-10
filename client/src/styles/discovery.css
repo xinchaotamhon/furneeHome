@@ -1,7 +1,8 @@
 /* Home, account and contact surfaces. */
-.fh-site-header { background: rgb(255 255 255 / 94%); backdrop-filter: blur(14px); }
+.fh-site-header { background: #fffef8; }
 .fh-header-inner { gap: 1rem; min-height: 72px; }
-.fh-brand { letter-spacing: -.045em; white-space: nowrap; }
+.fh-brand { display: inline-flex; align-items: center; width: 190px; height: 56px; overflow: hidden; background: transparent; letter-spacing: -.045em; white-space: nowrap; }
+.fh-brand img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .fh-brand span { color: var(--color-accent); }
 .fh-account-menu { align-items: center; gap: .75rem; white-space: nowrap; }
 .fh-account-menu > span { max-width: 10rem; overflow: hidden; text-overflow: ellipsis; }
@@ -39,7 +40,7 @@
 
 @media (max-width: 1000px) { .fh-header-inner { flex-wrap: wrap; padding-top: .65rem; padding-bottom: .65rem; }.fh-header-inner .main-nav { order: 3; width: 100%; overflow-x: auto; padding-bottom: .25rem; }.fh-hero-grid { grid-template-columns: 1fr; min-height: auto; }.fh-room-story { justify-self: start; }.fh-step-grid, .fh-footer-grid { grid-template-columns: repeat(2, 1fr); }.fh-priority-section, .fh-guided-form { grid-template-columns: 1fr; gap: 2rem; }.fh-step-grid article:nth-child(2) { transform: none; }.fh-guided-form { row-gap: 1.25rem; } }
 @media (prefers-reduced-motion: reduce) { .fh-room-slide { animation: none; opacity: 0; }.fh-room-slide:first-child { opacity: 1; } }
-@media (max-width: 600px) { .fh-guest-actions { width: 100%; }.fh-guest-actions .button { flex: 1; }.fh-account-menu { width: 100%; justify-content: space-between; }.fh-hero-grid { padding-top: 3rem; padding-bottom: 3rem; }.fh-hero-copy h1 { font-size: clamp(2.3rem, 12vw, 3.2rem); }.fh-room-story { width: 100%; }.fh-start-section, .fh-priority-section { padding-top: 4rem; padding-bottom: 4rem; }.fh-step-grid, .fh-footer-grid { grid-template-columns: 1fr; }.fh-step-grid article { min-height: 13.5rem; }.fh-guided-form-wrap { padding: 4rem 0; }.fh-home-callout { display: grid; align-items: start; padding-top: 4rem; padding-bottom: 4rem; }.fh-footer-bottom { display: grid; }.fh-footer-grid { gap: 1.4rem; }.fh-contact-float { right: .65rem; bottom: .65rem; }.fh-contact-float-button { width: 50px; height: 50px; } }
+@media (max-width: 600px) { .fh-guest-actions { width: 100%; }.fh-guest-actions .button { flex: 1; }.fh-account-menu { width: 100%; justify-content: space-between; }.fh-brand { width: 150px; height: 46px; }.fh-hero-grid { padding-top: 3rem; padding-bottom: 3rem; }.fh-hero-copy h1 { font-size: clamp(2.3rem, 12vw, 3.2rem); }.fh-room-story { width: 100%; }.fh-start-section, .fh-priority-section { padding-top: 4rem; padding-bottom: 4rem; }.fh-step-grid, .fh-footer-grid { grid-template-columns: 1fr; }.fh-step-grid article { min-height: 13.5rem; }.fh-guided-form-wrap { padding: 4rem 0; }.fh-home-callout { display: grid; align-items: start; padding-top: 4rem; padding-bottom: 4rem; }.fh-footer-bottom { display: grid; }.fh-footer-grid { gap: 1.4rem; }.fh-contact-float { right: .65rem; bottom: .65rem; }.fh-contact-float-button { width: 50px; height: 50px; } }
 
 /* Nút liên hệ nổi: icon tròn gọn gàng đồng bộ */
 .fh-footer .fh-contact-float-button {

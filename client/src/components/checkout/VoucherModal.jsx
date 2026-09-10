@@ -3,31 +3,28 @@ import { formatPrice } from '../../utils/formatPrice';
 export const SHIP_VOUCHERS = [
   {
     id: 'ship_hcm_20k',
-    labelVi: 'Giảm 20.000₫ phí vận chuyển khu vực TP.HCM',
+    labelVi: 'Giảm 20.000₫ phí vận chuyển',
     discount: 20000,
     minOrder: 100000,
-    region: 'hcm',
-    code: 'HCM20K',
+    code: 'SHIP20K',
   },
   {
     id: 'ship_south_30k',
-    labelVi: 'Giảm 30.000₫ phí vận chuyển vào miền Nam',
+    labelVi: 'Giảm 30.000₫ phí vận chuyển',
     discount: 30000,
     minOrder: 200000,
-    region: 'central_south',
-    code: 'NAM30K',
+    code: 'SHIP30K',
   },
   {
     id: 'ship_north_35k',
-    labelVi: 'Giảm 35.000₫ phí vận chuyển ra miền Bắc',
+    labelVi: 'Giảm 35.000₫ phí vận chuyển',
     discount: 35000,
     minOrder: 300000,
-    region: 'north',
-    code: 'BAC35K',
+    code: 'SHIP35K',
   },
 ];
 
-export default function VoucherModal({ onClose, onApply, subtotal, region, appliedVoucherId, baseShippingFee }) {
+export default function VoucherModal({ onClose, onApply, subtotal, appliedVoucherId, baseShippingFee }) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div
@@ -45,7 +42,7 @@ export default function VoucherModal({ onClose, onApply, subtotal, region, appli
 
         <div className="voucher-list">
           {SHIP_VOUCHERS.map((v) => {
-            const eligible = region === v.region && subtotal >= v.minOrder;
+            const eligible = subtotal >= v.minOrder;
             const effectiveDiscount = Math.min(v.discount, baseShippingFee);
             const isSelected = appliedVoucherId === v.id;
 
@@ -64,7 +61,7 @@ export default function VoucherModal({ onClose, onApply, subtotal, region, appli
                   {eligible && <div className="voucher-save">Tiết kiệm {formatPrice(effectiveDiscount)}</div>}
                   {!eligible && (
                     <div className="voucher-locked">
-                      {region !== v.region ? 'Không áp dụng cho khu vực này' : `Cần thêm ${formatPrice(v.minOrder - subtotal)} để dùng`}
+                      `Cần thêm ${formatPrice(v.minOrder - subtotal)} để dùng`
                     </div>
                   )}
                 </div>

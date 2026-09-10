@@ -14,7 +14,7 @@ export default function Header() {
       <header className="site-header fh-site-header">
         <div className="container header-inner fh-header-inner">
           <NavLink className="brand fh-brand" to="/admin" aria-label="FurneeHome - Quản trị">
-            Furnee<span>Home</span>
+            <img src="/images/furneehome-logo.png" alt="FurneeHome" />
           </NavLink>
           <nav className="main-nav" aria-label="Điều hướng quản trị">
             <NavLink to="/admin">Quản trị</NavLink>
@@ -32,7 +32,7 @@ export default function Header() {
     <header className="site-header fh-site-header">
       <div className="container header-inner fh-header-inner">
         <NavLink className="brand fh-brand" to="/" aria-label="FurneeHome - Trang chủ">
-          Furnee<span>Home</span>
+          <img src="/images/furneehome-logo.png" alt="FurneeHome" />
         </NavLink>
 
         <nav className="main-nav" aria-label="Điều hướng chính">

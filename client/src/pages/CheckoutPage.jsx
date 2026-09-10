@@ -375,7 +375,6 @@ export default function CheckoutPage() {
           onClose={() => setVoucherOpen(false)}
           onApply={setAppliedVoucher}
           subtotal={rawSubtotal}
-          region={shippingInfo.region}
           appliedVoucherId={appliedVoucher?.id}
           baseShippingFee={shippingInfo.fee}
         />

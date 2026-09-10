@@ -49,18 +49,16 @@ function calculateShippingFee(provinceCode) {
   return 45000;
 }
 
-function calculateVoucherDiscount(voucherCode, provinceCode, subtotal) {
-  const code = Number(provinceCode);
+function calculateVoucherDiscount(voucherCode, subtotal) {
   const voucherRules = {
-    HCM20K: { region: 'hcm', discount: 20000, minOrder: 100000 },
-    NAM30K: { region: 'central_south', discount: 30000, minOrder: 200000 },
-    BAC35K: { region: 'north', discount: 35000, minOrder: 300000 },
+    SHIP20K: { discount: 20000, minOrder: 100000 },
+    SHIP30K: { discount: 30000, minOrder: 200000 },
+    SHIP35K: { discount: 35000, minOrder: 300000 },
   };
   const voucher = voucherRules[String(voucherCode || '').trim()];
   if (!voucher) return 0;
-  const region = code === 79 ? 'hcm' : (code >= 48 ? 'central_south' : 'north');
-  if (voucher.region !== region || subtotal < voucher.minOrder) {
-    throw createError('Voucher không áp dụng cho khu vực hoặc giá trị đơn hàng này.');
+  if (subtotal < voucher.minOrder) {
+    throw createError('Đơn hàng chưa đạt giá trị tối thiểu để sử dụng voucher.');
   }
   return voucher.discount;
 }
@@ -165,7 +163,7 @@ async function createOrder(req, res, next) {
     }
 
     const voucherDiscount = Math.min(
-      calculateVoucherDiscount(voucherCode, address.provinceCode, subtotal),
+      calculateVoucherDiscount(voucherCode, subtotal),
       baseShippingFee,
     );
     const shippingFee = baseShippingFee - voucherDiscount;
