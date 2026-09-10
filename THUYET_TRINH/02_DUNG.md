@@ -4,53 +4,68 @@
 
 ## Thẻ liếc nhanh
 
-- Tài khoản demo: `customer@furneehome.vn` / `user123456`, do Phúc bàn giao khi đã đăng nhập.
-- Trình tự: mở giỏ → chọn món → sửa số lượng → kiểm tra phí → nhập địa chỉ → chọn COD/QR → đặt hàng.
-- Kết quả cần chỉ: tổng tiền, phí vận chuyển, mã đơn và trạng thái thanh toán.
-- Không nói frontend tự quyết định giá hoặc tồn kho.
+- **Logo thương hiệu mới:** `furneehome-logo.png` hiển thị đồng bộ trên Header.
+- **Tài khoản demo:** `customer@furneehome.vn` / `user123456`, do Phúc bàn giao khi đã đăng nhập.
+- **Trình tự:** mở giỏ → phân trang (7 món/trang) → chọn món → sửa số lượng (bảo toàn sản phẩm) → mở thanh toán → kiểm tra danh sách phân trang → áp voucher vận chuyển (`VoucherModal`) → kiểm tra phí → nhập địa chỉ → chọn COD/QR → đặt hàng.
+- **Kết quả cần chỉ:** tổng tiền, voucher giảm phí ship, phí vận chuyển thực tế, mã đơn và trạng thái thanh toán.
+- **Nguyên tắc cốt lõi:** Không nói frontend tự quyết định giá hoặc tồn kho; backend luôn thẩm định lại.
 
 ## Bước 1 — Mở Giỏ hàng
 
 ### Thao tác
 
-1. Từ header của `https://furneehome.pages.dev/`, bấm **Giỏ hàng** hoặc mở `/cart`.
+1. Từ header của `https://furneehome.pages.dev/`, chỉ vào **Logo FurneeHome mới**, bấm **Giỏ hàng** hoặc mở `/cart`.
 2. Chỉ vào số loại sản phẩm, tổng số món và tạm tính.
 3. Bỏ chọn một món, kết quả cần thấy là tạm tính giảm; bấm lại **Chọn tất cả**, danh sách được chọn trở lại.
+4. Nếu giỏ có nhiều món (trên 7 món), chỉ vào thanh phân trang bên dưới: bấm **Sau →** hoặc **← Trước** để duyệt các trang sản phẩm mà không làm tràn giao diện.
 
-Component `CartPage` lấy `selectedItems` từ `CartContext`; context tính `selectedCount` và `selectedSubtotal`, sau đó React render lại phần tóm tắt.
+Component `CartPage` lấy `selectedItems` từ `CartContext`; context tính `selectedCount` và `selectedSubtotal`, sau đó React render lại phần tóm tắt. Danh sách sản phẩm hiển thị được phân trang 7 sản phẩm/trang (`Math.ceil(items.length / 7)`).
 
 API chỉ được gọi khi giỏ thuộc tài khoản đã đăng nhập. `CartContext` gọi `cartService.get/sync`, route cart chạy `authenticate`, rồi `cartController` đọc `Cart` và populate `Product` trong MongoDB.
 
 ### Nói ngắn
 
-> “Giỏ cho phép chọn một phần đơn, nên khách không phải thanh toán toàn bộ cùng lúc. Số lượng và tạm tính đổi ngay ở giao diện, còn lúc đặt hàng backend sẽ kiểm tra lại.”
+> “Giỏ cho phép chọn một phần đơn, hỗ trợ phân trang 7 món/trang khi giỏ nhiều đồ, giúp giao diện luôn gọn gàng và tải mượt. Số lượng và tạm tính đổi ngay ở giao diện, còn lúc đặt hàng backend sẽ kiểm tra lại toàn bộ.”
 
 ### Lưu ý khi trình bày
 
 - Bỏ chọn món thì số món và tạm tính chỉ tính phần được chọn.
-- Không có món nào được chọn thì nút **Mua hàng** bị khóa và hiện lời nhắc.
+- Danh sách dài được phân trang 7 món/trang mượt mà.
+- Không có món nào được chọn thì nút **Mua hàng** bị khóa và hiện lời nhắc cảnh báo.
 - Giỏ trống: trang đưa về nút **Xem sản phẩm**.
 
 ### Code — `CartPage()`
 
-`client/src/pages/CartPage.jsx` — `CartPage`
+`client/src/pages/CartPage.jsx` — Phân trang và context giỏ
 
 ```jsx
 const {
   items, selectedItems, selectedCount, selectedSubtotal,
-  isAllSelected, toggleItemSelection, toggleSelectAll,
+  isAllSelected, maxSelectedCount, toggleItemSelection, toggleSelectAll,
 } = useCart();
+
+const totalPages = Math.max(1, Math.ceil(items.length / 7));
+const page = Math.min(currentPage, totalPages);
+const visibleItems = items.slice((page - 1) * 7, page * 7);
 ```
 
-`client/src/pages/CartPage.jsx` — nút chuyển checkout
+`client/src/pages/CartPage.jsx` — Nút chuyển checkout
 
 ```jsx
 {selectedCount > 0 ? (
-  <Link className="button button-full" to="/checkout">
-    Mua hàng ({selectedCount})
-  </Link>
+  user ? (
+    <button className="button button-full" type="button" onClick={continueToCheckout}>
+      Mua hàng ({selectedCount})
+    </button>
+  ) : (
+    <button className="button button-full" type="button" onClick={() => openLogin('login')}>
+      Đăng nhập để mua hàng
+    </button>
+  )
 ) : (
-  <button className="button button-disabled" disabled>Mua hàng (0)</button>
+  <button className="button button-full button-disabled" disabled>
+    Mua hàng (0)
+  </button>
 )}
 ```
 
@@ -58,11 +73,11 @@ const {
 
 ### Thao tác
 
-1. Ở ô số lượng của sản phẩm đầu tiên, đổi từ `1` thành `2` rồi bấm ra ngoài.
+1. Ở ô số lượng của sản phẩm đầu tiên, đổi từ `1` thành `2` rồi bấm ra ngoài. Nếu đang xóa ô nhập để gõ số mới, hệ thống bảo toàn sản phẩm trong giỏ (không tự xóa nhầm).
 2. Nhập 0 hoặc bấm **Xóa** để xóa sản phẩm.
 3. Bấm **Xóa mục đã chọn** nếu muốn xóa nhiều món, hoặc **Xóa tất cả** để làm trống giỏ. Kết quả cần thấy: số loại sản phẩm và tổng tiền đổi ngay.
 
-`CartContext.updateQuantity` cập nhật state trước để giao diện phản hồi nhanh, rồi `cartService.update` gọi API giỏ khi đã đăng nhập.
+`CartContext.updateQuantity` cập nhật state trước để giao diện phản hồi nhanh, kiểm tra giá trị số hợp lệ trước khi gọi `cartService.update`.
 
 Sau request, `cartController.updateQuantity` đọc lại `Product.stock`; nếu vượt kho hoặc sản phẩm ngừng bán, controller trả lỗi và giao diện giữ thông báo lỗi.
 
@@ -78,28 +93,41 @@ Sau request, `cartController.updateQuantity` đọc lại `Product.stock`; nếu
 
 **Giỏ tối đa 100 sản phẩm xử lý ở đâu?**
 
-> “Giới hạn phải nằm ở cả giao diện và `cartController`, để người dùng không thể vượt giới hạn bằng cách gọi API trực tiếp. Em sẽ rà lại thông báo và status sau khi bản code mới được merge.”
+> “Giới hạn nằm ở cả giao diện (`MAX_SELECTED_COUNT = 100`) và `cartController`, đảm bảo người dùng không thể vượt giới hạn bằng cách gọi API trực tiếp.”
 
-### Code — `CartProvider.addToCart()`
+### Code — `CartProvider.addToCart()` và bảo toàn số lượng
 
-`client/src/context/CartContext.jsx` — `addToCart`
+`client/src/context/CartContext.jsx` — `addToCart` & `updateQuantity`
 
 ```jsx
 addToCart(product, quantity = 1) {
   const id = productId(product);
-  const qty = Math.max(1, Number(quantity) || 1);
-  if (!id || stockOf(product) < qty) return { ok: false };
+  const stock = stockOf(product);
+  const qty = Math.min(stock, Math.max(1, Number(quantity) || 1));
   setItems((current) => {
     const existing = current.find((item) => productId(item.product) === id);
-    if (!existing) return [...current, { product, quantity: qty }];
+    if (!existing) {
+      return [...current, { product, quantity: qty, price: Number(product.price) || 0, name: product.name, image: product.image || '', selected: true }];
+    }
     return current.map((item) => productId(item.product) === id
-      ? { ...item, quantity: item.quantity + qty } : item);
+      ? { ...item, product, quantity: Math.min(stock, item.quantity + qty), price: Number(product.price) || 0, selected: true }
+      : item);
   });
   sync(() => cartService.add(id, qty));
 }
-```
 
-Đoạn rút gọn trên giữ đúng logic hiện có. Khi mở code thật, chỉ vào toàn bộ phần `setItems` trong `addToCart` để cho thấy ảnh, tên, giá và `selected` cũng được lưu.
+updateQuantity(id, quantity) {
+  const qty = Number(quantity);
+  // Không xóa đột ngột khi người dùng đang xóa ô để gõ số mới
+  if (!Number.isFinite(qty) || qty <= 0) return;
+  setItems((current) => current.map((item) => {
+    if (productId(item.product) !== String(id)) return item;
+    const nextQuantity = Math.min(stockOf(item.product), qty);
+    return { ...item, quantity: nextQuantity };
+  }));
+  sync(() => cartService.update(id, qty));
+}
+```
 
 ### Code — backend kiểm tra giỏ
 
@@ -114,32 +142,44 @@ if (quantity > product.stock) {
 }
 ```
 
-## Bước 3 — Mở Thanh toán
+## Bước 3 — Mở Thanh toán và Voucher
 
 ### Thao tác
 
-1. Tích ít nhất một món rồi bấm **Mua hàng (số món)**.
-2. Kiểm tra chỉ các món đã chọn xuất hiện.
+1. Tích ít nhất một món trong giỏ rồi bấm **Mua hàng (số món)**.
+2. Kiểm tra chỉ các món đã chọn xuất hiện ở trang thanh toán (cũng được phân trang 7 món/trang nếu danh sách dài).
 3. Chọn `TP. Hồ Chí Minh`, chờ quận tải xong, chọn một quận rồi chọn phường.
-4. Nhập họ tên `Khách hàng demo`, số điện thoại hợp lệ dạng `09xxxxxxxx`, địa chỉ `12 Nguyễn Huệ`, ghi chú `Gọi trước khi giao`.
-5. Chọn **COD** hoặc **Chuyển khoản QR**, rồi bấm **Đặt hàng**.
-6. Kết quả cần thấy: hiện “Đặt hàng thành công”, mã đơn và tổng gồm tiền hàng + phí ship.
+4. Bấm **Chọn voucher** để mở popup `VoucherModal`, chọn voucher phù hợp (ví dụ: `SHIP20K` giảm 20.000₫ cho đơn từ 100k). Kết quả cần thấy: phần tóm tắt đơn hiển thị dòng giảm giá voucher và tiền ship được trừ trực tiếp.
+5. Nhập họ tên `Khách hàng demo`, số điện thoại hợp lệ dạng `09xxxxxxxx`, địa chỉ `12 Nguyễn Huệ`, ghi chú `Gọi trước khi giao`.
+6. Chọn **COD** hoặc **Chuyển khoản QR**, rồi bấm **Đặt hàng**.
+7. Kết quả cần thấy: hiện “Đặt hàng thành công”, mã đơn và tổng gồm (tiền hàng + phí ship - giảm giá voucher).
 
 ### Nói ngắn
 
-> “Checkout ghép địa chỉ cụ thể với tỉnh, quận và phường. Thông tin hồ sơ của `customer@furneehome.vn` đã lưu được nạp mặc định, nhưng khách vẫn có thể sửa cho đơn này.”
+> “Checkout tự động nạp hồ sơ đã lưu của khách, hỗ trợ phân trang danh sách mua và áp voucher giảm phí vận chuyển theo khu vực. Thông tin phí và giảm giá được backend kiểm tra và tính lại độc lập khi tạo đơn.”
 
 ### Lưu ý khi trình bày
 
 - Đổi tỉnh sẽ tải lại quận; đổi quận sẽ tải lại phường.
+- Danh sách sản phẩm thanh toán phân trang 7 món/trang.
+- Voucher vận chuyển kiểm tra điều kiện đơn hàng tối thiểu (`minOrder`) trước khi áp dụng.
 - Phí ship cập nhật theo tỉnh và backend tự tính lại khi tạo đơn.
 - Thiếu họ tên, số điện thoại Việt Nam, quận/huyện, phường/xã hoặc địa chỉ cụ thể thì không gửi request.
 - Chưa đăng nhập thì checkout hiện **Đăng nhập để thanh toán**.
-- Free ship: nếu bản cuối có lựa chọn/điều kiện miễn phí vận chuyển, vẫn phải tạo đơn với đủ `shippingAddress`, chỉ `shippingFee` mới bằng 0. Không bỏ qua bước địa chỉ.
 
 **Cơ chế:** `CheckoutPage` gom state form và gọi `orderService.createOrder`; route order chạy `authenticate`; `orderController.createOrder` làm sạch địa chỉ, tính phí, đọc giá/tồn kho từ `Product` rồi tạo `Order` trong MongoDB.
 
-### Code — `CheckoutPage.submit()`
+### Code — `CheckoutPage.submit()` & Voucher
+
+`client/src/components/checkout/VoucherModal.jsx` — Danh sách voucher vận chuyển
+
+```jsx
+export const SHIP_VOUCHERS = [
+  { id: 'ship_hcm_20k', labelVi: 'Giảm 20.000₫ phí vận chuyển', discount: 20000, minOrder: 100000, code: 'SHIP20K' },
+  { id: 'ship_south_30k', labelVi: 'Giảm 30.000₫ phí vận chuyển', discount: 30000, minOrder: 200000, code: 'SHIP30K' },
+  { id: 'ship_north_35k', labelVi: 'Giảm 35.000₫ phí vận chuyển', discount: 35000, minOrder: 300000, code: 'SHIP35K' },
+];
+```
 
 `client/src/pages/CheckoutPage.jsx` — `submit`
 
@@ -183,8 +223,6 @@ function calculateShippingFee(provinceCode) {
   return 60000;
 }
 ```
-
-Nếu bản chốt thay bằng miễn phí vận chuyển theo chương trình, mở đúng điều kiện mới và nói rõ điều kiện. Không tự đọc một mức phí cũ trên slide.
 
 ### Code — giữ kho và tạo order
 
@@ -234,9 +272,13 @@ return <img src={qrUrl} alt="Mã QR thanh toán" />;
 
 > “Client có thể bị sửa bằng DevTools. Backend phải lấy giá và kho từ MongoDB, tính lại subtotal, phí và total trước khi lưu Order.”
 
-**Miễn phí ship có làm bỏ qua tỉnh/thành không?**
+**Miễn phí ship / voucher ship có làm bỏ qua tỉnh/thành không?**
 
-> “Không. Địa chỉ vẫn bắt buộc để giao hàng và để Admin xem. Chỉ phí vận chuyển thay đổi thành 0 theo rule đã cấu hình.”
+> “Không. Địa chỉ vẫn bắt buộc để giao hàng và để Admin xem. Voucher chỉ giảm trừ vào phí vận chuyển theo đúng điều kiện cấu hình.”
+
+**Tại sao cần phân trang 7 món trong Giỏ hàng và Thanh toán?**
+
+> “Khách hàng mua nhiều đồ nội thất (bàn, ghế, tủ, đèn trang trí...) danh sách giỏ hàng sẽ rất dài. Phân trang 7 sản phẩm/trang giúp trang tải gọn, không gây giật cuộn trên thiết bị di động và kiểm soát tích chọn trực quan hơn.”
 
 ## Câu bàn giao cho Triều
 
@@ -244,9 +286,12 @@ return <img src={qrUrl} alt="Mã QR thanh toán" />;
 
 ## Checklist 30 giây
 
+- [ ] Chỉ logo mới FurneeHome trên Header.
 - [ ] Có thể thêm giỏ guest, đăng nhập rồi kiểm tra giỏ được cộng; checkout yêu cầu đăng nhập.
 - [ ] Bỏ chọn một món và chứng minh tổng tiền thay đổi.
-- [ ] Nói đúng giới hạn 100 sản phẩm là rule cần kiểm tra ở backend.
+- [ ] Chỉ thanh phân trang 7 món/trang trong Giỏ hàng và trang Thanh toán.
+- [ ] Thử sửa số lượng, chứng minh sản phẩm không bị xóa nhầm khi đang gõ dở.
+- [ ] Mở modal voucher vận chuyển và áp mã giảm phí ship.
 - [ ] Nhập địa chỉ cụ thể, số điện thoại, ghi chú.
 - [ ] Phân biệt phí hiển thị ở client và phí chốt ở backend.
 - [ ] Nói QR chỉ tạo thông tin chuyển khoản, Admin mới xác nhận thanh toán.

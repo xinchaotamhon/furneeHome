@@ -75,8 +75,8 @@ README.md                               tài liệu kỹ thuật tổng quan nà
 - `Product`: tên, slug, danh mục, giá, tồn kho, ảnh, mô tả, thông số, điểm đánh giá và trạng thái đang bán.
 - `Cart`: một giỏ theo user, gồm product và quantity. Giỏ tối đa 100 món được chọn để thanh toán.
 - `Order`: user, bản chụp sản phẩm và giá lúc mua, địa chỉ giao, phí ship, thanh toán và trạng thái đơn.
-- `Review`: user, product, order, số sao, nội dung và trạng thái ẩn/hiện.
-- `Feedback`: nội dung báo xấu hoặc góp ý, người gửi và trạng thái xử lý.
+- `Review`: user, product, order, số sao, nội dung, trạng thái ẩn/hiện, cờ xóa mềm `isDeleted` và `deletedAt`. Compound unique index `{ user: 1, product: 1, order: 1 }`.
+- `Feedback`: nội dung báo xấu hoặc góp ý, người gửi và trạng thái xử lý (`pending`, `reviewed`, `resolved`).
 
 Đơn hàng lưu `orderItems` và giá tại thời điểm mua để lịch sử không đổi khi sản phẩm được sửa về sau. Không xóa sản phẩm đã có đơn/đánh giá/giỏ; quản trị dùng **Ngừng bán** để giữ lịch sử. Xóa hẳn chỉ được phép khi sản phẩm chưa được tham chiếu.
 
@@ -92,13 +92,17 @@ README.md                               tài liệu kỹ thuật tổng quan nà
 
 ### Giỏ hàng và thanh toán
 
+- Logo thương hiệu mới `furneehome-logo.png` hiển thị đồng bộ trên Header.
 - Guest có thể thêm sản phẩm vào giỏ local; phải đăng nhập trước khi bấm **Mua ngay** hoặc thanh toán. Khi đăng nhập, giỏ guest được cộng vào giỏ của tài khoản.
+- Danh sách sản phẩm trong Giỏ hàng (`/cart`) và Thanh toán (`/checkout`) được phân trang gọn gàng 7 sản phẩm/trang.
+- Cơ chế bảo toàn sản phẩm khi sửa số lượng trong `CartContext`: không tự ý xóa khi người dùng đang xóa ô để nhập số mới.
+- Hỗ trợ voucher giảm phí vận chuyển theo khu vực (`VoucherModal`) với điều kiện đơn hàng tối thiểu.
 - Mỗi dòng có số lượng theo tồn kho; có thể chọn tối đa 100 món.
 - Checkout lấy tên, điện thoại, tỉnh, quận, phường và địa chỉ từ hồ sơ. Ghi chú giao hàng không bắt buộc.
 - Server tự đọc giá/tồn kho và tự tính phí ship theo tỉnh; không tin `shippingFee` do client gửi.
 - Có COD và chuyển khoản QR. Tạo đơn thành công thì xóa các sản phẩm đã mua khỏi Cart MongoDB.
 
-### Trạng thái đơn
+### Trạng thái đơn và phân cấp quyền xử lý
 
 ```text
 Pending → Processing → Shipped → Delivered
@@ -106,11 +110,16 @@ Pending → Processing → Shipped → Delivered
 Processing ───────→ Cancelled
 ```
 
-Khách chỉ hủy trước khi giao. Đơn đã hủy hiện thanh toán là **Đã hủy**, không hiện **Chờ thanh toán**. Orchestra Admin có thể sửa lại trạng thái vận hành khi admin cấp dưới chọn nhầm. COD chỉ xác nhận đã thanh toán sau khi giao thành công; đơn chuyển khoản có nút xác nhận trong quản trị.
+- Khách chỉ hủy trước khi giao (`Pending`, `Processing`). Đơn đã hủy hiện thanh toán là **Đã hủy**, không hiện **Chờ thanh toán**.
+- Phân cấp quyền trạng thái: Admin con khi đã cập nhật trạng thái đơn hàng hoặc trạng thái báo nội dung (Feedback: `pending` → `reviewed` → `resolved`) thì không được phép chuyển lùi lại trạng thái cũ. Chỉ duy nhất Orchestra Admin (Superadmin) mới có toàn quyền chuyển đổi trạng thái hai chiều để linh hoạt điều chỉnh khi có sai sót vận hành.
+- COD chỉ xác nhận đã thanh toán sau khi giao thành công; đơn chuyển khoản có nút xác nhận trong quản trị.
 
 ### Đánh giá và báo nội dung
 
-Chỉ sản phẩm trong đơn đã giao mới được đánh giá. Một sản phẩm chỉ có một đánh giá trong một đơn; xóa đánh giá thì có thể đánh giá lại ở lần mua khác. Điểm trung bình chỉ tính review đang hiện. Khách có thể gửi feedback/báo nội dung; admin xem và cập nhật trạng thái.
+- Chỉ sản phẩm trong đơn đã giao (`Delivered`) mới được đánh giá.
+- Mỗi đánh giá gắn chặt với đơn hàng (`order`). Nhờ compound index `{ user: 1, product: 1, order: 1 }`, khách hàng mua lại cùng sản phẩm ở các đơn khác nhau hoàn toàn có quyền đánh giá độc lập cho từng giao dịch.
+- Khách hàng có thể tự xóa đánh giá của mình tại trang chi tiết sản phẩm; backend áp dụng soft-delete (`isDeleted: true`) và ngay lập tức tính toán lại điểm trung bình (`ratingAverage`) và số lượt đánh giá (`reviewCount`) của sản phẩm.
+- Khách có thể gửi feedback/báo nội dung; admin xem và cập nhật trạng thái theo quy trình phân cấp quyền.
 
 ### Phòng thử
 
