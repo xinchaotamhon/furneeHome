@@ -7,6 +7,5 @@ router.get('/order/:orderId', authenticate, reviewController.getOrderReviewStatu
 router.post('/order/:orderId', authenticate, reviewController.createOrderReview);
 router.post('/', authenticate, reviewController.createReview);
 router.patch('/:id/moderation', authenticate, requireAdmin, reviewController.moderateReview);
-router.delete('/:id', authenticate, requireAdmin, reviewController.deleteReview);
-
+router.delete('/:id', authenticate, reviewController.deleteReview);
 module.exports = router;
