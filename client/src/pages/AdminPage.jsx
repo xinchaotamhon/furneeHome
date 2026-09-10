@@ -29,6 +29,16 @@ const ORDER_LABELS = {
   Delivered: 'Đã giao',
   Cancelled: 'Đã hủy',
 };
+const FEEDBACK_TRANSITIONS = {
+  new: ['reviewed', 'resolved'],
+  reviewed: ['resolved'],
+  resolved: [],
+};
+const FEEDBACK_LABELS = {
+  new: 'Mới',
+  reviewed: 'Đã xem',
+  resolved: 'Đã xử lý',
+};
 
 function categoryName(product) {
   if (typeof product.category === 'object') return product.category?.name || product.categoryName || 'Nội thất';
@@ -532,7 +542,51 @@ export default function AdminPage() {
       </section>
     )}
 
-    {tab === 'contact' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Báo nội dung ({feedback.length})</h2><button className="text-button" type="button" onClick={loadFeedback}>Tải lại</button></div>{isWorking && !feedback.length ? <p className="muted">Đang tải…</p> : !feedback.length ? <p className="muted">Chưa có báo cáo.</p> : <div className="admin-feedback-list">{feedback.map((item) => <article key={item._id || item.id}><div><strong>{item.targetName || 'Nội dung chung'}</strong><span>{item.user?.email || item.email || 'Khách'}</span><p>{item.content}</p></div><select value={item.status} onChange={(event) => updateFeedback(item._id || item.id, event.target.value)} disabled={isWorking}><option value="new">Mới</option><option value="reviewed">Đã xem</option><option value="resolved">Đã xử lý</option></select></article>)}</div>}</section>}
+    {tab === 'contact' && (
+      <section className="panel-card admin-table-card">
+        <div className="section-title">
+          <h2>Báo nội dung ({feedback.length})</h2>
+          <button className="text-button" type="button" onClick={loadFeedback}>Tải lại</button>
+        </div>
+        {isWorking && !feedback.length ? (
+          <p className="muted">Đang tải…</p>
+        ) : !feedback.length ? (
+          <p className="muted">Chưa có báo cáo.</p>
+        ) : (
+          <div className="admin-feedback-list">
+            {feedback.map((item) => {
+              const currentStatus = item.status || 'new';
+              const nextStates = isSuperadmin
+                ? ['new', 'reviewed', 'resolved']
+                : (FEEDBACK_TRANSITIONS[currentStatus] || []);
+
+              return (
+                <article key={item._id || item.id}>
+                  <div>
+                    <strong>{item.targetName || 'Nội dung chung'}</strong>
+                    <span>{item.user?.email || item.email || 'Khách'}</span>
+                    <p>{item.content}</p>
+                  </div>
+                  {nextStates.length ? (
+                    <select
+                      value={currentStatus}
+                      onChange={(event) => updateFeedback(item._id || item.id, event.target.value)}
+                      disabled={isWorking}
+                    >
+                      {[...new Set([currentStatus, ...nextStates])].map((state) => (
+                        <option key={state} value={state}>{FEEDBACK_LABELS[state] || state}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span>{FEEDBACK_LABELS[currentStatus] || currentStatus}</span>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    )}
 
     {isSuperadmin && tab === 'admins' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Quản trị admin ({visibleAdmins.length})</h2><button className="text-button" type="button" onClick={() => loadUsers('admins')}>Tải lại</button></div><input className="admin-search" type="search" value={adminQuery} placeholder="Tìm tên, tên đăng nhập hoặc email" onChange={(event) => setAdminQuery(event.target.value)} />{isWorking && !adminAccounts.length ? <p className="muted">Đang tải…</p> : <div className="admin-user-list">{visibleAdmins.map((account) => { const id = account._id || account.id; const orchestra = account.role === 'superadmin'; return <article key={id}><div><strong>{account.name}</strong><span>{account.username ? `@${account.username} · ` : ''}{account.email}</span></div><span className="admin-role">{orchestra ? 'Orchestra Admin' : 'Admin'}</span>{orchestra ? <span /> : <button type="button" className={account.isActive ? 'admin-delete' : 'admin-edit'} onClick={() => updateAccount(id, { isActive: !account.isActive })} disabled={isWorking}>{account.isActive ? 'Khóa' : 'Mở khóa'}</button>}</article>; })}</div>}</section>}
 

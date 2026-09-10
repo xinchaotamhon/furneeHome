@@ -95,25 +95,45 @@ async function listFeedback(req, res, next) {
   }
 }
 
+const FEEDBACK_TRANSITIONS = {
+  new: ['reviewed', 'resolved'],
+  reviewed: ['resolved'],
+  resolved: [],
+};
+const ALL_FEEDBACK_STATUSES = ['new', 'reviewed', 'resolved'];
+
 async function updateFeedback(req, res, next) {
   try {
     if (!validId(req.params.id)) {
       return res.status(400).json({ success: false, message: 'Mã phản hồi không hợp lệ.', data: null });
     }
-    if (!['new', 'reviewed', 'resolved'].includes(req.body.status)) {
+    const nextStatus = req.body.status;
+    if (!ALL_FEEDBACK_STATUSES.includes(nextStatus)) {
       return res.status(400).json({ success: false, message: 'Trạng thái phản hồi không hợp lệ.', data: null });
     }
 
-    const feedback = await Feedback.findByIdAndUpdate(
-      req.params.id,
-      { status: req.body.status },
-      { returnDocument: 'after', runValidators: true },
-    );
+    const feedback = await Feedback.findById(req.params.id);
     if (!feedback) return res.status(404).json({ success: false, message: 'Không tìm thấy phản hồi.', data: null });
+
+    if (feedback.status !== nextStatus) {
+      const isSuperadmin = req.user?.role === 'superadmin';
+      const allowedNext = isSuperadmin ? ALL_FEEDBACK_STATUSES : (FEEDBACK_TRANSITIONS[feedback.status] || []);
+      if (!allowedNext.includes(nextStatus)) {
+        return res.status(409).json({
+          success: false,
+          message: 'Admin không được phép đổi lại trạng thái này. Chỉ Orchestra Admin mới có thể đổi lại.',
+          data: null,
+        });
+      }
+      feedback.status = nextStatus;
+      await feedback.save();
+    }
+
     return res.json({ success: true, message: 'Đã cập nhật phản hồi.', data: feedback });
   } catch (error) {
     return next(error);
   }
 }
 
-module.exports = { listUsers, updateUser, listFeedback, updateFeedback };
+module.exports = { listUsers, updateUser, listFeedback, updateFeedback, FEEDBACK_TRANSITIONS };
+

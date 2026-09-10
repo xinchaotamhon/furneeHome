@@ -376,19 +376,21 @@ setTimeout(() => URL.revokeObjectURL(url), 1000);
 
 1. Bấm **Báo nội dung**.
 2. Chọn một báo cáo, đọc sản phẩm và nội dung.
-3. Đổi trạng thái `Mới` → `Đã xem` → `Đã xử lý`.
+3. Với **Admin thường**: chuyển trạng thái một chiều `Mới` → `Đã xem` → `Đã xử lý`. Khi đã chọn `Đã xử lý`, ô chọn ẩn đi chỉ hiện text tĩnh và không được phép đổi lại (giống hệt trạng thái `Đã giao` bên tab Đơn hàng).
+4. Với **Orchestra Admin**: luôn hiển thị đầy đủ cả 3 lựa chọn để có quyền đổi lại hoặc sửa sai.
 
 `server/src/controllers/adminController.js` — `updateFeedback`
 
 ```js
-if (!['new', 'reviewed', 'resolved'].includes(req.body.status)) {
-  return res.status(400).json({
-    success: false, message: 'Trạng thái phản hồi không hợp lệ.', data: null,
+const isSuperadmin = req.user?.role === 'superadmin';
+const allowedNext = isSuperadmin ? ALL_FEEDBACK_STATUSES : (FEEDBACK_TRANSITIONS[feedback.status] || []);
+if (!allowedNext.includes(nextStatus)) {
+  return res.status(409).json({
+    success: false, message: 'Admin không được phép đổi lại trạng thái này. Chỉ Orchestra Admin mới có thể đổi lại.',
   });
 }
-const feedback = await Feedback.findByIdAndUpdate(
-  req.params.id, { status: req.body.status }, { returnDocument: 'after', runValidators: true },
-);
+feedback.status = nextStatus;
+await feedback.save();
 ```
 
 ## Bước 7 — Tab Quản trị admin của Orchestra Admin
