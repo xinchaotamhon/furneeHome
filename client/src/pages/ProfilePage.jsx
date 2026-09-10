@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import authService from '../services/authService';
 import {
@@ -15,6 +16,8 @@ function errorMessage(error) {
 
 export default function ProfilePage() {
   const { user, openLogin, updateProfile } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [address, setAddress] = useState(user?.address || '');
@@ -136,6 +139,13 @@ export default function ProfilePage() {
         wardName: selectedWard?.name || wardName,
         deliveryNote: deliveryNote.trim(),
       });
+      if (location.state?.returnToCheckout) {
+        navigate('/checkout', {
+          replace: true,
+          state: location.state.checkoutState || {},
+        });
+        return;
+      }
       setMessage('Đã cập nhật hồ sơ.');
     } catch (saveError) {
       setError(errorMessage(saveError));

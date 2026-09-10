@@ -69,15 +69,21 @@ export default function ProductDetailPage() {
   if (!product) return <main className="container page"><div className="empty-state"><h1>Không tìm thấy sản phẩm</h1><Link className="button" to="/products">Về danh sách sản phẩm</Link></div></main>;
 
   const stock = Math.max(0, Number(product.stock ?? product.countInStock ?? 99));
+  const maxPurchaseQuantity = Math.min(stock, 100);
   const category = typeof product.category === 'object' ? product.category?.name : (product.category || product.categoryName || 'Nội thất');
   const add = () => { const outcome = addToCart(product, quantity); setNotice(outcome?.ok === false ? outcome.message : 'Đã thêm vào giỏ hàng.'); };
   const buyNow = () => {
-    const outcome = addToCart(product, quantity);
-    if (outcome?.ok === false) {
-      setNotice(outcome.message);
-      return;
-    }
-    navigate('/checkout');
+    navigate('/checkout', {
+      state: {
+        buyNowItem: {
+          product,
+          quantity,
+          price: Number(product.price) || 0,
+          name: product.name,
+          image: product.image || product.transparentImage || product.sourceImages?.[0] || '',
+        },
+      },
+    });
   };
   const moderate = async (reviewId, isHidden, reason) => {
     try { await reviewService.moderateReview(reviewId, isHidden, reason); await loadReviews(); } catch (error) { setReviewNotice(errorMessage(error)); }
@@ -104,11 +110,11 @@ export default function ProductDetailPage() {
             <input
               type="number"
               min="1"
-              max={stock}
+              max={maxPurchaseQuantity}
               value={quantity}
               onChange={(event) =>
                 setQuantity(
-                  Math.min(stock, Math.max(1, Number(event.target.value) || 1))
+                  Math.min(maxPurchaseQuantity, Math.max(1, Number(event.target.value) || 1))
                 )
               }
             />
