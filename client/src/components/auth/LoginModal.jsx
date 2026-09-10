@@ -19,6 +19,7 @@ function saveRememberedIdentity(identity, remember) {
 
 export default function LoginModal() {
   const navigate = useNavigate();
+  const [otp, setOtp] = useState('');
   const { isLoginOpen, authMode, closeLogin, login, requestRegistration, completeRegistration, switchAuthMode } = useAuth();
   const [view, setView] = useState('login');
   const [form, setForm] = useState(emptyForm);
@@ -99,7 +100,7 @@ export default function LoginModal() {
       <button className="modal-close" type="button" aria-label="Đóng" onClick={closeLogin}>×</button>
       <h2 id="auth-modal-title">{title}</h2>
       {view === 'register-email' && <label>Email<input type="email" value={form.email} onChange={updateField('email')} autoComplete="email" required /></label>}
-      {view === 'register-complete' && <><p className="muted">Email {form.email}</p><label>Họ và tên<input type="text" value={form.name} onChange={updateField('name')} autoComplete="name" maxLength="80" required /></label><label>Mã xác minh<input inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={form.otp} onChange={updateField('otp')} autoComplete="one-time-code" required /></label></>}
+      {view === 'register-complete' && <><p className="muted">Email {form.email}</p><label>Họ và tên<input type="text" value={form.name} onChange={updateField('name')} autoComplete="name" maxLength="80" required /></label><label>Mã xác minh<input inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={otp} onChange={(event) => setOtp(event.target.value)} placeholder="Nhập 6 số gửi về Email" required/></label></>}
       {view === 'login' && <label>Email<input type="text" value={form.identity} onChange={updateField('identity')} autoComplete="text" required /></label>}
       {(view === 'forgot' || view === 'reset') && <label>Email<input type="email" value={form.email} onChange={updateField('email')} autoComplete="email" readOnly={view === 'reset'} required /></label>}
       {view === 'reset' && <label>Mã xác minh<input inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={form.otp} onChange={updateField('otp')} autoComplete="one-time-code" required /></label>}
