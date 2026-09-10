@@ -7,9 +7,9 @@
 - Trang chính: modal xác thực từ header, `/profile`, `/admin`.
 - Trình tự: tài khoản khóa → đăng nhập bằng email → đăng ký xác minh email → quên mật khẩu → hồ sơ → Admin/Orchestra.
 - Mật khẩu mới trong tài khoản: gửi mã qua email, xác minh mã rồi mới lưu mật khẩu.
-- Không lưu mật khẩu trong localStorage. Chỉ lưu session/token và identity nếu người dùng bật ghi nhớ.
+- Không lưu mật khẩu trong localStorage. Chỉ lưu session/token và email nếu người dùng bật ghi nhớ.
 
-> **Rà trước khi bảo vệ:** kịch bản này dùng email-only theo yêu cầu của nhóm. Nếu bản đang chạy còn nhãn “Email hoặc tên đăng nhập” hoặc còn nhận username, Phúc phải merge phần xác thực rồi mới trình bày là email-only.
+> **Rà trước khi bảo vệ:** màn hình đăng nhập chỉ có ô email. Nếu nhập username, hệ thống yêu cầu dùng email đã đăng ký.
 
 ### Tài khoản demo và dữ liệu nhập
 
@@ -31,11 +31,11 @@ Nếu môi trường Render đã đổi `ADMIN_PASSWORD` hoặc `TEAM_ADMIN_PASS
 4. Dấu hiệu đúng: modal đóng, header hiện tên khách và mở `/profile` khi bấm **Tài khoản**.
 5. Đăng xuất. Đăng nhập `phuc@furneehome.vn` với `123`, dấu hiệu đúng là tự chuyển đến `/admin`.
 
-### Đúng / sai
+### Lưu ý khi trình bày
 
-- Đúng: email được chuẩn hóa chữ thường, đúng mật khẩu thì tạo session.
-- Sai: email chưa đăng ký hoặc mật khẩu sai thì hiện thông báo chung, không tiết lộ dữ liệu nhạy cảm.
-- Sai: tài khoản có `isActive = false` phải hiện rõ **Tài khoản đã bị khóa**, áp dụng cho customer, Admin và Orchestra Admin.
+- Email được chuẩn hóa chữ thường, đúng mật khẩu thì tạo session.
+- Email chưa đăng ký hoặc mật khẩu sai thì hiện thông báo chung, không tiết lộ dữ liệu nhạy cảm.
+- Tài khoản có `isActive = false` hiện rõ **Tài khoản đã bị khóa**, áp dụng cho customer, Admin và Orchestra Admin.
 - Bản chốt chỉ nhận email. Không nhập `customer`, `phuc` hoặc `admin` vào ô email.
 
 **Cơ chế:** `LoginModal.submit` gửi email/mật khẩu qua `AuthContext.login`; `authService.login` gọi route auth; `authController.login` tìm `User` trong MongoDB, kiểm tra `isActive` và bcrypt, rồi trả JWT cùng role cho header/router.
@@ -80,14 +80,14 @@ Nếu code cuối dùng thông báo chung thay vì status 403 để tránh dò t
 4. Nhập họ tên, mã 6 số và mật khẩu mới.
 5. Nhập lại mật khẩu, bấm **Tạo tài khoản**.
 
-Username không cần nhập trong form này; backend chỉ kiểm tra username nếu request có gửi thêm giá trị đó.
+Tên tài khoản là dữ liệu phụ, không nhập trong luồng đăng ký và không dùng để đăng nhập.
 
-### Đúng / sai
+### Lưu ý khi trình bày
 
-- Đúng: chỉ sau khi OTP hợp lệ tài khoản mới chuyển `emailVerified = true` và đăng nhập được.
-- Sai: email đã dùng thì yêu cầu đăng nhập, không tạo bản ghi mới.
-- Sai: OTP hết hạn hoặc sai quá 5 lần thì yêu cầu mã mới.
-- Sai: mật khẩu nhập lại khác mật khẩu chính thì form dừng ở client.
+- Chỉ sau khi OTP hợp lệ tài khoản mới chuyển `emailVerified = true` và đăng nhập được.
+- Email đã dùng thì yêu cầu đăng nhập, không tạo bản ghi mới.
+- OTP hết hạn hoặc sai quá 5 lần thì yêu cầu mã mới.
+- Mật khẩu nhập lại khác mật khẩu chính thì form dừng ở client.
 
 **Cơ chế:** `LoginModal` gửi email trước, nhận trạng thái OTP từ `AuthContext.requestRegistration`; `authService` gọi `registerRequest`, controller hash OTP và lưu `registrationOtpHash` vào `User`; bước sau gọi `completeRegistration` để xác minh rồi mới lưu mật khẩu.
 
@@ -134,7 +134,7 @@ if (user.registrationOtpHash !== hashOtp(email, otp)) {
 
 > “Quên mật khẩu có hai bước: yêu cầu mã tại email đã đăng ký, sau đó xác minh mã rồi mới đổi. Form không cho đổi chỉ bằng cách biết email.”
 
-### Đúng / sai
+### Lưu ý khi trình bày
 
 - Email chưa đăng ký: không tạo mã và không đổi mật khẩu.
 - OTP sai 5 lần: mã bị hủy, phải yêu cầu mã mới.
@@ -177,15 +177,16 @@ if (!user || user.resetOtpExpiresAt.getTime() <= Date.now()) {
 ### Thao tác
 
 1. Mở `/profile` sau khi đăng nhập customer.
-2. Chỉ vào lời chào **Hi tên tài khoản**. Tên tài khoản được lấy từ `username`, nếu tài khoản không có username thì dùng họ tên.
-3. Kiểm tra email, số điện thoại, địa chỉ cụ thể và ghi chú giao hàng.
+2. Chỉ vào lời chào **Xin chào! tên người dùng**. Tên hiển thị lấy từ họ tên, nếu thiếu thì dùng tên tài khoản.
+3. Kiểm tra email, số điện thoại, tỉnh/thành phố, quận/huyện, phường/xã, địa chỉ cụ thể và ghi chú giao hàng.
 4. Sửa thông tin, bấm **Lưu hồ sơ**.
 5. Mở `/checkout` để chứng minh thông tin mới tự điền vào phần thanh toán.
 6. Ở khối mật khẩu, yêu cầu mã qua email, nhập OTP rồi nhập mật khẩu mới và xác nhận.
 
-### Đúng / sai
+### Lưu ý khi trình bày
 
-- Hồ sơ thiếu địa chỉ/số điện thoại/ghi chú: hiển thị trạng thái chưa đủ và cho khách bổ sung hoặc bỏ qua rõ ràng.
+- Hồ sơ thiếu địa chỉ, số điện thoại, tỉnh/thành phố, quận/huyện hoặc phường/xã: hiển thị trạng thái chưa đủ để khách bổ sung.
+- Ghi chú giao hàng là tùy chọn; để trống ghi chú nhưng đủ các trường còn lại vẫn được tính là đủ hồ sơ.
 - Hồ sơ đủ: checkout nạp mặc định nhưng vẫn cho sửa theo đơn.
 - OTP đổi mật khẩu sai/hết hạn: không thay đổi mật khẩu cũ.
 - Xác nhận mật khẩu khác mật khẩu mới: hiện lỗi ngay như luồng quên mật khẩu.
@@ -208,17 +209,18 @@ return updatedUser;
 
 ```js
 const profileComplete = Boolean(user.phone && user.address
-  && user.provinceCode && user.deliveryNote);
+  && user.provinceCode && user.districtCode && user.wardCode);
 return {
   id: user._id, name: user.name, username: user.username || '',
   email: user.email, phone: user.phone || '',
   address: user.address || '', provinceCode: user.provinceCode || '',
+  districtCode: user.districtCode || '', wardCode: user.wardCode || '',
   deliveryNote: user.deliveryNote || '', profileComplete,
   role: user.role,
 };
 ```
 
-`User.js` hiện có các trường `phone`, `address`, `provinceCode`, `deliveryNote`; backend trả lại cùng `profileComplete` để checkout và Admin dùng chung dữ liệu.
+`User.js` hiện có các trường `phone`, `address`, `provinceCode`, `districtCode`, `districtName`, `wardCode`, `wardName`, `deliveryNote`; backend trả lại cùng `profileComplete` để checkout và Admin dùng chung dữ liệu. Ghi chú giao hàng không bắt buộc.
 
 ### Code — kiểm tra xác nhận mật khẩu ở form
 

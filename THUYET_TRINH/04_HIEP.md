@@ -31,11 +31,11 @@
 
 > “Danh sách dùng API cho kết quả chính thức, hỗ trợ tìm kiếm, danh mục, giá và phân trang. Khi mở mặc định, JSON tĩnh có thể hiện trước để trang không trống trong lúc Render thức dậy.”
 
-### Đúng / sai
+### Lưu ý khi trình bày
 
-- Đúng: danh sách cập nhật theo từ khóa, danh mục và thứ tự giá.
-- Đúng: chỉ sản phẩm còn bán và giá hợp lệ hiện với khách.
-- Sai: không có kết quả thì hiện hướng dẫn đổi bộ lọc.
+- Danh sách cập nhật theo từ khóa, danh mục và thứ tự giá.
+- Chỉ sản phẩm còn bán và giá hợp lệ hiện với khách.
+- Không có kết quả thì hiện hướng dẫn đổi bộ lọc.
 - Chế độ Phòng thử chỉ nhận sản phẩm có ảnh, không vượt quá 3 món.
 
 ### Code — `ProductListPage` tải dữ liệu
@@ -94,13 +94,13 @@ const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 12));
 4. Ở **Bước 3**, nhập vị trí riêng cho sản phẩm 1, 2, 3 hoặc để trống.
 5. Bấm **Tạo ảnh**, chờ trạng thái xử lý và so sánh **Ảnh tạo** với **Ảnh gốc**.
 
-### Đúng / sai
+### Lưu ý khi trình bày
 
 - Chưa có ảnh phòng hoặc chưa chọn sản phẩm: nút tạo bị khóa.
 - Chọn sản phẩm thứ tư: danh sách vẫn chỉ có 3.
 - Ảnh sai định dạng/quá 10 MB: hiện lỗi tại bước tải ảnh.
 - Vị trí trống: AI tự bố trí trong khoảng trống.
-- Nếu AI trả ảnh thiếu món hoặc sai tỷ lệ, nói đúng đây là kết quả tham khảo có tính xác suất.
+- Nếu AI trả ảnh thiếu món hoặc sai tỷ lệ, nói đây là kết quả tham khảo có tính xác suất.
 
 ### Code — `RoomStudioPage.generate`
 
@@ -242,15 +242,16 @@ async function loadUsers(scope = tab === 'admins' ? 'admins' : 'customers') {
 const filter = {};
 if (req.query.scope === 'customers') filter.role = 'customer';
 const users = await User.find(filter)
-  .select('name username email avatarUrl phone address provinceCode deliveryNote role isActive createdAt')
+  .select('name username email avatarUrl phone address provinceCode districtCode districtName wardCode wardName deliveryNote role isActive createdAt')
   .sort({ createdAt: -1 });
 const data = users.map((user) => ({ ...user.toObject(),
-  profileComplete: Boolean(user.phone && user.address && user.provinceCode && user.deliveryNote),
+  profileComplete: Boolean(user.phone && user.address && user.provinceCode
+    && user.districtCode && user.wardCode),
 }));
 return res.json({ success: true, message: 'Đã tải người dùng.', data });
 ```
 
-`userService.listAdmin` trả dữ liệu hồ sơ gồm `phone`, `address`, `provinceCode`, `deliveryNote`; popup dùng đúng các trường này để hiển thị hồ sơ và tính trạng thái đủ thông tin.
+`userService.listAdmin` trả dữ liệu hồ sơ gồm `phone`, `address`, `provinceCode`, `districtCode`, `districtName`, `wardCode`, `wardName`, `deliveryNote`; popup dùng đúng các trường này để hiển thị hồ sơ và tính trạng thái đủ thông tin. Ghi chú giao hàng chỉ là tùy chọn.
 
 ### Code — popup và trạng thái hồ sơ
 
@@ -259,7 +260,7 @@ return res.json({ success: true, message: 'Đã tải người dùng.', data });
 ```jsx
 function profileIsComplete(account) {
   return Boolean(account.phone && account.address
-    && account.provinceCode && account.deliveryNote);
+    && account.provinceCode && account.districtCode && account.wardCode);
 }
 ```
 
@@ -287,12 +288,26 @@ function CustomerModal({ account, onClose }) {
 5. Bấm **Tải hóa đơn** và kiểm tra file `hoa-don-<mã>.html` chứa mã đơn, người nhận, sản phẩm, phí ship, tổng tiền và thanh toán.
 6. Với đơn hoàn trả, hiển thị trạng thái hoàn riêng và không cho chuyển sai trạng thái.
 
-### Đúng / sai
+### Lưu ý khi trình bày
 
 - Admin thường cập nhật đơn theo transition được phép.
 - Orchestra Admin có thể sửa trạng thái hiệu chỉnh theo quyền đã cấp.
-- Chỉ khi backend xác nhận thanh toán mới đổi `paymentStatus`.
+- Chỉ khi backend xác nhận thanh toán mới đổi `paymentStatus`; đơn đã hủy nhưng chưa thanh toán hiển thị **Đã hủy**, không còn **Chờ thanh toán**.
 - Popup hóa đơn không được làm mất dữ liệu khi đóng; tải xuống phải tạo từ snapshot của Order.
+
+### Câu hỏi về hóa đơn và quy mô
+
+**Vì sao nhóm xuất hóa đơn dạng HTML?**
+
+> “Bản demo chạy thuần trình duyệt nên tạo một file HTML từ snapshot của đơn hàng, không phải cài thêm thư viện. File mở được ngay và giữ đúng giá tại thời điểm đặt đơn.”
+
+**Có thể xuất PDF không?**
+
+> “Có. Người dùng có thể mở file HTML rồi chọn Print → Save as PDF. Nếu triển khai tự động ở backend, nhóm có thể thêm trình kết xuất như Puppeteer; bản bảo vệ giữ HTML để code ngắn và dễ kiểm tra.”
+
+**Nếu có hàng trăm hoặc hàng nghìn đơn thì sao?**
+
+> “Bản đồ án tải danh sách hiện tại để dễ trình bày. Khi có doanh thu thật, cần thêm phân trang, tìm kiếm theo mã đơn, index MongoDB và xử lý theo từng trang. Đây là phần mở rộng hiệu năng, không thay đổi nghiệp vụ của đơn hàng.”
 
 ### Code — cập nhật đơn hiện tại
 
@@ -434,8 +449,8 @@ Rà tám mục này trên code và bản deploy trước buổi bảo vệ. Các
 
 1. **Hóa đơn đơn hàng:** xác nhận `InvoiceModal`, `downloadInvoice`, file `hoa-don-<mã>.html` mở được và đủ snapshot đơn.
 2. **Hồ sơ khách hàng popup:** xác nhận `CustomerModal` nhận đủ địa chỉ, số điện thoại, ghi chú và chỉ Admin/Orchestra được xem.
-3. **Trạng thái đủ hồ sơ:** xác nhận `profileIsComplete` dùng đủ `phone`, `address`, `provinceCode`, `deliveryNote` và nhãn khớp yêu cầu.
-4. **Lời chào tài khoản:** xác nhận `ProfilePage` hiển thị `user.username || user.name`, không hiển thị nhầm email.
+3. **Trạng thái đủ hồ sơ:** xác nhận `profileIsComplete` dùng đủ `phone`, `address`, `provinceCode`, `districtCode`, `wardCode`; ghi chú không bắt buộc.
+4. **Lời chào tài khoản:** xác nhận `ProfilePage` hiển thị `Xin chào!` kèm tên người dùng, không hiển thị nhầm email.
 5. **Hồ sơ → checkout:** xác nhận các field được lưu trong User, nạp mặc định vào `CheckoutPage`, vẫn cho sửa theo đơn.
 6. **Xác nhận mật khẩu:** xác nhận trang tài khoản gửi email OTP rồi mới đổi, đồng thời chặn `confirmPassword` không khớp.
 7. **Hoàn trả hàng:** xác nhận trạng thái trong `Order`, nút customer và select Admin cùng tên; khóa hoàn sau khi khách đã xem hàng và thanh toán theo rule nhóm.

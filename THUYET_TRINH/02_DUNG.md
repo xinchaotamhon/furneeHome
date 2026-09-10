@@ -25,10 +25,10 @@ API chỉ được gọi khi giỏ thuộc tài khoản đã đăng nhập. `Car
 
 > “Giỏ cho phép chọn một phần đơn, nên khách không phải thanh toán toàn bộ cùng lúc. Số lượng và tạm tính đổi ngay ở giao diện, còn lúc đặt hàng backend sẽ kiểm tra lại.”
 
-### Đúng / sai
+### Lưu ý khi trình bày
 
-- Đúng: bỏ chọn món thì số món và tạm tính chỉ tính phần được chọn.
-- Sai: không có món nào được chọn thì nút **Mua hàng** bị khóa và hiện lời nhắc.
+- Bỏ chọn món thì số món và tạm tính chỉ tính phần được chọn.
+- Không có món nào được chọn thì nút **Mua hàng** bị khóa và hiện lời nhắc.
 - Giỏ trống: trang đưa về nút **Xem sản phẩm**.
 
 ### Code — `CartPage()`
@@ -129,12 +129,12 @@ if (quantity > product.stock) {
 
 > “Checkout ghép địa chỉ cụ thể với tỉnh, quận và phường. Thông tin hồ sơ của `customer@furneehome.vn` đã lưu được nạp mặc định, nhưng khách vẫn có thể sửa cho đơn này.”
 
-### Đúng / sai
+### Lưu ý khi trình bày
 
-- Đúng: đổi tỉnh sẽ tải lại quận; đổi quận sẽ tải lại phường.
-- Đúng: phí ship cập nhật theo tỉnh và được gửi lại để backend tính.
-- Sai: thiếu họ tên, số điện thoại Việt Nam hoặc địa chỉ cụ thể thì không gửi request.
-- Sai: chưa đăng nhập thì checkout hiện **Đăng nhập để thanh toán**.
+- Đổi tỉnh sẽ tải lại quận; đổi quận sẽ tải lại phường.
+- Phí ship cập nhật theo tỉnh và backend tự tính lại khi tạo đơn.
+- Thiếu họ tên, số điện thoại Việt Nam, quận/huyện, phường/xã hoặc địa chỉ cụ thể thì không gửi request.
+- Chưa đăng nhập thì checkout hiện **Đăng nhập để thanh toán**.
 - Free ship: nếu bản cuối có lựa chọn/điều kiện miễn phí vận chuyển, vẫn phải tạo đơn với đủ `shippingAddress`, chỉ `shippingFee` mới bằng 0. Không bỏ qua bước địa chỉ.
 
 **Cơ chế:** `CheckoutPage` gom state form và gọi `orderService.createOrder`; route order chạy `authenticate`; `orderController.createOrder` làm sạch địa chỉ, tính phí, đọc giá/tồn kho từ `Product` rồi tạo `Order` trong MongoDB.

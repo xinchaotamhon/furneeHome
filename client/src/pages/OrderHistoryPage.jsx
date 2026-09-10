@@ -13,16 +13,16 @@ const statusLabel = {
   Cancelled: 'Đã hủy',
 };
 
-const paymentStatusLabel = {
-  Pending: 'Chưa thanh toán',
-  Paid: 'Đã thanh toán',
-};
-
 function canCancel(order) {
   return ['Pending', 'Processing'].includes(order.orderStatus);
 }
 function canReviewOrder(order) {
   return order.orderStatus === 'Delivered';
+}
+function paymentLabel(order) {
+  if (order.orderStatus === 'Cancelled' && order.paymentStatus !== 'Paid') return 'Đã hủy';
+  if (order.paymentStatus === 'Paid') return '✓ Đã thanh toán';
+  return order.paymentMethod === 'BANK_TRANSFER' ? 'Chờ chuyển khoản' : 'Chưa thu tiền (COD)';
 }
 
 export default function OrderHistoryPage() {
@@ -104,7 +104,7 @@ export default function OrderHistoryPage() {
                       {statusLabel[order.orderStatus] || order.orderStatus}
                     </span>
                     <span className={`status-pill ${isPaid ? 'payment-paid' : 'payment-pending'}`}>
-                      {isPaid ? '✓ Đã thanh toán' : isBank ? 'Chờ chuyển khoản' : 'Chưa thu tiền (COD)'}
+                      {paymentLabel(order)}
                     </span>
                   </div>
                 </header>

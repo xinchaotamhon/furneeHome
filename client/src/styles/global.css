@@ -597,6 +597,7 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
 .profile-card, .feedback-card { max-width: 620px; margin: 0 auto; padding: 22px; }
 .profile-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 900px; gap: 18px; margin: 0 auto; }
 .profile-layout h2 { margin: 0; }
+.profile-location-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .profile-message { max-width: 900px; margin: 0 auto 12px; }
 .profile-status, .profile-badge { width: max-content; padding: 4px 9px; border-radius: 99px; color: #8a4b28 !important; background: #fff0df; font-size: .75rem; font-weight: 800; }
 .profile-status { margin: 0; }
@@ -619,6 +620,7 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
   .admin-user-list .row-actions { justify-content: flex-start; }
   .admin-feedback-list article { grid-template-columns: 1fr; }
   .profile-layout { grid-template-columns: 1fr; }
+  .profile-location-grid { grid-template-columns: 1fr; }
   .customer-profile-grid { grid-template-columns: 1fr; }
 }
 

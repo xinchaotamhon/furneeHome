@@ -3,17 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import authService from '../../services/authService';
 
-const REMEMBERED_IDENTITY_KEY = 'furneehome-login-identity';
-const emptyForm = { name: '', email: '', identity: '', otp: '', password: '', confirmPassword: '' };
+const REMEMBERED_EMAIL_KEY = 'furneehome-login-email';
+const emptyForm = { name: '', email: '', otp: '', password: '', confirmPassword: '' };
 
-function rememberedIdentity() {
-  try { return String(localStorage.getItem(REMEMBERED_IDENTITY_KEY) || '').trim(); } catch { return ''; }
+function rememberedEmail() {
+  try { return String(localStorage.getItem(REMEMBERED_EMAIL_KEY) || '').trim(); } catch { return ''; }
 }
 
-function saveRememberedIdentity(identity, remember) {
+function saveRememberedEmail(email, remember) {
   try {
-    if (remember) localStorage.setItem(REMEMBERED_IDENTITY_KEY, identity);
-    else localStorage.removeItem(REMEMBERED_IDENTITY_KEY);
+    if (remember) localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+    else localStorage.removeItem(REMEMBERED_EMAIL_KEY);
   } catch {}
 }
 
@@ -22,7 +22,7 @@ export default function LoginModal() {
   const { isLoginOpen, authMode, closeLogin, login, requestRegistration, completeRegistration, switchAuthMode } = useAuth();
   const [view, setView] = useState('login');
   const [form, setForm] = useState(emptyForm);
-  const [remember, setRemember] = useState(() => Boolean(rememberedIdentity()));
+  const [remember, setRemember] = useState(() => Boolean(rememberedEmail()));
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [notice, setNotice] = useState('');
@@ -32,7 +32,7 @@ export default function LoginModal() {
   useEffect(() => {
     const nextView = authMode === 'register' ? 'register-email' : authMode;
     setView(nextView);
-    setForm({ ...emptyForm, identity: nextView === 'login' ? rememberedIdentity() : '' });
+    setForm({ ...emptyForm, email: nextView === 'login' ? rememberedEmail() : '' });
     setShowPassword(false);
     setShowConfirmPassword(false);
     setNotice('');
@@ -44,7 +44,7 @@ export default function LoginModal() {
   const toLogin = () => {
     switchAuthMode('login');
     setView('login');
-    setForm({ ...emptyForm, identity: rememberedIdentity() });
+    setForm({ ...emptyForm, email: rememberedEmail() });
   };
 
   const submit = async (event) => {
@@ -74,9 +74,9 @@ export default function LoginModal() {
         toLogin();
         setNotice('Đã đổi mật khẩu. Bạn có thể đăng nhập.');
       } else {
-        const identity = form.identity.trim();
-        const loggedInUser = await login({ identity, password: form.password });
-        saveRememberedIdentity(identity, remember);
+        const email = form.email.trim().toLowerCase();
+        const loggedInUser = await login({ email, password: form.password });
+        saveRememberedEmail(email, remember);
         if (loggedInUser.role === 'admin' || loggedInUser.role === 'superadmin') navigate('/admin');
       }
     } catch (submitError) {
@@ -93,7 +93,7 @@ export default function LoginModal() {
       <h2 id="auth-modal-title">{title}</h2>
       {view === 'register-email' && <label>Email<input type="email" value={form.email} onChange={updateField('email')} autoComplete="email" required /></label>}
       {view === 'register-complete' && <><p className="muted">Email {form.email}</p><label>Họ và tên<input type="text" value={form.name} onChange={updateField('name')} autoComplete="name" maxLength="80" required /></label><label>Mã xác minh<input inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={form.otp} onChange={updateField('otp')} autoComplete="one-time-code" required /></label></>}
-      {view === 'login' && <label>Email hoặc tên đăng nhập<input type="text" value={form.identity} onChange={updateField('identity')} autoComplete="username" required /></label>}
+      {view === 'login' && <label>Email<input type="email" value={form.email} onChange={updateField('email')} autoComplete="email" required /></label>}
       {(view === 'forgot' || view === 'reset') && <label>Email<input type="email" value={form.email} onChange={updateField('email')} autoComplete="email" readOnly={view === 'reset'} required /></label>}
       {view === 'reset' && <label>Mã xác minh<input inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={form.otp} onChange={updateField('otp')} autoComplete="one-time-code" required /></label>}
       {(view === 'login' || view === 'register-complete' || view === 'reset') && (
@@ -164,7 +164,7 @@ export default function LoginModal() {
           </div>
         </label>
       )}
-      {view === 'login' && <label className="remember-login"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /><span>Ghi nhớ email hoặc tên đăng nhập</span></label>}
+      {view === 'login' && <label className="remember-login"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /><span>Ghi nhớ email</span></label>}
       {notice && <p className="form-success" role="status">{notice}</p>}
       {error && <p className="form-error" role="alert">{error}</p>}
       <button className="button" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Đang xử lý…' : submitText}</button>

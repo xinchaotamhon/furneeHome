@@ -2,7 +2,9 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 
 function profileData(user) {
-  const profileComplete = Boolean(user.phone && user.address && user.provinceCode && user.deliveryNote);
+  const profileComplete = Boolean(
+    user.phone && user.address && user.provinceCode && user.districtCode && user.wardCode,
+  );
   return {
     id: user._id,
     name: user.name,
@@ -12,6 +14,10 @@ function profileData(user) {
     phone: user.phone || '',
     address: user.address || '',
     provinceCode: user.provinceCode || '',
+    districtCode: user.districtCode || '',
+    districtName: user.districtName || '',
+    wardCode: user.wardCode || '',
+    wardName: user.wardName || '',
     deliveryNote: user.deliveryNote || '',
     profileComplete,
     role: user.role,
@@ -44,12 +50,19 @@ async function updateMe(req, res, next) {
       user.avatarUrl = avatarUrl;
     }
 
-    const deliveryFields = ['phone', 'address', 'provinceCode', 'deliveryNote'];
+    const deliveryFields = [
+      'phone', 'address', 'provinceCode', 'districtCode', 'districtName',
+      'wardCode', 'wardName', 'deliveryNote',
+    ];
     const updatingDelivery = deliveryFields.some((field) => req.body[field] !== undefined);
     if (updatingDelivery) {
       const phone = String(req.body.phone || '').trim().replace(/[.\s-]/g, '');
       const address = String(req.body.address || '').normalize('NFC').trim();
       const provinceCode = Number(req.body.provinceCode);
+      const districtCode = Number(req.body.districtCode);
+      const districtName = String(req.body.districtName || '').normalize('NFC').trim();
+      const wardCode = Number(req.body.wardCode);
+      const wardName = String(req.body.wardName || '').normalize('NFC').trim();
       const deliveryNote = String(req.body.deliveryNote || '').trim();
 
       if (!/^(?:\+?84|0)[35789]\d{8}$/.test(phone)) {
@@ -61,13 +74,29 @@ async function updateMe(req, res, next) {
       if (!Number.isInteger(provinceCode) || provinceCode < 1 || provinceCode > 99) {
         return res.status(400).json({ success: false, message: 'Tỉnh hoặc thành phố không hợp lệ.', data: null });
       }
-      if (!deliveryNote || deliveryNote.length > 500) {
-        return res.status(400).json({ success: false, message: 'Vui lòng nhập ghi chú giao hàng, tối đa 500 ký tự.', data: null });
+      if (!Number.isInteger(districtCode) || districtCode < 1 || districtName.length > 100) {
+        return res.status(400).json({ success: false, message: 'Quận hoặc huyện không hợp lệ.', data: null });
+      }
+      if (!districtName) {
+        return res.status(400).json({ success: false, message: 'Vui lòng chọn quận hoặc huyện.', data: null });
+      }
+      if (!Number.isInteger(wardCode) || wardCode < 1 || wardName.length > 100) {
+        return res.status(400).json({ success: false, message: 'Phường hoặc xã không hợp lệ.', data: null });
+      }
+      if (!wardName) {
+        return res.status(400).json({ success: false, message: 'Vui lòng chọn phường hoặc xã.', data: null });
+      }
+      if (deliveryNote.length > 500) {
+        return res.status(400).json({ success: false, message: 'Ghi chú giao hàng tối đa 500 ký tự.', data: null });
       }
 
       user.phone = phone;
       user.address = address;
       user.provinceCode = provinceCode;
+      user.districtCode = districtCode;
+      user.districtName = districtName;
+      user.wardCode = wardCode;
+      user.wardName = wardName;
       user.deliveryNote = deliveryNote;
     }
 

@@ -1,5 +1,25 @@
 # Hướng dẫn chung — luồng trình bày theo trang
 
+## 0. Nhìn FurneeHome như một cái cây
+
+Twogether gợi ý học từ nguyên lý gốc rồi mới đi vào từng thẻ. Với FurneeHome, nhóm dùng cách đơn giản hơn: **gốc → thân → cành → lá**. Không cần học thuộc từng đoạn rời nhau; mỗi trang đều trả lời bốn câu: trang này làm gì, người dùng bấm gì, dữ liệu đi đâu và code quan trọng nằm ở đâu.
+
+```text
+GỐC: mục tiêu bán nội thất và giúp khách hình dung sản phẩm trong phòng
+  ↓
+THÂN: mở web → đăng nhập/đăng ký → xem sản phẩm → giỏ hàng → checkout
+  ↓
+CÀNH 1: tài khoản, OTP, hồ sơ và quyền Admin / Orchestra Admin
+CÀNH 2: danh sách, danh mục, chi tiết sản phẩm và đánh giá
+CÀNH 3: giỏ hàng, thanh toán, đơn hàng và trạng thái giao nhận
+CÀNH 4: Phòng thử AI — điểm wow của đồ án
+CÀNH 5: quản trị sản phẩm, khách hàng, đơn hàng và báo nội dung
+  ↓
+LÁ: React hiển thị → service gọi API → controller kiểm tra → MongoDB lưu dữ liệu
+```
+
+Lộ trình nói cũng đi theo thân cây: Phúc mở cành tài khoản, Dũng đi qua giỏ và checkout, Triều theo đơn và đánh giá, Hiệp kết thúc bằng sản phẩm, Phòng thử và quản trị. Flashcard của mỗi người chỉ dùng để ôn sâu các bước và câu hỏi phản biện trong chính lộ trình đó.
+
 ## 1. Thứ tự mới và câu chuyện chung
 
 Thứ tự cố định: **Phúc → Dũng → Triều → Hiệp**. Mỗi người trình bày đúng nhóm trang được giao, thao tác liên tục trên website và bàn giao tại dữ liệu đã tạo.
@@ -24,7 +44,7 @@ Không mở lại phần giới thiệu dài ở mỗi lượt. Người trướ
 | 3 | **Triều** | Chi tiết một sản phẩm, Đơn mua, Đánh giá | Có đơn đã giao để mở đánh giá, đồng thời chỉ ra trạng thái không được hủy/hoàn |
 | 4 | **Hiệp** | Danh sách sản phẩm, Phòng thử, toàn bộ Trang quản trị | Admin xem và xử lý sản phẩm, khách hàng, đơn hàng, báo nội dung |
 
-Mục tiêu khoảng 4 phút mỗi người. Mỗi bước gồm năm ý: mục đích, thao tác, kết quả đúng, trường hợp sai và nơi có code.
+Mục tiêu khoảng 4 phút mỗi người. Mỗi bước gồm năm ý: mục đích, thao tác, cơ chế, trường hợp có thể bị hỏi và nơi có code.
 
 ## 2. Chuẩn bị trước khi trình bày
 
@@ -35,7 +55,7 @@ Mở sẵn các tab sau:
 - Phòng thử: `/room-studio`
 - Kiểm tra backend: `https://furneehome.onrender.com/api/health`
 
-Chuẩn bị một cửa sổ ẩn danh cho khách và một cửa sổ quản trị. Bản cuối yêu cầu đăng nhập bằng email, vì vậy dùng đúng các email demo dưới đây, không dùng username để chứng minh đăng nhập. Nếu bản deploy hiện còn nhận username, phải merge phần Phúc trước khi bảo vệ.
+Chuẩn bị một cửa sổ ẩn danh cho khách và một cửa sổ quản trị. Bản cuối yêu cầu đăng nhập bằng email, vì vậy dùng đúng các email demo dưới đây, không dùng username để chứng minh đăng nhập.
 
 | Vai trò | Email đăng nhập | Tên hiển thị | Mật khẩu |
 |---|---|---|---|

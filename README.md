@@ -23,7 +23,7 @@ Người mua thường chỉ thấy ảnh, kích thước và giá sản phẩm 
 
 ## Chức năng chính
 
-- Đăng ký bằng OTP email, đăng nhập, ghi nhớ tên đăng nhập và đặt lại mật khẩu.
+- Đăng ký bằng OTP email, đăng nhập bằng email, ghi nhớ email và đặt lại mật khẩu.
 - Danh sách sản phẩm, tìm kiếm, lọc danh mục và xem chi tiết.
 - Giỏ hàng, thanh toán COD hoặc chuyển khoản QR, lịch sử đơn và hủy đơn chưa giao.
 - Đánh giá sản phẩm và báo nội dung xấu.
@@ -86,7 +86,7 @@ npm run seed
 
 Khi chạy localhost, Orchestra Admin hoặc Admin có thể bấm **Đồng bộ JSON** trong trang Quản trị sản phẩm. Nút này chỉ sao chép một chiều từ MongoDB sang `data_import.json`, không ghi ngược vào MongoDB nên không làm mất tên, giá hoặc tồn kho đã sửa.
 
-Lệnh seed cũng tạo tài khoản mẫu, đánh giá 3–5 sao và ba đơn minh họa: đang xử lý, đã giao thành công và đã hủy.
+Lệnh seed cũng tạo tài khoản mẫu, đánh giá 3–5 sao và các đơn minh họa: đang xử lý, đã giao thành công và đã hủy.
 
 Sau đó mở hai terminal:
 
@@ -105,15 +105,24 @@ npm run dev
 
 ## Tài khoản mẫu
 
-| Quyền | Tên đăng nhập | Mật khẩu |
+Đăng nhập bằng email. Các tài khoản dưới đây được tạo khi chạy seed:
+
+| Quyền | Email đăng nhập | Mật khẩu |
 |---|---|---|
-| Orchestra Admin | `admin` | `123` |
-| Admin | `phuc` | `123` |
-| Admin | `trieu` | `123` |
-| Admin | `dung` | `123` |
-| Khách hàng | `customer` | `user123456` |
+| Orchestra Admin | `admin@furneehome.vn` | `123` |
+| Admin | `phuc@furneehome.vn` | `123` |
+| Admin | `trieu@furneehome.vn` | `123` |
+| Admin | `dung@furneehome.vn` | `123` |
+| Khách hàng | `customer@furneehome.vn` | `user123456` |
 
 Có thể đổi mật khẩu quản trị bằng `ADMIN_PASSWORD` và `TEAM_ADMIN_PASSWORD` trước khi chạy seed.
+
+### Hồ sơ mẫu
+
+Hồ sơ được xem là đủ khi có họ tên, số điện thoại, tỉnh/thành phố, quận/huyện, phường/xã và địa chỉ cụ thể. Ghi chú giao hàng là tùy chọn.
+
+- Có ghi chú: `Nguyễn Văn A` · `0912345678` · `71/5 Huỳnh Tấn Phát` · `TP.HCM` · `Quận 7` · `Phường Tân Quy` · ghi chú `Gọi trước khi giao`.
+- Không có ghi chú (vẫn đủ): `Trần Thị B` · `0987654321` · `12 Nguyễn Trãi` · `TP.HCM` · `Quận 1` · `Phường Bến Thành` · để trống ô ghi chú.
 
 ## Deploy
 

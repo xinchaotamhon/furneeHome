@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import authService from '../services/authService';
-import { FALLBACK_PROVINCES } from '../services/locationService';
+import {
+  FALLBACK_PROVINCES,
+  fetchDistricts,
+  fetchProvinces,
+  fetchWards,
+} from '../services/locationService';
 import { validateSpecificAddress, validateVietnamPhone } from '../utils/validation';
 
 function errorMessage(error) {
@@ -14,6 +19,13 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState(user?.phone || '');
   const [address, setAddress] = useState(user?.address || '');
   const [provinceCode, setProvinceCode] = useState(user?.provinceCode || 79);
+  const [provinces, setProvinces] = useState(FALLBACK_PROVINCES);
+  const [districts, setDistricts] = useState([]);
+  const [districtCode, setDistrictCode] = useState(String(user?.districtCode || ''));
+  const [districtName, setDistrictName] = useState(user?.districtName || '');
+  const [wards, setWards] = useState([]);
+  const [wardCode, setWardCode] = useState(String(user?.wardCode || ''));
+  const [wardName, setWardName] = useState(user?.wardName || '');
   const [deliveryNote, setDeliveryNote] = useState(user?.deliveryNote || '');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -34,14 +46,52 @@ export default function ProfilePage() {
     setPhone(user?.phone || '');
     setAddress(user?.address || '');
     setProvinceCode(user?.provinceCode || 79);
+    setDistrictCode(String(user?.districtCode || ''));
+    setDistrictName(user?.districtName || '');
+    setWardCode(String(user?.wardCode || ''));
+    setWardName(user?.wardName || '');
     setDeliveryNote(user?.deliveryNote || '');
   }, [user]);
+
+  useEffect(() => {
+    fetchProvinces().then((data) => {
+      if (Array.isArray(data) && data.length) setProvinces(data);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!provinceCode) {
+      setDistricts([]);
+      return;
+    }
+    fetchDistricts(provinceCode).then((data) => {
+      setDistricts(data);
+      const saved = data.find((item) => Number(item.code) === Number(districtCode));
+      if (saved) setDistrictName(saved.name);
+    });
+  }, [provinceCode]);
+
+  useEffect(() => {
+    if (!districtCode) {
+      setWards([]);
+      return;
+    }
+    fetchWards(districtCode).then((data) => {
+      setWards(data);
+      const saved = data.find((item) => Number(item.code) === Number(wardCode));
+      if (saved) setWardName(saved.name);
+    });
+  }, [districtCode]);
 
   function cancelProfileChanges() {
     setName(user?.name || '');
     setPhone(user?.phone || '');
     setAddress(user?.address || '');
     setProvinceCode(user?.provinceCode || 79);
+    setDistrictCode(String(user?.districtCode || ''));
+    setDistrictName(user?.districtName || '');
+    setWardCode(String(user?.wardCode || ''));
+    setWardName(user?.wardName || '');
     setDeliveryNote(user?.deliveryNote || '');
     setError('');
     setMessage('');
@@ -68,9 +118,10 @@ export default function ProfilePage() {
     const addressCheck = validateSpecificAddress(address);
     if (!addressCheck.isValid) return setError(addressCheck.message);
 
-    if (!deliveryNote.trim()) {
-      return setError('Vui lòng nhập ghi chú giao hàng. Nếu không có, bạn có thể nhập “Không có”.');
-    }
+    if (!districtCode || !wardCode) return setError('Vui lòng chọn quận/huyện và phường/xã.');
+
+    const selectedDistrict = districts.find((item) => String(item.code) === String(districtCode));
+    const selectedWard = wards.find((item) => String(item.code) === String(wardCode));
 
     setIsSaving(true);
     try {
@@ -79,6 +130,10 @@ export default function ProfilePage() {
         phone: phoneCheck.cleanPhone,
         address: addressCheck.address,
         provinceCode: Number(provinceCode),
+        districtCode: Number(districtCode),
+        districtName: selectedDistrict?.name || districtName,
+        wardCode: Number(wardCode),
+        wardName: selectedWard?.name || wardName,
         deliveryNote: deliveryNote.trim(),
       });
       setMessage('Đã cập nhật hồ sơ.');
@@ -87,6 +142,26 @@ export default function ProfilePage() {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function changeProvince(value) {
+    setProvinceCode(Number(value));
+    setDistrictCode('');
+    setDistrictName('');
+    setWardCode('');
+    setWardName('');
+  }
+
+  function changeDistrict(value) {
+    setDistrictCode(value);
+    setDistrictName(districts.find((item) => String(item.code) === String(value))?.name || '');
+    setWardCode('');
+    setWardName('');
+  }
+
+  function changeWard(value) {
+    setWardCode(value);
+    setWardName(wards.find((item) => String(item.code) === String(value))?.name || '');
   }
 
   // Bước 1: Gửi mã OTP về Gmail
@@ -138,7 +213,7 @@ export default function ProfilePage() {
   return (
     <main className="container page">
       <div className="page-heading">
-        <h1>Hi {user.username || user.name}</h1>
+        <h1>Xin chào! {user.name || user.username}</h1>
         <p>Quản lý tài khoản và thông tin giao hàng.</p>
       </div>
 
@@ -156,12 +231,34 @@ export default function ProfilePage() {
           <label>Số điện thoại<input inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} required /></label>
           <label>
             Tỉnh / Thành phố
-            <select value={provinceCode} onChange={(event) => setProvinceCode(Number(event.target.value))} required>
-              {FALLBACK_PROVINCES.map((province) => (
+            <select value={provinceCode} onChange={(event) => changeProvince(event.target.value)} required>
+              {provinces.map((province) => (
                 <option key={province.code} value={province.code}>{province.name}</option>
               ))}
             </select>
           </label>
+          <div className="profile-location-grid">
+            <label>
+              Quận / Huyện
+              <select value={districtCode} onChange={(event) => changeDistrict(event.target.value)} disabled={!districts.length && !districtCode} required>
+                <option value="">{districts.length ? 'Chọn quận / huyện' : 'Đang tải quận / huyện'}</option>
+                {districtCode && !districts.some((item) => String(item.code) === String(districtCode)) && (
+                  <option value={districtCode}>{districtName || 'Quận / huyện đã lưu'}</option>
+                )}
+                {districts.map((district) => <option key={district.code} value={district.code}>{district.name}</option>)}
+              </select>
+            </label>
+            <label>
+              Phường / Xã
+              <select value={wardCode} onChange={(event) => changeWard(event.target.value)} disabled={!wards.length && !wardCode} required>
+                <option value="">{wards.length ? 'Chọn phường / xã' : 'Đang tải phường / xã'}</option>
+                {wardCode && !wards.some((item) => String(item.code) === String(wardCode)) && (
+                  <option value={wardCode}>{wardName || 'Phường / xã đã lưu'}</option>
+                )}
+                {wards.map((ward) => <option key={ward.code} value={ward.code}>{ward.name}</option>)}
+              </select>
+            </label>
+          </div>
           <label>
             Địa chỉ cụ thể
             <input
@@ -173,13 +270,12 @@ export default function ProfilePage() {
             />
           </label>
           <label>
-            Ghi chú giao hàng
+            Ghi chú giao hàng (tùy chọn)
             <textarea
               rows="3"
               value={deliveryNote}
               onChange={(event) => setDeliveryNote(event.target.value)}
               placeholder="Ví dụ: Gọi trước khi giao"
-              required
               maxLength="500"
             />
           </label>

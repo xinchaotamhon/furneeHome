@@ -47,9 +47,11 @@ export default function CheckoutPage() {
   const [provinces, setProvinces] = useState(FALLBACK_PROVINCES);
   const [selectedProvince, setSelectedProvince] = useState(Number(user?.provinceCode) || 79);
   const [districts, setDistricts] = useState([]);
-  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState(String(user?.districtCode || ''));
+  const [selectedDistrictName, setSelectedDistrictName] = useState(user?.districtName || '');
   const [wards, setWards] = useState([]);
-  const [selectedWard, setSelectedWard] = useState('');
+  const [selectedWard, setSelectedWard] = useState(String(user?.wardCode || ''));
+  const [selectedWardName, setSelectedWardName] = useState(user?.wardName || '');
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingWards, setLoadingWards] = useState(false);
 
@@ -61,6 +63,10 @@ export default function CheckoutPage() {
     setSpecificAddress(user.address || '');
     setNote(user.deliveryNote || '');
     setSelectedProvince(Number(user.provinceCode) || 79);
+    setSelectedDistrict(String(user.districtCode || ''));
+    setSelectedDistrictName(user.districtName || '');
+    setSelectedWard(String(user.wardCode || ''));
+    setSelectedWardName(user.wardName || '');
   }, [user]);
 
   // Tải danh sách tỉnh thành online
@@ -76,18 +82,15 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!selectedProvince) {
       setDistricts([]);
-      setSelectedDistrict('');
       setWards([]);
-      setSelectedWard('');
       return;
     }
     setLoadingDistricts(true);
     fetchDistricts(selectedProvince)
       .then((data) => {
         setDistricts(data);
-        setSelectedDistrict('');
-        setWards([]);
-        setSelectedWard('');
+        const savedDistrict = data.find((item) => Number(item.code) === Number(selectedDistrict));
+        if (savedDistrict) setSelectedDistrictName(savedDistrict.name);
       })
       .finally(() => setLoadingDistricts(false));
   }, [selectedProvince]);
@@ -96,14 +99,14 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!selectedDistrict) {
       setWards([]);
-      setSelectedWard('');
       return;
     }
     setLoadingWards(true);
     fetchWards(selectedDistrict)
       .then((data) => {
         setWards(data);
-        setSelectedWard('');
+        const savedWard = data.find((item) => Number(item.code) === Number(selectedWard));
+        if (savedWard) setSelectedWardName(savedWard.name);
       })
       .finally(() => setLoadingWards(false));
   }, [selectedDistrict]);
@@ -156,6 +159,8 @@ export default function CheckoutPage() {
     const wardObj = wards.find((w) => Number(w.code) === Number(selectedWard));
 
     if (!provinceObj) return setError('Vui lòng chọn Tỉnh / Thành phố nhận hàng.');
+    if (!districtObj && !selectedDistrictName) return setError('Vui lòng chọn Quận / Huyện nhận hàng.');
+    if (!wardObj && !selectedWardName) return setError('Vui lòng chọn Phường / Xã nhận hàng.');
 
     const addressCheck = validateSpecificAddress(specificAddress);
     if (!addressCheck.isValid) {
@@ -165,8 +170,8 @@ export default function CheckoutPage() {
     // Ghép địa chỉ đầy đủ
     const addressParts = [
       addressCheck.address,
-      wardObj ? wardObj.name : '',
-      districtObj ? districtObj.name : '',
+      wardObj ? wardObj.name : selectedWardName,
+      districtObj ? districtObj.name : selectedDistrictName,
       provinceObj ? provinceObj.name : '',
     ].filter(Boolean);
     const fullAddress = addressParts.join(', ');
@@ -196,6 +201,26 @@ export default function CheckoutPage() {
       setSaving(false);
     }
   };
+
+  function changeProvince(value) {
+    setSelectedProvince(Number(value));
+    setSelectedDistrict('');
+    setSelectedDistrictName('');
+    setSelectedWard('');
+    setSelectedWardName('');
+  }
+
+  function changeDistrict(value) {
+    setSelectedDistrict(value);
+    setSelectedDistrictName(districts.find((item) => String(item.code) === String(value))?.name || '');
+    setSelectedWard('');
+    setSelectedWardName('');
+  }
+
+  function changeWard(value) {
+    setSelectedWard(value);
+    setSelectedWardName(wards.find((item) => String(item.code) === String(value))?.name || '');
+  }
 
   if (result) {
     const isBankTransfer = result.paymentMethod === 'BANK_TRANSFER';
@@ -327,7 +352,7 @@ export default function CheckoutPage() {
                 Tỉnh / Thành phố *
                 <select
                   value={selectedProvince}
-                  onChange={(e) => setSelectedProvince(Number(e.target.value))}
+                  onChange={(e) => changeProvince(e.target.value)}
                   required
                 >
                   {provinces.map((p) => (
@@ -342,10 +367,13 @@ export default function CheckoutPage() {
                 Quận / Huyện
                 <select
                   value={selectedDistrict}
-                  onChange={(e) => setSelectedDistrict(e.target.value)}
-                  disabled={loadingDistricts || districts.length === 0}
+                  onChange={(e) => changeDistrict(e.target.value)}
+                  disabled={loadingDistricts || (districts.length === 0 && !selectedDistrict)}
                 >
                   <option value="">{loadingDistricts ? 'Đang tải...' : '-- Chọn Quận/Huyện --'}</option>
+                  {selectedDistrict && !districts.some((item) => String(item.code) === String(selectedDistrict)) && (
+                    <option value={selectedDistrict}>{selectedDistrictName || 'Quận / Huyện đã lưu'}</option>
+                  )}
                   {districts.map((d) => (
                     <option key={d.code} value={d.code}>
                       {d.name}
@@ -358,10 +386,13 @@ export default function CheckoutPage() {
                 Phường / Xã
                 <select
                   value={selectedWard}
-                  onChange={(e) => setSelectedWard(e.target.value)}
-                  disabled={loadingWards || wards.length === 0}
+                  onChange={(e) => changeWard(e.target.value)}
+                  disabled={loadingWards || (wards.length === 0 && !selectedWard)}
                 >
                   <option value="">{loadingWards ? 'Đang tải...' : '-- Chọn Phường/Xã --'}</option>
+                  {selectedWard && !wards.some((item) => String(item.code) === String(selectedWard)) && (
+                    <option value={selectedWard}>{selectedWardName || 'Phường / Xã đã lưu'}</option>
+                  )}
                   {wards.map((w) => (
                     <option key={w.code} value={w.code}>
                       {w.name}

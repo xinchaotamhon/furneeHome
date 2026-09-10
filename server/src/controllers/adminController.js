@@ -27,11 +27,11 @@ async function listUsers(req, res, next) {
     }
 
     const users = await User.find(filter)
-      .select('name username email avatarUrl phone address provinceCode deliveryNote role isActive createdAt')
+      .select('name username email avatarUrl phone address provinceCode districtCode districtName wardCode wardName deliveryNote role isActive createdAt')
       .sort({ createdAt: -1 });
     const data = users.map((user) => ({
       ...user.toObject(),
-      profileComplete: Boolean(user.phone && user.address && user.provinceCode && user.deliveryNote),
+      profileComplete: Boolean(user.phone && user.address && user.provinceCode && user.districtCode && user.wardCode),
     }));
     return res.json({ success: true, message: 'Đã tải người dùng.', data });
   } catch (error) {

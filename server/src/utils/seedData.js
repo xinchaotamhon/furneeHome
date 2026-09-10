@@ -149,14 +149,37 @@ async function seedAccounts() {
   customer.role = 'customer';
   customer.emailVerified = true;
   customer.isActive = true;
+  customer.phone = '0987654321';
+  customer.address = '12 Nguyễn Trãi';
+  customer.provinceCode = 79;
+  customer.districtCode = 760;
+  customer.districtName = 'Quận 1';
+  customer.wardCode = 26734;
+  customer.wardName = 'Phường Bến Thành';
+  customer.deliveryNote = '';
   await customer.save();
 }
 
 async function seedDemoContent() {
   const customerInfo = [
-    { name: 'Minh Anh', username: 'minhanh', email: 'minhanh@furneehome.vn' },
-    { name: 'Hoàng Nam', username: 'hoangnam', email: 'hoangnam@furneehome.vn' },
-    { name: 'Thu Hà', username: 'thuha', email: 'thuha@furneehome.vn' },
+    {
+      name: 'Minh Anh', username: 'minhanh', email: 'minhanh@furneehome.vn',
+      phone: '0912345678', address: '71/5 Huỳnh Tấn Phát', provinceCode: 79,
+      districtCode: 778, districtName: 'Quận 7', wardCode: 27484, wardName: 'Phường Tân Quy',
+      deliveryNote: 'Gọi trước khi giao',
+    },
+    {
+      name: 'Hoàng Nam', username: 'hoangnam', email: 'hoangnam@furneehome.vn',
+      phone: '0901234567', address: '12 Nguyễn Trãi', provinceCode: 79,
+      districtCode: 760, districtName: 'Quận 1', wardCode: 26734, wardName: 'Phường Bến Thành',
+      deliveryNote: '',
+    },
+    {
+      name: 'Thu Hà', username: 'thuha', email: 'thuha@furneehome.vn',
+      phone: '0934567890', address: '23 Lê Lợi', provinceCode: 79,
+      districtCode: 760, districtName: 'Quận 1', wardCode: 26737, wardName: 'Phường Bến Nghé',
+      deliveryNote: 'Giao giờ hành chính',
+    },
   ];
   const password = await bcrypt.hash('user123456', 10);
   const customers = [];
@@ -165,6 +188,9 @@ async function seedDemoContent() {
     let customer = await User.findOne({ username: info.username });
     if (!customer) {
       customer = await User.create({ ...info, password, role: 'customer', emailVerified: true, isActive: true });
+    } else {
+      Object.assign(customer, info);
+      await customer.save();
     }
     customers.push(customer);
   }
@@ -220,7 +246,7 @@ async function seedDemoContent() {
         orderItems,
         shippingAddress: { fullName: customer.name, phone: '0372208100', address: '71/5 Huỳnh Tấn Phát, Xã Nhà Bè, TP.HCM', provinceCode: 79, note: 'Đơn hàng minh họa' },
         paymentMethod: 'COD',
-        paymentStatus,
+        paymentStatus: orderStatus === 'Cancelled' && paymentStatus !== 'Paid' ? 'Cancelled' : paymentStatus,
         orderStatus,
         subtotal,
         shippingFee: 30000,

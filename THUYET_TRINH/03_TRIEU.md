@@ -27,11 +27,11 @@
 
 > “Trang chi tiết gom thông tin đủ để khách quyết định mua. Giá và tồn kho chỉ là dữ liệu hiển thị; khi tạo đơn, backend đọc lại Product.”
 
-### Đúng / sai
+### Lưu ý khi trình bày
 
-- Đúng: URL có dạng `/products/:id` và đúng sản phẩm được chọn.
-- Đúng: hết hàng hoặc sản phẩm ngừng bán không cho thêm giỏ/mua ngay.
-- Sai: ID không hợp lệ hoặc sản phẩm không tồn tại thì hiện lỗi, không render dữ liệu rỗng.
+- URL có dạng `/products/:id` và đúng sản phẩm được chọn.
+- Hết hàng hoặc sản phẩm ngừng bán không cho thêm giỏ/mua ngay.
+- ID không hợp lệ hoặc sản phẩm không tồn tại thì hiện lỗi, không render dữ liệu rỗng.
 - Bấm **Báo nội dung** sẽ mang sản phẩm sang form báo cáo để Admin xử lý.
 
 **Cơ chế:** `ProductDetailPage` lấy `id` từ URL, gọi `productService.getById` và `reviewService.getReviews`; controller lọc `Product`/`Review` trong MongoDB rồi trả JSON để React render.

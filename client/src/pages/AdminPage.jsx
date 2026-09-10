@@ -69,11 +69,16 @@ function fileToDataUrl(file) {
 }
 
 function profileIsComplete(account) {
-  return Boolean(account.phone && account.address && account.provinceCode && account.deliveryNote);
+  return Boolean(account.phone && account.address && account.provinceCode && account.districtCode && account.wardCode);
 }
 
 function provinceName(code) {
   return FALLBACK_PROVINCES.find((province) => Number(province.code) === Number(code))?.name || 'Chưa cập nhật';
+}
+
+function paymentLabel(order) {
+  if (order.orderStatus === 'Cancelled' && order.paymentStatus !== 'Paid') return 'Đã hủy';
+  return order.paymentStatus === 'Paid' ? 'Đã thanh toán' : 'Chờ thanh toán';
 }
 
 function formatDate(value) {
@@ -113,7 +118,7 @@ function downloadInvoice(order) {
     <p>Tiền hàng: ${formatPrice(order.subtotal)}</p>
     <p>Phí vận chuyển: ${formatPrice(order.shippingFee)}</p>
     <p class="total"><strong>Tổng cộng: ${formatPrice(order.totalAmount)}</strong></p>
-    <small>Trạng thái: ${safeText(ORDER_LABELS[order.orderStatus] || order.orderStatus)} · ${order.paymentStatus === 'Paid' ? 'Đã thanh toán' : 'Chờ thanh toán'}</small>
+    <small>Trạng thái: ${safeText(ORDER_LABELS[order.orderStatus] || order.orderStatus)} · ${safeText(paymentLabel(order))}</small>
   </body></html>`;
 
   const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
@@ -141,8 +146,10 @@ function CustomerModal({ account, onClose }) {
           <p><span>Email</span><strong>{account.email}</strong></p>
           <p><span>Số điện thoại</span><strong>{account.phone || 'Chưa cập nhật'}</strong></p>
           <p><span>Tỉnh / Thành phố</span><strong>{provinceName(account.provinceCode)}</strong></p>
+          <p><span>Quận / Huyện</span><strong>{account.districtName || 'Chưa cập nhật'}</strong></p>
+          <p><span>Phường / Xã</span><strong>{account.wardName || 'Chưa cập nhật'}</strong></p>
           <p><span>Địa chỉ</span><strong>{account.address || 'Chưa cập nhật'}</strong></p>
-          <p><span>Ghi chú giao hàng</span><strong>{account.deliveryNote || 'Chưa cập nhật'}</strong></p>
+          <p><span>Ghi chú giao hàng (tùy chọn)</span><strong>{account.deliveryNote || 'Không có'}</strong></p>
           <p><span>Ngày tạo tài khoản</span><strong>{formatDate(account.createdAt)}</strong></p>
           <p><span>Trạng thái hồ sơ</span><strong>{profileIsComplete(account) ? 'Đã đủ thông tin' : 'Chưa đủ thông tin'}</strong></p>
           <p><span>Trạng thái tài khoản</span><strong>{account.isActive ? 'Đang hoạt động' : 'Đã khóa'}</strong></p>
@@ -491,7 +498,7 @@ export default function AdminPage() {
                 {orders.map((order) => {
                   const isBank = order.paymentMethod === 'BANK_TRANSFER';
                   const paid = order.paymentStatus === 'Paid';
-                  const canConfirmPayment = !paid && (isBank || order.orderStatus === 'Delivered');
+                  const canConfirmPayment = order.orderStatus !== 'Cancelled' && !paid && (isBank || order.orderStatus === 'Delivered');
                   const nextStates = isSuperadmin && order.orderStatus !== 'Cancelled'
                     ? ['Pending', 'Processing', 'Shipped', 'Delivered']
                     : (ORDER_TRANSITIONS[order.orderStatus] || []);
@@ -504,7 +511,7 @@ export default function AdminPage() {
                       <td><strong>{formatPrice(order.totalAmount)}</strong></td>
                       <td><span className={`payment-badge ${isBank ? 'bank' : 'cod'}`}>{isBank ? 'Chuyển khoản QR' : 'COD'}</span></td>
                       <td>
-                        <span>{paid ? 'Đã thanh toán' : 'Chờ thanh toán'}</span>
+                        <span>{paymentLabel(order)}</span>
                         {canConfirmPayment && <button className="text-button admin-payment-button" type="button" disabled={isWorking} onClick={() => updateOrder(order._id, { paymentStatus: 'Paid' })}>Xác nhận thanh toán</button>}
                       </td>
                       <td>

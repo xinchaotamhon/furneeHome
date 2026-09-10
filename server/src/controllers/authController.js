@@ -30,8 +30,12 @@ function userData(user) {
     phone: user.phone || '',
     address: user.address || '',
     provinceCode: user.provinceCode || '',
+    districtCode: user.districtCode || '',
+    districtName: user.districtName || '',
+    wardCode: user.wardCode || '',
+    wardName: user.wardName || '',
     deliveryNote: user.deliveryNote || '',
-    profileComplete: Boolean(user.phone && user.address && user.provinceCode && user.deliveryNote),
+    profileComplete: Boolean(user.phone && user.address && user.provinceCode && user.districtCode && user.wardCode),
     role: user.role,
   };
 }
@@ -107,10 +111,13 @@ async function completeRegistration(req, res, next) {
 
 async function login(req, res, next) {
   try {
-    const identity = String(req.body.identity || req.body.username || req.body.email || '').trim().toLowerCase();
+    const email = normalizeEmail(req.body.email);
     const password = String(req.body.password || '');
-    if (!identity || !password) return res.status(400).json({ success: false, message: 'Vui lòng nhập email hoặc tên đăng nhập và mật khẩu.', data: null });
-    const user = await User.findOne({ isActive: true, $or: [{ email: identity }, { username: identity }] });
+    if (!isValidEmail(email) || !password) return res.status(400).json({ success: false, message: 'Vui lòng nhập email và mật khẩu.', data: null });
+    const user = await User.findOne({ email });
+    if (user && !user.isActive) {
+      return res.status(403).json({ success: false, message: 'Tài khoản đã bị khóa.', data: null });
+    }
     const passwordMatches = user ? await bcrypt.compare(password, user.password) : false;
     if (!user || !passwordMatches || user.emailVerified === false) {
       return res.status(401).json({ success: false, message: 'Email/tên đăng nhập hoặc mật khẩu không chính xác.', data: null });

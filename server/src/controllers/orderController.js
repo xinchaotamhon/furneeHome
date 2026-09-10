@@ -219,7 +219,11 @@ async function cancelOrder(orderId, extraFilter = {}) {
   if (!existing) throw createError('Đơn hàng không còn có thể hủy hoặc đã được xử lý.', 409);
   const order = await Order.findOneAndUpdate(
     { _id: orderId, ...extraFilter, orderStatus: { $in: CUSTOMER_CANCELLABLE }, stockRestored: false },
-    { $set: { orderStatus: 'Cancelled', stockRestored: true } },
+    { $set: {
+      orderStatus: 'Cancelled',
+      paymentStatus: existing.paymentStatus === 'Paid' ? 'Paid' : 'Cancelled',
+      stockRestored: true,
+    } },
     { returnDocument: 'after' },
   );
   if (!order) throw createError('Đơn hàng vừa được thay đổi, vui lòng tải lại.', 409);
@@ -235,7 +239,11 @@ async function cancelOrder(orderId, extraFilter = {}) {
       await Product.updateOne({ _id: item.product, stock: { $gte: item.qty } }, { $inc: { stock: -item.qty } });
     }
     await Order.updateOne({ _id: order._id, orderStatus: 'Cancelled', stockRestored: true }, {
-      $set: { orderStatus: existing.orderStatus, stockRestored: false },
+      $set: {
+        orderStatus: existing.orderStatus,
+        paymentStatus: existing.paymentStatus,
+        stockRestored: false,
+      },
     });
     throw error;
   }
