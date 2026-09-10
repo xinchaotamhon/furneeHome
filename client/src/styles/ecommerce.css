@@ -533,6 +533,107 @@
   color: var(--color-primary-dark);
 }
 
+.profile-required-backdrop {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(14 25 20 / 58%);
+  backdrop-filter: blur(4px);
+}
+
+.profile-required-dialog {
+  width: min(460px, 100%);
+  padding: 32px;
+  border: 1px solid #b9d9ca;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgb(14 59 40 / 24%);
+  text-align: center;
+}
+
+.profile-required-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 14px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--color-primary);
+  font-size: 1.5rem;
+}
+
+.profile-required-dialog h1 {
+  margin: 4px 0 12px;
+  color: var(--color-primary-dark);
+  font-size: 1.45rem;
+}
+
+.profile-required-dialog p:not(.eyebrow) {
+  margin-bottom: 22px;
+  color: var(--color-muted);
+  line-height: 1.6;
+}
+
+.delivery-address-card {
+  border-color: #b9d9ca;
+  background: #f4faf6;
+}
+
+.delivery-address-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.delivery-address-heading h2 {
+  margin-bottom: 14px;
+  color: var(--color-primary);
+}
+
+.delivery-address-change {
+  border: 0;
+  color: var(--color-primary);
+  background: transparent;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.delivery-address-change:hover {
+  text-decoration: underline;
+}
+
+.delivery-address-content {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  color: var(--color-text);
+}
+
+.delivery-address-content strong {
+  font-size: 1rem;
+}
+
+.delivery-address-content span {
+  flex: 1 1 300px;
+  line-height: 1.5;
+}
+
+.delivery-address-content em {
+  padding: 3px 8px;
+  border: 1px solid #8fc6a9;
+  color: var(--color-primary);
+  background: #e1f3e8;
+  font-size: .75rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
 .payment-options {
   display: flex;
   flex-direction: column;

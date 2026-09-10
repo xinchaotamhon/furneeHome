@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import orderService from '../services/orderService';
@@ -14,6 +14,14 @@ import {
 import { validateVietnamPhone, validateSpecificAddress } from '../utils/validation';
 import QrPaymentCard from '../components/payment/QrPaymentCard';
 
+function hasCompleteDeliveryProfile(user) {
+  return Boolean(user?.name?.trim() && user?.phone && user?.address?.trim() && user?.provinceCode && user?.deliveryNote?.trim());
+}
+
+function provinceName(code) {
+  return FALLBACK_PROVINCES.find((province) => Number(province.code) === Number(code))?.name || 'Việt Nam';
+}
+
 export default function CheckoutPage() {
   const {
     items: allCartItems,
@@ -22,13 +30,26 @@ export default function CheckoutPage() {
     selectedCount,
     clearPurchasedItems,
   } = useCart();
+  const location = useLocation();
+  const buyNowItem = location.state?.buyNowItem;
 
   // Chỉ thanh toán các sản phẩm được tích chọn (hoặc tất cả nếu chưa chọn lọc)
-  const items = selectedItems.length > 0 ? selectedItems : allCartItems;
-  const rawSubtotal = selectedItems.length > 0 ? selectedSubtotal : allCartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const totalCount = selectedItems.length > 0 ? selectedCount : allCartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const items = buyNowItem ? [buyNowItem] : (selectedItems.length > 0 ? selectedItems : allCartItems);
+  const rawSubtotal = buyNowItem
+    ? buyNowItem.price * buyNowItem.quantity
+    : (selectedItems.length > 0 ? selectedSubtotal : allCartItems.reduce((sum, item) => sum + item.price * item.quantity, 0));
+  const totalCount = buyNowItem
+    ? buyNowItem.quantity
+    : (selectedItems.length > 0 ? selectedCount : allCartItems.reduce((sum, item) => sum + item.quantity, 0));
   const { user, openLogin } = useAuth();
   const navigate = useNavigate();
+  const profileComplete = hasCompleteDeliveryProfile(user);
+  const openProfile = () => navigate('/profile', {
+    state: {
+      returnToCheckout: true,
+      checkoutState: location.state,
+    },
+  });
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -134,6 +155,24 @@ export default function CheckoutPage() {
     );
   }
 
+  if (!profileComplete) {
+    return (
+      <main className="container page checkout-page">
+        <div className="profile-required-backdrop" role="dialog" aria-modal="true" aria-labelledby="profile-required-title">
+          <div className="profile-required-dialog">
+            <div className="profile-required-icon" aria-hidden="true">⌖</div>
+            <p className="eyebrow">THÔNG TIN GIAO HÀNG</p>
+            <h1 id="profile-required-title">Cập nhật thông tin trước khi mua</h1>
+            <p>Vui lòng điền họ tên, số điện thoại và địa chỉ nhận hàng trong hồ sơ. Sau khi lưu, bạn sẽ được quay lại trang thanh toán này.</p>
+            <button className="button button-full" type="button" onClick={openProfile}>
+              Đi đến trang hồ sơ
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   // Tính tiền phí ship theo quy tắc
   const shippingInfo = calculateShippingFee(selectedProvince);
   const shippingFee = shippingInfo.fee;
@@ -188,7 +227,7 @@ export default function CheckoutPage() {
         paymentMethod,
       });
       const purchasedIds = items.map((item) => item.product._id || item.product.id);
-      clearPurchasedItems(purchasedIds);
+      if (!buyNowItem) clearPurchasedItems(purchasedIds);
       setResult(order);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Không thể tạo đơn hàng. Hãy thử lại.');
@@ -296,27 +335,16 @@ export default function CheckoutPage() {
           </div>
 
           {/* Form thông tin giao nhận */}
-          <div className="checkout-section-card">
-            <h2>1. Thông tin người nhận</h2>
-            <label>
-              Họ và tên người nhận *
-              <input
-                value={fullName}
-                placeholder="Ví dụ: Nguyễn Văn A"
-                onChange={(event) => setFullName(event.target.value)}
-                required
-              />
-            </label>
-            <label>
-              Số điện thoại người nhận *
-              <input
-                inputMode="tel"
-                value={phone}
-                placeholder="Ví dụ: 0912345678"
-                onChange={(event) => setPhone(event.target.value)}
-                required
-              />
-            </label>
+          <div className="checkout-section-card delivery-address-card">
+            <div className="delivery-address-heading">
+              <h2>⌖ Địa chỉ nhận hàng</h2>
+              <button className="delivery-address-change" type="button" onClick={openProfile}>Thay đổi</button>
+            </div>
+            <div className="delivery-address-content">
+              <strong>{user.name} (+84) {user.phone}</strong>
+              <span>{user.address}, {provinceName(user.provinceCode)}</span>
+              <em>Mặc định</em>
+            </div>
           </div>
 
           <div className="checkout-section-card">

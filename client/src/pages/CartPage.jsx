@@ -12,6 +12,7 @@ export default function CartPage() {
     selectedCount,
     selectedSubtotal,
     isAllSelected,
+    maxSelectedCount,
     toggleItemSelection,
     toggleSelectAll,
     updateQuantity,
@@ -48,7 +49,7 @@ export default function CartPage() {
           <p className="eyebrow">GIỎ HÀNG</p>
           <h1>Đơn hàng của bạn</h1>
           <p>
-            Đã chọn <strong>{selectedCount}</strong> / {totalCount} món
+            Đã chọn <strong>{selectedCount}</strong> / {totalCount} món (tối đa {maxSelectedCount} món)
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -83,6 +84,7 @@ export default function CartPage() {
           {items.map((item) => {
             const id = idOf(item);
             const isChecked = item.selected !== false;
+            const selectionBlocked = !isChecked && selectedCount + item.quantity > maxSelectedCount;
 
             return (
               <article className={`cart-item-row ${isChecked ? 'is-selected' : ''}`} key={id}>
@@ -91,7 +93,9 @@ export default function CartPage() {
                     type="checkbox"
                     className="cart-checkbox"
                     checked={isChecked}
+                    disabled={selectionBlocked}
                     onChange={() => toggleItemSelection(id)}
+                    title={selectionBlocked ? `Chỉ có thể chọn tối đa ${maxSelectedCount} món` : undefined}
                     aria-label={`Chọn sản phẩm ${item.name}`}
                   />
                 </div>
@@ -103,6 +107,12 @@ export default function CartPage() {
                     <div className="item-thumbnail-placeholder">⌂</div>
                   )}
                   <div>
+
+                  {selectedCount >= maxSelectedCount && (
+                    <p className="form-error" style={{ margin: '12px 0 0' }}>
+                      Bạn đã chọn tối đa {maxSelectedCount} món.
+                    </p>
+                  )}
                     <Link className="item-title" to={`/products/${id}`}>
                       {item.name}
                     </Link>

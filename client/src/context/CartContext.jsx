@@ -3,6 +3,7 @@ import { clearStoredCart, cartService, getStoredCart, saveStoredCart } from '../
 import { useAuth } from './AuthContext';
 
 const CartContext = createContext(null);
+const MAX_SELECTED_COUNT = 100;
 const productId = (product) => String(product?._id || product?.id || '');
 const stockOf = (product) => {
   const value = Number(product?.stock ?? product?.countInStock ?? 99);
@@ -17,6 +18,17 @@ const fromRemote = (cart) => (cart?.items || []).map((item) => ({
   selected: item.selected !== false,
 })).filter((item) => productId(item.product));
 
+const normalizeSelection = (cartItems) => {
+  let selectedCount = 0;
+  return cartItems.map((item) => {
+    if (item.selected === false || selectedCount + item.quantity > MAX_SELECTED_COUNT) {
+      return { ...item, selected: false };
+    }
+    selectedCount += item.quantity;
+    return item;
+  });
+};
+
 export function CartProvider({ children }) {
   const { user } = useAuth();
   const userId = user?._id || user?.id || null;
@@ -24,7 +36,7 @@ export function CartProvider({ children }) {
   const skipSaveRef = useRef(false);
 
   // Khởi tạo giỏ hàng từ localStorage theo userId hiện tại
-  const [items, setItems] = useState(() => getStoredCart(userId));
+  const [items, setItems] = useState(() => normalizeSelection(getStoredCart(userId)));
 
   // Khi user thay đổi (đăng nhập / đăng xuất / đổi tài khoản)
   useEffect(() => {
@@ -41,7 +53,7 @@ export function CartProvider({ children }) {
     }
 
     // Đăng nhập / đổi tài khoản → tải giỏ hàng local của tài khoản mới
-    setItems(getStoredCart(userId));
+    setItems(normalizeSelection(getStoredCart(userId)));
   }, [userId]);
 
   // Lưu vào localStorage mỗi khi items thay đổi (theo key của user hiện tại)
@@ -66,7 +78,7 @@ export function CartProvider({ children }) {
           productId: productId(item.product),
           quantity: item.quantity,
         })));
-        if (active) setItems(fromRemote(cart));
+        if (active) setItems(normalizeSelection(fromRemote(cart)));
       } catch {
         // Guest storage remains available if the signed-in cart cannot be reached.
       }
@@ -89,17 +101,38 @@ export function CartProvider({ children }) {
       selectedCount,
       selectedSubtotal,
       isAllSelected,
+      maxSelectedCount: MAX_SELECTED_COUNT,
       toggleItemSelection(id) {
-        setItems((current) => current.map((item) => (
-          productId(item.product) === String(id)
-            ? { ...item, selected: item.selected === false }
-            : item
-        )));
+        setItems((current) => {
+          const target = current.find((item) => productId(item.product) === String(id));
+          if (!target) return current;
+          if (target.selected === false) {
+            const currentSelectedCount = current.reduce(
+              (sum, item) => sum + (item.selected !== false ? item.quantity : 0),
+              0,
+            );
+            if (currentSelectedCount + target.quantity > MAX_SELECTED_COUNT) return current;
+          }
+          return current.map((item) => (
+            productId(item.product) === String(id)
+              ? { ...item, selected: item.selected === false }
+              : item
+          ));
+        });
       },
       toggleSelectAll() {
         setItems((current) => {
           const nextState = !current.every((item) => item.selected !== false);
-          return current.map((item) => ({ ...item, selected: nextState }));
+          if (!nextState) return current.map((item) => ({ ...item, selected: false }));
+
+          let selectedCount = 0;
+          return current.map((item) => {
+            if (selectedCount + item.quantity > MAX_SELECTED_COUNT) {
+              return { ...item, selected: false };
+            }
+            selectedCount += item.quantity;
+            return { ...item, selected: true };
+          });
         });
       },
       addToCart(product, quantity = 1) {
@@ -109,6 +142,10 @@ export function CartProvider({ children }) {
         const qty = Math.min(stock, Math.max(1, Number(quantity) || 1));
         setItems((current) => {
           const existing = current.find((item) => productId(item.product) === id);
+          const selectedCount = current.reduce(
+            (sum, item) => sum + (item.selected !== false ? item.quantity : 0),
+            0,
+          );
           if (!existing) {
             return [
               ...current,
@@ -118,12 +155,22 @@ export function CartProvider({ children }) {
                 price: Number(product.price) || 0,
                 name: product.name,
                 image: product.image || product.transparentImage || product.sourceImages?.[0] || '',
-                selected: true,
+                selected: selectedCount + qty <= MAX_SELECTED_COUNT,
               },
             ];
           }
+          const nextQuantity = Math.min(stock, existing.quantity + qty);
+          const otherSelectedCount = selectedCount - (
+            existing.selected !== false ? existing.quantity : 0
+          );
           return current.map((item) => productId(item.product) === id
-            ? { ...item, product, quantity: Math.min(stock, item.quantity + qty), price: Number(product.price) || 0, selected: true }
+            ? {
+              ...item,
+              product,
+              quantity: nextQuantity,
+              price: Number(product.price) || 0,
+              selected: otherSelectedCount + nextQuantity <= MAX_SELECTED_COUNT,
+            }
             : item);
         });
         sync(() => cartService.add(id, qty));
@@ -136,7 +183,19 @@ export function CartProvider({ children }) {
           sync(() => cartService.remove(id));
           return;
         }
-        setItems((current) => current.map((item) => productId(item.product) === String(id) ? { ...item, quantity: Math.min(stockOf(item.product), qty) } : item));
+        setItems((current) => current.map((item) => {
+          if (productId(item.product) !== String(id)) return item;
+          const nextQuantity = Math.min(stockOf(item.product), qty);
+          if (item.selected === false) return { ...item, quantity: nextQuantity };
+          const otherSelectedCount = current.reduce(
+            (sum, currentItem) => sum + (
+              currentItem !== item && currentItem.selected !== false ? currentItem.quantity : 0
+            ),
+            0,
+          );
+          if (otherSelectedCount + nextQuantity > MAX_SELECTED_COUNT) return item;
+          return { ...item, quantity: nextQuantity };
+        }));
         sync(() => cartService.update(id, qty));
       },
       removeFromCart(id) {
