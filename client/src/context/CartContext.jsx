@@ -22,6 +22,7 @@ export function CartProvider({ children }) {
   const userId = user?._id || user?.id || null;
   const prevUserIdRef = useRef(userId);
   const skipSaveRef = useRef(false);
+  const pendingGuestSyncRef = useRef([]);
 
   // Khởi tạo giỏ hàng từ localStorage theo userId hiện tại
   const [items, setItems] = useState(() => getStoredCart(userId));
@@ -36,12 +37,45 @@ export function CartProvider({ children }) {
 
     if (!userId) {
       // Đăng xuất → xóa sạch giỏ hàng hiển thị (không xóa storage của user cũ)
+      pendingGuestSyncRef.current = [];
       setItems([]);
       return;
     }
 
+    const storedUserCart = getStoredCart(userId);
+    const guestCart = getStoredCart(null);
+    pendingGuestSyncRef.current = guestCart;
+
+    if (guestCart.length > 0) {
+      const mergedItems = [...storedUserCart];
+      const existingById = new Map(mergedItems.map((item) => [productId(item.product), item]));
+
+      guestCart.forEach((item) => {
+        const id = productId(item.product);
+        if (!id) return;
+        const existing = existingById.get(id);
+
+        if (existing) {
+          existing.quantity = Math.min(stockOf(existing.product || item.product), existing.quantity + (item.quantity || 1));
+          existing.price = Number(existing.price ?? item.price ?? 0) || 0;
+          existing.selected = existing.selected !== false;
+          return;
+        }
+
+        mergedItems.push({
+          ...item,
+          selected: item.selected !== false,
+        });
+      });
+
+      setItems(mergedItems);
+      saveStoredCart(mergedItems, userId);
+      clearStoredCart(null);
+      return;
+    }
+
     // Đăng nhập / đổi tài khoản → tải giỏ hàng local của tài khoản mới
-    setItems(getStoredCart(userId));
+    setItems(storedUserCart);
   }, [userId]);
 
   // Lưu vào localStorage mỗi khi items thay đổi (theo key của user hiện tại)
@@ -61,14 +95,17 @@ export function CartProvider({ children }) {
     let active = true;
     (async () => {
       try {
-        const local = getStoredCart(userId);
-        const cart = await cartService.sync(local.map((item) => ({
-          productId: productId(item.product),
-          quantity: item.quantity,
-        })));
+        const guestItems = pendingGuestSyncRef.current;
+        pendingGuestSyncRef.current = [];
+        const cart = guestItems.length > 0
+          ? await cartService.sync(guestItems.map((item) => ({
+            productId: productId(item.product),
+            quantity: item.quantity,
+          })))
+          : await cartService.get();
         if (active) setItems(fromRemote(cart));
       } catch {
-        // Guest storage remains available if the signed-in cart cannot be reached.
+        // Guest cart content has already been merged into the signed-in cart before this sync.
       }
     })();
     return () => { active = false; };

@@ -54,7 +54,7 @@ npm install
 Tạo file `.env` ở thư mục gốc:
 
 ```env
-MONGO_URI=mongodb_connection_string
+MONGO_URI=mongodb_connection_string 
 JWT_SECRET=random_secret
 CLIENT_URL=http://localhost:5173
 

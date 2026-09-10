@@ -80,6 +80,13 @@ export default function LoginModal() {
         if (loggedInUser.role === 'admin' || loggedInUser.role === 'superadmin') navigate('/admin');
       }
     } catch (submitError) {
+      if (view === 'forgot' && submitError.response?.data?.code === 'EMAIL_NOT_REGISTERED') {
+        const email = form.email.trim();
+        setForm({ ...emptyForm, email });
+        setView('register-email');
+        setNotice('Email chưa được đăng ký. Hãy tạo tài khoản để tiếp tục.');
+        return;
+      }
       setError(submitError.response?.data?.message || submitError.message || 'Không thể thực hiện yêu cầu.');
     } finally { setIsSubmitting(false); }
   };
@@ -93,7 +100,7 @@ export default function LoginModal() {
       <h2 id="auth-modal-title">{title}</h2>
       {view === 'register-email' && <label>Email<input type="email" value={form.email} onChange={updateField('email')} autoComplete="email" required /></label>}
       {view === 'register-complete' && <><p className="muted">Email {form.email}</p><label>Họ và tên<input type="text" value={form.name} onChange={updateField('name')} autoComplete="name" maxLength="80" required /></label><label>Mã xác minh<input inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={form.otp} onChange={updateField('otp')} autoComplete="one-time-code" required /></label></>}
-      {view === 'login' && <label>Email hoặc tên đăng nhập<input type="text" value={form.identity} onChange={updateField('identity')} autoComplete="username" required /></label>}
+      {view === 'login' && <label>Email<input type="text" value={form.identity} onChange={updateField('identity')} autoComplete="text" required /></label>}
       {(view === 'forgot' || view === 'reset') && <label>Email<input type="email" value={form.email} onChange={updateField('email')} autoComplete="email" readOnly={view === 'reset'} required /></label>}
       {view === 'reset' && <label>Mã xác minh<input inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={form.otp} onChange={updateField('otp')} autoComplete="one-time-code" required /></label>}
       {(view === 'login' || view === 'register-complete' || view === 'reset') && (
@@ -164,7 +171,7 @@ export default function LoginModal() {
           </div>
         </label>
       )}
-      {view === 'login' && <label className="remember-login"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /><span>Ghi nhớ email hoặc tên đăng nhập</span></label>}
+      {view === 'login' && <label className="remember-login"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /><span>Ghi nhớ email đăng nhập</span></label>}
       {notice && <p className="form-success" role="status">{notice}</p>}
       {error && <p className="form-error" role="alert">{error}</p>}
       <button className="button" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Đang xử lý…' : submitText}</button>
