@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -6,6 +7,7 @@ import { formatPrice } from '../utils/formatPrice';
 const idOf = (item) => item.product?._id || item.product?.id;
 
 export default function CartPage() {
+  const [draftQuantities, setDraftQuantities] = useState({});
   const navigate = useNavigate();
   const { user, openLogin } = useAuth();
   const {
@@ -47,6 +49,19 @@ export default function CartPage() {
 
   const continueToCheckout = () => {
     navigate('/checkout');
+  };
+
+  const handleQuantityChange = (id, value) => {
+    setDraftQuantities((current) => ({ ...current, [id]: value }));
+    if (value !== '') updateQuantity(id, value);
+  };
+
+  const finishQuantityEdit = (id) => {
+    setDraftQuantities((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
   };
 
   return (
@@ -136,8 +151,9 @@ export default function CartPage() {
                   type="number"
                   min="1"
                   max={item.product?.stock ?? item.product?.countInStock ?? 99}
-                  value={item.quantity}
-                  onChange={(event) => updateQuantity(id, event.target.value)}
+                  value={draftQuantities[id] ?? item.quantity}
+                  onChange={(event) => handleQuantityChange(id, event.target.value)}
+                  onBlur={() => finishQuantityEdit(id)}
                 />
 
                 <strong>{formatPrice(item.price * item.quantity)}</strong>
