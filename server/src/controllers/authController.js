@@ -21,7 +21,19 @@ async function sendOtp(email, otp, subject, text) {
 }
 
 function userData(user) {
-  return { id: user._id, name: user.name, username: user.username || '', email: user.email, avatarUrl: user.avatarUrl || '', role: user.role };
+  return {
+    id: user._id,
+    name: user.name,
+    username: user.username || '',
+    email: user.email,
+    avatarUrl: user.avatarUrl || '',
+    phone: user.phone || '',
+    address: user.address || '',
+    provinceCode: user.provinceCode || '',
+    deliveryNote: user.deliveryNote || '',
+    profileComplete: Boolean(user.phone && user.address && user.provinceCode && user.deliveryNote),
+    role: user.role,
+  };
 }
 
 function authResponse(user) {
@@ -62,7 +74,7 @@ async function completeRegistration(req, res, next) {
     const name = String(req.body.name || '').trim();
     const username = String(req.body.username || '').trim().toLowerCase();
     const password = String(req.body.password || '');
-    if (!isValidEmail(email) || !/^\d{6}$/.test(otp) || !name || name.length > 80 || password.length < 6 || !validUsername(username)) {
+    if (!isValidEmail(email) || !/^\d{6}$/.test(otp) || !name || name.length > 80 || password.length < 6 || (username && !validUsername(username))) {
       return res.status(400).json({ success: false, message: 'Thông tin đăng ký không hợp lệ.', data: null });
     }
     const user = await User.findOne({ email, emailVerified: false }).select('+registrationOtpHash +registrationOtpExpiresAt +registrationOtpAttempts');

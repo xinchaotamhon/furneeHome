@@ -3,6 +3,7 @@ import ProductArtwork from '../components/product/ProductArtwork';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../context/ProductContext';
 import feedbackService from '../services/feedbackService';
+import { FALLBACK_PROVINCES } from '../services/locationService';
 import orderService from '../services/orderService';
 import userService from '../services/userService';
 import { formatPrice } from '../utils/formatPrice';
@@ -67,6 +68,131 @@ function fileToDataUrl(file) {
   });
 }
 
+function profileIsComplete(account) {
+  return Boolean(account.phone && account.address && account.provinceCode && account.deliveryNote);
+}
+
+function provinceName(code) {
+  return FALLBACK_PROVINCES.find((province) => Number(province.code) === Number(code))?.name || 'Chưa cập nhật';
+}
+
+function formatDate(value) {
+  return value ? new Date(value).toLocaleString('vi-VN') : 'Chưa có';
+}
+
+function safeText(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
+
+function downloadInvoice(order) {
+  const orderCode = order.orderNumber || String(order._id).slice(-8).toUpperCase();
+  const itemRows = (order.orderItems || []).map((item) => `
+    <tr>
+      <td>${safeText(item.name)}</td>
+      <td>${item.qty ?? item.quantity}</td>
+      <td>${formatPrice(item.price)}</td>
+      <td>${formatPrice(item.price * (item.qty ?? item.quantity))}</td>
+    </tr>
+  `).join('');
+
+  const html = `<!doctype html>
+  <html lang="vi"><head><meta charset="utf-8"><title>Hóa đơn ${safeText(orderCode)}</title>
+  <style>body{max-width:800px;margin:40px auto;font:16px Arial;color:#202820}h1{color:#17583f}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{padding:10px;border:1px solid #ccd5ce;text-align:left}.total{text-align:right;font-size:20px}small{color:#667}</style>
+  </head><body>
+    <h1>FurneeHome</h1>
+    <h2>Hóa đơn ${safeText(orderCode)}</h2>
+    <p>Ngày tạo: ${safeText(formatDate(order.createdAt))}</p>
+    <p>Khách hàng: ${safeText(order.shippingAddress?.fullName)}</p>
+    <p>Số điện thoại: ${safeText(order.shippingAddress?.phone)}</p>
+    <p>Địa chỉ: ${safeText(order.shippingAddress?.address)}</p>
+    <table><thead><tr><th>Sản phẩm</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead><tbody>${itemRows}</tbody></table>
+    <p>Tiền hàng: ${formatPrice(order.subtotal)}</p>
+    <p>Phí vận chuyển: ${formatPrice(order.shippingFee)}</p>
+    <p class="total"><strong>Tổng cộng: ${formatPrice(order.totalAmount)}</strong></p>
+    <small>Trạng thái: ${safeText(ORDER_LABELS[order.orderStatus] || order.orderStatus)} · ${order.paymentStatus === 'Paid' ? 'Đã thanh toán' : 'Chờ thanh toán'}</small>
+  </body></html>`;
+
+  const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `hoa-don-${orderCode}.html`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function CustomerModal({ account, onClose }) {
+  if (!account) return null;
+  return (
+    <div className="modal-backdrop" onMouseDown={onClose}>
+      <section className="modal-dialog admin-detail-modal" role="dialog" aria-modal="true" aria-labelledby="customer-title" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="modal-header">
+          <h2 id="customer-title">Hồ sơ khách hàng</h2>
+          <button className="btn-close" type="button" aria-label="Đóng" onClick={onClose}>×</button>
+        </header>
+        <div className="modal-body customer-profile-grid">
+          <p><span>Họ tên</span><strong>{account.name}</strong></p>
+          <p><span>Tên tài khoản</span><strong>{account.username ? `@${account.username}` : 'Chưa có'}</strong></p>
+          <p><span>Email</span><strong>{account.email}</strong></p>
+          <p><span>Số điện thoại</span><strong>{account.phone || 'Chưa cập nhật'}</strong></p>
+          <p><span>Tỉnh / Thành phố</span><strong>{provinceName(account.provinceCode)}</strong></p>
+          <p><span>Địa chỉ</span><strong>{account.address || 'Chưa cập nhật'}</strong></p>
+          <p><span>Ghi chú giao hàng</span><strong>{account.deliveryNote || 'Chưa cập nhật'}</strong></p>
+          <p><span>Ngày tạo tài khoản</span><strong>{formatDate(account.createdAt)}</strong></p>
+          <p><span>Trạng thái hồ sơ</span><strong>{profileIsComplete(account) ? 'Đã đủ thông tin' : 'Chưa đủ thông tin'}</strong></p>
+          <p><span>Trạng thái tài khoản</span><strong>{account.isActive ? 'Đang hoạt động' : 'Đã khóa'}</strong></p>
+        </div>
+        <footer className="modal-footer"><button className="text-button" type="button" onClick={onClose}>Đóng</button></footer>
+      </section>
+    </div>
+  );
+}
+
+function InvoiceModal({ order, onClose }) {
+  if (!order) return null;
+  const orderCode = order.orderNumber || String(order._id).slice(-8).toUpperCase();
+  return (
+    <div className="modal-backdrop" onMouseDown={onClose}>
+      <section className="modal-dialog admin-detail-modal" role="dialog" aria-modal="true" aria-labelledby="invoice-title" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="modal-header">
+          <h2 id="invoice-title">Hóa đơn {orderCode}</h2>
+          <button className="btn-close" type="button" aria-label="Đóng" onClick={onClose}>×</button>
+        </header>
+        <div className="modal-body">
+          <div className="detail-meta-grid">
+            <div><strong>Khách hàng</strong><p>{order.shippingAddress?.fullName}</p><p>{order.shippingAddress?.phone}</p></div>
+            <div><strong>Ngày tạo</strong><p>{formatDate(order.createdAt)}</p><p>{ORDER_LABELS[order.orderStatus] || order.orderStatus}</p></div>
+          </div>
+          <p><strong>Địa chỉ:</strong> {order.shippingAddress?.address}</p>
+          {order.shippingAddress?.note && <p><strong>Ghi chú:</strong> {order.shippingAddress.note}</p>}
+          <div className="modal-items-table">
+            {(order.orderItems || []).map((item, index) => (
+              <div className="modal-item-row" key={`${item.product || item.name}-${index}`}>
+                <span>{item.name} × {item.qty ?? item.quantity}</span>
+                <strong>{formatPrice(item.price * (item.qty ?? item.quantity))}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="modal-total-box">
+            <div className="row"><span>Tiền hàng</span><strong>{formatPrice(order.subtotal)}</strong></div>
+            <div className="row"><span>Phí vận chuyển</span><strong>{formatPrice(order.shippingFee)}</strong></div>
+            <div className="row total"><span>Tổng cộng</span><strong>{formatPrice(order.totalAmount)}</strong></div>
+          </div>
+        </div>
+        <footer className="modal-footer">
+          <button className="text-button" type="button" onClick={onClose}>Đóng</button>
+          <button className="button" type="button" onClick={() => downloadInvoice(order)}>Tải hóa đơn</button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { user } = useAuth();
   const {
@@ -94,6 +220,8 @@ export default function AdminPage() {
   const [uploadingId, setUploadingId] = useState('');
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const isSuperadmin = user?.role === 'superadmin';
 
   const filterCategories = useMemo(() => {
@@ -314,12 +442,94 @@ export default function AdminPage() {
       </section>
     </div>}
 
-    {tab === 'customers' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Khách hàng ({customers.length})</h2><button className="text-button" type="button" onClick={() => loadUsers('customers')}>Tải lại</button></div>{isWorking && !customers.length ? <p className="muted">Đang tải…</p> : <div className="admin-user-list">{customers.map((account) => { const id = account._id || account.id; return <article key={id}><div><strong>{account.name}</strong><span>{account.username ? `@${account.username} · ` : ''}{account.email}</span></div><span className="admin-role">Khách hàng</span><button type="button" className={account.isActive ? 'admin-delete' : 'admin-edit'} onClick={() => updateAccount(id, { isActive: !account.isActive })} disabled={isWorking}>{account.isActive ? 'Khóa' : 'Mở khóa'}</button></article>; })}</div>}</section>}
+    {tab === 'customers' && (
+      <section className="panel-card admin-table-card">
+        <div className="section-title">
+          <h2>Khách hàng ({customers.length})</h2>
+          <button className="text-button" type="button" onClick={() => loadUsers('customers')}>Tải lại</button>
+        </div>
+        {isWorking && !customers.length ? <p className="muted">Đang tải…</p> : (
+          <div className="admin-user-list">
+            {customers.map((account) => {
+              const id = account._id || account.id;
+              return (
+                <article key={id}>
+                  <div><strong>{account.name}</strong><span>{account.email}</span></div>
+                  <span className={profileIsComplete(account) ? 'profile-badge complete' : 'profile-badge'}>
+                    {profileIsComplete(account) ? 'Đủ thông tin' : 'Chưa đủ'}
+                  </span>
+                  <div className="row-actions">
+                    <button className="admin-edit" type="button" onClick={() => setSelectedCustomer(account)}>Xem hồ sơ</button>
+                    <button
+                      type="button"
+                      className={account.isActive ? 'admin-delete' : 'admin-edit'}
+                      onClick={() => updateAccount(id, { isActive: !account.isActive })}
+                      disabled={isWorking}
+                    >
+                      {account.isActive ? 'Khóa' : 'Mở khóa'}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    )}
 
-    {tab === 'orders' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Đơn hàng ({orders.length})</h2><button className="text-button" type="button" onClick={loadOrders}>Tải lại</button></div>{isWorking && !orders.length ? <p className="muted">Đang tải…</p> : !orders.length ? <p className="muted">Chưa có đơn hàng.</p> : <div className="admin-table-container"><table className="admin-table"><thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Sản phẩm</th><th>Tổng tiền</th><th>Phương thức</th><th>Thanh toán</th><th>Trạng thái đơn</th></tr></thead><tbody>{orders.map((order) => { const isBank = order.paymentMethod === 'BANK_TRANSFER'; const paid = order.paymentStatus === 'Paid'; const canConfirmPayment = !paid && (isBank || order.orderStatus === 'Delivered'); const nextStates = isSuperadmin && order.orderStatus !== 'Cancelled' ? ['Pending', 'Processing', 'Shipped', 'Delivered'] : (ORDER_TRANSITIONS[order.orderStatus] || []); return <tr key={order._id}><td><strong>{order.orderNumber || String(order._id).slice(-8).toUpperCase()}</strong></td><td>{order.shippingAddress?.fullName}<br /><small>{order.shippingAddress?.phone}</small></td><td>{(order.orderItems || []).map((item) => `${item.name} × ${item.qty ?? item.quantity}`).join(', ')}</td><td><strong>{formatPrice(order.totalAmount)}</strong></td><td><span className={`payment-badge ${isBank ? 'bank' : 'cod'}`}>{isBank ? 'Chuyển khoản QR' : 'COD'}</span></td><td><span>{paid ? 'Đã thanh toán' : 'Chờ thanh toán'}</span>{canConfirmPayment && <button className="text-button admin-payment-button" type="button" disabled={isWorking} onClick={() => updateOrder(order._id, { paymentStatus: 'Paid' })}>Xác nhận thanh toán</button>}</td><td>{nextStates.length ? <select value={order.orderStatus} disabled={isWorking} onChange={(event) => updateOrder(order._id, { orderStatus: event.target.value })}>{[...new Set([order.orderStatus, ...nextStates])].map((state) => <option key={state} value={state}>{ORDER_LABELS[state]}</option>)}</select> : <span>{ORDER_LABELS[order.orderStatus] || order.orderStatus}</span>}</td></tr>; })}</tbody></table></div>}</section>}
+    {tab === 'orders' && (
+      <section className="panel-card admin-table-card">
+        <div className="section-title">
+          <h2>Đơn hàng ({orders.length})</h2>
+          <button className="text-button" type="button" onClick={loadOrders}>Tải lại</button>
+        </div>
+        {isWorking && !orders.length ? <p className="muted">Đang tải…</p> : !orders.length ? <p className="muted">Chưa có đơn hàng.</p> : (
+          <div className="admin-table-container">
+            <table className="admin-table">
+              <thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Sản phẩm</th><th>Tổng tiền</th><th>Phương thức</th><th>Thanh toán</th><th>Trạng thái đơn</th><th>Hóa đơn</th></tr></thead>
+              <tbody>
+                {orders.map((order) => {
+                  const isBank = order.paymentMethod === 'BANK_TRANSFER';
+                  const paid = order.paymentStatus === 'Paid';
+                  const canConfirmPayment = !paid && (isBank || order.orderStatus === 'Delivered');
+                  const nextStates = isSuperadmin && order.orderStatus !== 'Cancelled'
+                    ? ['Pending', 'Processing', 'Shipped', 'Delivered']
+                    : (ORDER_TRANSITIONS[order.orderStatus] || []);
+
+                  return (
+                    <tr key={order._id}>
+                      <td><strong>{order.orderNumber || String(order._id).slice(-8).toUpperCase()}</strong></td>
+                      <td>{order.shippingAddress?.fullName}<br /><small>{order.shippingAddress?.phone}</small></td>
+                      <td>{(order.orderItems || []).map((item) => `${item.name} × ${item.qty ?? item.quantity}`).join(', ')}</td>
+                      <td><strong>{formatPrice(order.totalAmount)}</strong></td>
+                      <td><span className={`payment-badge ${isBank ? 'bank' : 'cod'}`}>{isBank ? 'Chuyển khoản QR' : 'COD'}</span></td>
+                      <td>
+                        <span>{paid ? 'Đã thanh toán' : 'Chờ thanh toán'}</span>
+                        {canConfirmPayment && <button className="text-button admin-payment-button" type="button" disabled={isWorking} onClick={() => updateOrder(order._id, { paymentStatus: 'Paid' })}>Xác nhận thanh toán</button>}
+                      </td>
+                      <td>
+                        {nextStates.length ? (
+                          <select value={order.orderStatus} disabled={isWorking} onChange={(event) => updateOrder(order._id, { orderStatus: event.target.value })}>
+                            {[...new Set([order.orderStatus, ...nextStates])].map((state) => <option key={state} value={state}>{ORDER_LABELS[state]}</option>)}
+                          </select>
+                        ) : <span>{ORDER_LABELS[order.orderStatus] || order.orderStatus}</span>}
+                      </td>
+                      <td><button className="admin-edit" type="button" onClick={() => setSelectedOrder(order)}>Xem</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    )}
 
     {tab === 'contact' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Báo nội dung ({feedback.length})</h2><button className="text-button" type="button" onClick={loadFeedback}>Tải lại</button></div>{isWorking && !feedback.length ? <p className="muted">Đang tải…</p> : !feedback.length ? <p className="muted">Chưa có báo cáo.</p> : <div className="admin-feedback-list">{feedback.map((item) => <article key={item._id || item.id}><div><strong>{item.targetName || 'Nội dung chung'}</strong><span>{item.user?.email || item.email || 'Khách'}</span><p>{item.content}</p></div><select value={item.status} onChange={(event) => updateFeedback(item._id || item.id, event.target.value)} disabled={isWorking}><option value="new">Mới</option><option value="reviewed">Đã xem</option><option value="resolved">Đã xử lý</option></select></article>)}</div>}</section>}
 
     {isSuperadmin && tab === 'admins' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Quản trị admin ({visibleAdmins.length})</h2><button className="text-button" type="button" onClick={() => loadUsers('admins')}>Tải lại</button></div><input className="admin-search" type="search" value={adminQuery} placeholder="Tìm tên, tên đăng nhập hoặc email" onChange={(event) => setAdminQuery(event.target.value)} />{isWorking && !adminAccounts.length ? <p className="muted">Đang tải…</p> : <div className="admin-user-list">{visibleAdmins.map((account) => { const id = account._id || account.id; const orchestra = account.role === 'superadmin'; return <article key={id}><div><strong>{account.name}</strong><span>{account.username ? `@${account.username} · ` : ''}{account.email}</span></div><span className="admin-role">{orchestra ? 'Orchestra Admin' : 'Admin'}</span>{orchestra ? <span /> : <button type="button" className={account.isActive ? 'admin-delete' : 'admin-edit'} onClick={() => updateAccount(id, { isActive: !account.isActive })} disabled={isWorking}>{account.isActive ? 'Khóa' : 'Mở khóa'}</button>}</article>; })}</div>}</section>}
+
+    <CustomerModal account={selectedCustomer} onClose={() => setSelectedCustomer(null)} />
+    <InvoiceModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
   </main>;
 }

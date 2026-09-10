@@ -40,18 +40,28 @@ export default function CheckoutPage() {
   // Thông tin người nhận
   const [fullName, setFullName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
-  const [specificAddress, setSpecificAddress] = useState('');
-  const [note, setNote] = useState('');
+  const [specificAddress, setSpecificAddress] = useState(user?.address || '');
+  const [note, setNote] = useState(user?.deliveryNote || '');
 
   // Tỉnh / Quận / Phường
   const [provinces, setProvinces] = useState(FALLBACK_PROVINCES);
-  const [selectedProvince, setSelectedProvince] = useState(79); // Mặc định 79: TP. Hồ Chí Minh
+  const [selectedProvince, setSelectedProvince] = useState(Number(user?.provinceCode) || 79);
   const [districts, setDistricts] = useState([]);
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [wards, setWards] = useState([]);
   const [selectedWard, setSelectedWard] = useState('');
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingWards, setLoadingWards] = useState(false);
+
+  // Điền sẵn thông tin đã lưu trong Trang tài khoản.
+  useEffect(() => {
+    if (!user) return;
+    setFullName(user.name || '');
+    setPhone(user.phone || '');
+    setSpecificAddress(user.address || '');
+    setNote(user.deliveryNote || '');
+    setSelectedProvince(Number(user.provinceCode) || 79);
+  }, [user]);
 
   // Tải danh sách tỉnh thành online
   useEffect(() => {

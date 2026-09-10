@@ -1,130 +1,153 @@
-# Hướng dẫn chung — Bảo vệ FurneeHome
+# Hướng dẫn chung — luồng trình bày theo trang
 
-> Thứ tự cố định: **Dũng → Triều → Phúc → Hiệp** — Bản này được đối chiếu với code và kiểm tra trực tiếp trên website ngày **09/09/2026**.
+## 1. Thứ tự mới và câu chuyện chung
 
-## 1. Một luồng duy nhất cho toàn bài
+Thứ tự cố định: **Phúc → Dũng → Triều → Hiệp**. Mỗi người trình bày đúng nhóm trang được giao, thao tác liên tục trên website và bàn giao tại dữ liệu đã tạo.
 
 ```text
-Khách tìm sản phẩm
-        ↓
-Khách hàng xem chi tiết → thêm giỏ → thanh toán → theo dõi đơn → đánh giá
-        ↓
-Admin quản lý sản phẩm → khách hàng → đơn hàng → báo nội dung
-        ↓
-Orchestra Admin kiểm soát thêm các tài khoản Admin
-        ↓
-Phòng thử AI nhận ảnh phòng + 1–3 sản phẩm + vị trí → tạo ảnh tham khảo
-        ↓
-React trên Cloudflare → Express trên Render → MongoDB Atlas
+Phúc: Đăng nhập/Đăng ký → Quên mật khẩu → Tài khoản người dùng → Admin/Orchestra
+  ↓ bàn giao tài khoản customer và tài khoản quản trị đã đăng nhập
+Dũng: Giỏ hàng → Thanh toán
+  ↓ bàn giao đơn hàng vừa tạo
+Triều: Chi tiết một sản phẩm → Đơn mua → Đánh giá
+  ↓ bàn giao sản phẩm, đơn và đánh giá để quản trị kiểm tra
+Hiệp: Danh sách sản phẩm → Phòng thử → toàn bộ Trang quản trị
+  ↓ kết luận: dữ liệu từ khách đến Admin được xử lý trong cùng một hệ thống
 ```
 
-Mỗi người tiếp tục đúng điểm người trước vừa dừng. Không mở đầu lại dự án từ đầu.
+Không mở lại phần giới thiệu dài ở mỗi lượt. Người trước chỉ cần nói câu bàn giao, người sau tiếp tục từ trang đã mở.
 
-## 2. Chia phần
-
-| Thứ tự | Người nói | Nội dung chính | Điểm bàn giao |
+| Thứ tự | Người nói | Trang phải trình bày | Điểm bàn giao |
 |---|---|---|---|
-| 1 | **Dũng** | Bài toán, người dùng, trang chủ, tìm kiếm sản phẩm, liên hệ và báo nội dung | Khách đã tìm được món cần mua |
-| 2 | **Triều** | Chi tiết, giỏ hàng, thanh toán, lịch sử đơn, đánh giá và hồ sơ | Đơn hàng đã được tạo và cần quản trị |
-| 3 | **Phúc** | OTP, đăng nhập, quên mật khẩu, trang quản trị và phân quyền | Hệ thống nghiệp vụ đã hoàn chỉnh |
-| 4 | **Hiệp** | Kiến trúc, MongoDB, JSON hiển thị nhanh, Phòng thử AI, deploy và kết luận | Kết thúc toàn bài |
+| 1 | **Phúc** | Đăng nhập, Đăng ký, Quên mật khẩu, Tài khoản người dùng, quyền Admin và Orchestra Admin | Đã có tài khoản customer/admin và trạng thái hồ sơ để người sau dùng |
+| 2 | **Dũng** | Giỏ hàng, Thanh toán | Đã tạo một đơn có địa chỉ, phí ship và phương thức thanh toán |
+| 3 | **Triều** | Chi tiết một sản phẩm, Đơn mua, Đánh giá | Có đơn đã giao để mở đánh giá, đồng thời chỉ ra trạng thái không được hủy/hoàn |
+| 4 | **Hiệp** | Danh sách sản phẩm, Phòng thử, toàn bộ Trang quản trị | Admin xem và xử lý sản phẩm, khách hàng, đơn hàng, báo nội dung |
 
-Mục tiêu khoảng **4–5 phút/người**. Nếu hội đồng ngắt để hỏi, trả lời ngay tại bước đang demo rồi mới đi tiếp.
+Mục tiêu khoảng 4 phút mỗi người. Mỗi bước gồm năm ý: mục đích, thao tác, kết quả đúng, trường hợp sai và nơi có code.
 
-## 3. Chuẩn bị trước buổi bảo vệ
+## 2. Chuẩn bị trước khi trình bày
 
-### Các trang cần mở sẵn
+Mở sẵn các tab sau:
 
 - Website: `https://furneehome.pages.dev/`
-- Sản phẩm: `https://furneehome.pages.dev/products`
-- Phòng thử: `https://furneehome.pages.dev/room-studio`
-- API kiểm tra: `https://furneehome.onrender.com/api/health`
-- Một cửa sổ đăng nhập khách hàng và một cửa sổ quản trị để đỡ mất thời gian đăng xuất.
+- Danh sách: `/products`
+- Phòng thử: `/room-studio`
+- Kiểm tra backend: `https://furneehome.onrender.com/api/health`
 
-### Tài khoản demo
+Chuẩn bị một cửa sổ ẩn danh cho khách và một cửa sổ quản trị. Bản cuối yêu cầu đăng nhập bằng email, vì vậy dùng đúng các email demo dưới đây, không dùng username để chứng minh đăng nhập. Nếu bản deploy hiện còn nhận username, phải merge phần Phúc trước khi bảo vệ.
 
-| Vai trò | Tên đăng nhập | Mật khẩu |
+| Vai trò | Email đăng nhập | Tên hiển thị | Mật khẩu |
+|---|---|---|---|
+| Orchestra Admin | `admin@furneehome.vn` | Hiệp - Orchestra Admin | `123` |
+| Admin | `phuc@furneehome.vn` | Phúc - Admin | `123` |
+| Admin | `trieu@furneehome.vn` | Triều - Admin | `123` |
+| Admin | `dung@furneehome.vn` | Dũng - Admin | `123` |
+| Khách hàng | `customer@furneehome.vn` | Khách hàng demo | `user123456` |
+
+Các email/mật khẩu này lấy từ seed hiện tại. Nếu Render đã đặt `ADMIN_PASSWORD`, `TEAM_ADMIN_PASSWORD` khác mặc định, dùng mật khẩu trong biến môi trường đã cấu hình.
+
+| Dữ liệu demo | Cần có |
+|---|---|
+| Khách hàng | Email đã xác minh, mật khẩu hiện tại, ít nhất một đơn đã giao |
+| Giỏ hàng | Hai sản phẩm, có một sản phẩm chưa chọn để chứng minh tính chọn lọc |
+| Đơn hàng | Một đơn `Pending` hoặc `Processing`, một đơn `Shipped`, một đơn `Delivered` |
+| Phòng thử | Ảnh `client/public/images/home-room-1.webp`, 1–3 sản phẩm có ảnh |
+| Quản trị | Một tài khoản `admin`, một tài khoản `superadmin`/Orchestra Admin |
+
+Không xóa dữ liệu thật, không đổi mật khẩu demo ngay trước buổi bảo vệ. Nếu phải tạo đơn mới, chọn COD hoặc QR theo dữ liệu môi trường đang hoạt động.
+
+## 3. Quy tắc nói về code
+
+Mỗi đoạn code trong file của từng người đều có đường dẫn và tên hàm. Khi hội đồng hỏi, mở đúng file và nói:
+
+> “Thao tác bắt đầu ở component trang này. Service gọi API. Controller kiểm tra dữ liệu và quyền trước khi đọc hoặc ghi MongoDB. Frontend chỉ hiển thị kết quả trả về.”
+
+Không đọc thuộc số dòng. Đường dẫn tính từ thư mục dự án:
+
+```text
+client/src/…  giao diện, state, gọi service
+server/src/…  route, middleware, controller, model
+server/src/models/…  schema và collection MongoDB
+```
+
+## 4. Bản đồ code dùng chung
+
+| Chức năng | Giao diện | Backend |
 |---|---|---|
-| Orchestra Admin | `admin` | `123` |
-| Admin | `phuc` | `123` |
-| Admin | `trieu` | `123` |
-| Admin | `dung` | `123` |
-| Khách hàng | `customer` | `user123456` |
+| Đăng nhập, OTP, đặt lại mật khẩu | `LoginModal.jsx`, `AuthContext.jsx` | `authController.js`, `authMiddleware.js` |
+| Hồ sơ | `ProfilePage.jsx`, `userService.js` | `userController.js`, `User.js` |
+| Giỏ và checkout | `CartPage.jsx`, `CartContext.jsx`, `CheckoutPage.jsx` | `cartController.js`, `orderController.js` |
+| Chi tiết và danh sách | `ProductDetailPage.jsx`, `ProductListPage.jsx` | `productController.js` |
+| Đơn và đánh giá | `OrderHistoryPage.jsx`, `OrderReviewPage.jsx` | `orderController.js`, `reviewController.js` |
+| Phòng thử | `RoomStudioPage.jsx` | `roomPreviewController.js`, `cloudflareImageService.js` |
+| Quản trị | `AdminPage.jsx` | `adminController.js`, `productController.js`, `orderController.js` |
 
-Đây là tài khoản mẫu của đồ án, không phải tài khoản cá nhân. Không đổi mật khẩu ngay trước lúc bảo vệ.
+### Hai đoạn code dùng khi hội đồng hỏi luồng request
 
-### Dữ liệu cần chuẩn bị
+`client/src/services/apiClient.js` — `API_BASE_URL`
 
-- Giỏ của tài khoản `customer` có ít nhất 2 món.
-- Có sẵn một đơn `Pending` hoặc `Processing`, một đơn `Delivered`, một đơn `Cancelled`.
-- Có sẵn một đơn `Delivered` chưa đánh giá hết để mở trang đánh giá.
-- Ảnh phòng mẫu: `client/public/images/home-room-1.webp`.
-- Mở `/api/health` trước buổi bảo vệ vài phút để đánh thức Render nếu lần truy cập đầu chậm.
+```js
+const API_BASE_URL = import.meta.env.VITE_API_URL
+  || (import.meta.env.PROD
+    ? 'https://furneehome.onrender.com/api' : 'http://localhost:5000/api');
+```
 
-## 4. Cách nói ở mỗi bước
+`server/src/app.js` — `health`
 
-Mỗi bước chỉ cần nhớ 5 ý:
+```js
+function health(req, res) {
+  return res.json({
+    success: true, message: 'FurneeHome API đang hoạt động.', data: null,
+  });
+}
+```
 
-1. **Mục đích:** chức năng giải quyết việc gì.
-2. **Thao tác:** bấm ở đâu, nhập gì.
-3. **Kết quả:** dấu hiệu nào chứng minh hoạt động đúng.
-4. **Nếu lỗi:** hệ thống chặn hoặc xử lý thế nào.
-5. **Code:** tên hàm và file; không học thuộc số dòng vì số dòng đổi sau mỗi lần sửa.
+Khi trình bày, chỉ cần nói request đi từ component → service → route/controller → MongoDB → JSON response. Không cần mở toàn bộ file cấu hình.
 
-Mẫu trả lời khi được hỏi sâu:
+## 5. Mẫu phản biện ngắn
 
-> “Ở giao diện, thao tác bắt đầu tại `TênComponent`. Dữ liệu đi qua API đến `TênController`, controller kiểm tra nghiệp vụ rồi mới đọc hoặc ghi MongoDB bằng model tương ứng.”
+**Frontend có tự quyết định giá, phí ship hoặc quyền không?**
 
-## 5. Bản đồ code chung
+> “Không. Frontend chỉ gửi lựa chọn của người dùng. Backend đọc giá và tồn kho từ MongoDB, tính phí vận chuyển, kiểm tra JWT và role rồi mới ghi dữ liệu.”
 
-| Nội dung | Giao diện | Backend |
-|---|---|---|
-| Điều hướng | `client/src/router.jsx`, `Header.jsx` | — |
-| Danh sách sản phẩm | `ProductListPage.jsx`, `productService.js` | `productController.list()` |
-| Giỏ hàng | `CartPage.jsx`, `CartContext.jsx` | `cartController.js` |
-| Tạo và hủy đơn | `CheckoutPage.jsx`, `OrderHistoryPage.jsx` | `orderController.createOrder()`, `cancelOrder()` |
-| Đánh giá | `OrderReviewPage.jsx`, `ProductDetailPage.jsx` | `reviewController.js` |
-| Xác thực | `LoginModal.jsx`, `AuthContext.jsx` | `authController.js`, `authMiddleware.js` |
-| Quản trị | `AdminPage.jsx` | `productController.js`, `adminController.js`, `orderController.js` |
-| Phòng thử | `RoomStudioPage.jsx`, `roomPreviewService.js` | `roomPreviewController.create()`, `cloudflareImageService.js` |
-| Kết nối hệ thống | `apiClient.js` | `app.js`, `routes/index.js`, `config/db.js` |
+**Nếu API hoặc dịch vụ ngoài chậm?**
 
-## 6. Kết quả đã kiểm tra trực tiếp
+> “Em mở `/api/health` để kiểm tra server. Với Phòng thử, em nói rõ đây là ảnh tham khảo bằng AI và có fallback, không cam kết kết quả giống tuyệt đối.”
 
-- Tìm kiếm, lọc danh mục, sắp xếp giá và phân trang đều cập nhật danh sách.
-- Giỏ hàng thay đổi số lượng, chọn từng món và tính lại tổng tiền đúng.
-- Phí giao hàng thay đổi theo tỉnh: TP.HCM hiển thị 30.000đ; khi chọn Hà Nội hiển thị 60.000đ.
-- Tài khoản khách chỉ thấy đơn của mình; đơn đã giao mở được trang đánh giá.
-- Admin thường có 4 nhóm quản trị; Orchestra Admin có thêm **Quản trị admin**.
-- Phòng thử đã chạy đủ 3 bước và trả ảnh sau khoảng 15 giây trong lần kiểm tra. Ảnh giữ bố cục phòng khá tốt nhưng chỉ 2/3 món hiện rõ; đây là giới hạn phải nói trung thực về AI sinh ảnh.
-- API `/api/health` và API sản phẩm trên Render trả dữ liệu thành công.
+**Nếu hội đồng hỏi một tính năng đang thay đổi?**
 
-Ngoài thao tác trực tiếp trên giao diện, nhóm chức năng backend/MongoDB được chạy bằng dữ liệu thử tách biệt rồi dọn sạch ngay sau khi kiểm tra. Kết quả **39/39 đạt**:
+> “Đây là yêu cầu đã chốt, nhóm sẽ xác nhận lại đúng tên component và kết quả sau khi merge code; em không khẳng định một nút chưa kiểm tra trên bản deploy.”
 
-- Hoàn tất đăng ký bằng OTP; đăng nhập bằng username hoặc email; cập nhật hồ sơ; đổi và đặt lại mật khẩu.
-- OTP đặt lại mật khẩu bị hủy sau 5 lần nhập sai.
-- Orchestra Admin quản lý Admin thường; Admin quản lý trạng thái khách hàng.
-- Thêm, sửa, thêm ảnh, ngừng bán và bán lại sản phẩm.
-- Thêm giỏ; tạo đơn bằng giá trong MongoDB; phí vận chuyển do backend tính; món đã mua được xóa khỏi giỏ.
-- Đặt đơn trừ kho; hủy đơn hoàn kho đúng một lần; không thể nhảy sai trạng thái đơn.
-- Đơn đã giao được xác nhận thanh toán; chỉ khách đã nhận hàng mới đánh giá; chặn đánh giá trùng.
-- Ẩn/hiện đánh giá làm điểm sao được tính lại; báo nội dung được tiếp nhận và xử lý.
-- Chặn xóa vĩnh viễn sản phẩm đã phát sinh đơn hàng.
-- Sau kiểm tra, số tài khoản, sản phẩm, đơn, báo nội dung và đánh giá thử còn lại đều bằng 0.
+## 6. Câu bàn giao chính xác
 
-Hai phần phụ thuộc dịch vụ bên ngoài cần kiểm tra lại ngay trước buổi bảo vệ: Gmail có nhận OTP thật hay không và nhà cung cấp AI có đang phản hồi hay không. Logic OTP và luồng tạo ảnh đã hoạt động; thời gian phản hồi bên ngoài có thể thay đổi.
+Phúc nói:
 
-## 7. Phương án khi demo gặp sự cố
+> “Tài khoản đã được xác minh và đăng nhập đúng vai trò. Em bàn giao giỏ hàng của khách cho Dũng.”
 
-- **Render phản hồi chậm:** mở `/api/health`, đợi server thức rồi tải lại trang.
-- **OTP chưa tới:** kiểm tra thư rác và biến SMTP trên Render; chuyển sang tài khoản mẫu để tiếp tục bài.
-- **AI đang bận:** nói rõ backend sẽ thử provider kế tiếp; dùng ảnh kết quả đã tạo sẵn để giải thích đầu vào và đầu ra.
-- **Không có mạng:** mở code đúng hàm, trình bày luồng request và dữ liệu mẫu đã chuẩn bị.
-- **Không được tự ý sửa dữ liệu thật:** không bấm Xóa, Đổi mật khẩu hoặc Xác nhận thanh toán nếu chưa thống nhất với nhóm.
+Dũng nói:
 
-## 8. Mở đúng file của từng người
+> “Đơn hàng đã được tạo với địa chỉ và phí vận chuyển do backend tính. Mời Triều mở Đơn mua để theo dõi và đánh giá.”
 
-1. [Dũng — Tổng quan và tìm sản phẩm](./01_DUNG.md)
-2. [Triều — Mua hàng và hậu mãi](./02_TRIEU.md)
-3. [Phúc — Xác thực và quản trị](./03_PHUC.md)
-4. [Hiệp — Kiến trúc, dữ liệu, AI và deploy](./04_HIEP.md)
+Triều nói:
+
+> “Sản phẩm đã có trong đơn, đơn đã giao có thể đánh giá và đơn đang giao bị chặn hủy/hoàn theo nghiệp vụ. Mời Hiệp kiểm tra các màn hình quản trị.”
+
+Hiệp kết luận:
+
+> “Từ danh sách sản phẩm, Phòng thử đến các tab quản trị, mọi thay đổi đều đi qua API và được kiểm soát theo vai trò.”
+
+## 7. Điểm phải rà trước khi bảo vệ
+
+- Kiểm tra bản deploy đã nhận commit mới nhất, nhất là đăng nhập bằng email và xác minh email trước khi đổi mật khẩu.
+- Kiểm tra tài khoản bị khóa hiển thị thông báo rõ cho cả customer và Admin.
+- Kiểm tra địa chỉ, số điện thoại, ghi chú trong hồ sơ có được nạp mặc định sang checkout.
+- Kiểm tra đơn có hóa đơn, hồ sơ khách và trạng thái đủ hồ sơ theo phần Hiệp dự kiến.
+- Nếu tính năng chưa có trên deploy, mở code và trình bày luồng, sau đó nói rõ giới hạn thay vì bấm một nút không tồn tại.
+
+## 8. Mở file theo thứ tự
+
+1. [Phúc — Đăng nhập, tài khoản và quyền](./01_PHUC.md)
+2. [Dũng — Giỏ hàng và thanh toán](./02_DUNG.md)
+3. [Triều — Chi tiết, đơn mua và đánh giá](./03_TRIEU.md)
+4. [Hiệp — Sản phẩm, Phòng thử và quản trị](./04_HIEP.md)
