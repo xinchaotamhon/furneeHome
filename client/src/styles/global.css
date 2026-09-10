@@ -539,6 +539,7 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
 .simple-pagination { display: flex; align-items: center; justify-content: center; gap: 10px; color: #68776d; font-size: .75rem; }
 .simple-pagination button:disabled { cursor: default; opacity: .45; }
 .catalog-pagination { margin-top: 28px; font-size: .9rem; }
+.cart-pagination, .checkout-pagination { margin-top: 14px; padding: 0 12px 12px; }
 .simple-selected-name, .simple-empty { margin: 0; color: #5f6e64; font-size: .78rem; line-height: 1.45; }
 .simple-studio__workspace { min-width: 0; }
 .simple-stage { position: relative; display: grid; width: 100%; min-height: 540px; place-items: center; overflow: hidden; border: 1px solid #dce2da; border-radius: 16px; background: #e9ede8; box-shadow: 0 14px 34px rgb(29 58 42 / 12%); touch-action: none; }

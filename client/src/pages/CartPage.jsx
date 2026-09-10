@@ -8,6 +8,7 @@ const idOf = (item) => item.product?._id || item.product?.id;
 
 export default function CartPage() {
   const [draftQuantities, setDraftQuantities] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
   const navigate = useNavigate();
   const { user, openLogin } = useAuth();
   const {
@@ -64,6 +65,10 @@ export default function CartPage() {
     });
   };
 
+  const totalPages = Math.max(1, Math.ceil(items.length / 7));
+  const page = Math.min(currentPage, totalPages);
+  const visibleItems = items.slice((page - 1) * 7, page * 7);
+
   return (
     <main className="container page cart-page">
       <div className="split-heading">
@@ -103,7 +108,7 @@ export default function CartPage() {
             </label>
           </div>
 
-          {items.map((item) => {
+          {visibleItems.map((item) => {
             const id = idOf(item);
             const isChecked = item.selected !== false;
             const selectionBlocked = !isChecked && selectedCount + item.quantity > maxSelectedCount;
@@ -168,6 +173,17 @@ export default function CartPage() {
               </article>
             );
           })}
+          {totalPages > 1 && (
+            <nav className="simple-pagination cart-pagination" aria-label="Chuyển trang giỏ hàng">
+              <button type="button" disabled={page === 1} onClick={() => setCurrentPage(page - 1)}>
+                ← Trước
+              </button>
+              <span>Trang {page} / {totalPages}</span>
+              <button type="button" disabled={page === totalPages} onClick={() => setCurrentPage(page + 1)}>
+                Sau →
+              </button>
+            </nav>
+          )}
         </section>
 
         <aside className="order-summary">

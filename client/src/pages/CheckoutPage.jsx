@@ -64,6 +64,11 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER');
   const [isVoucherOpen, setVoucherOpen] = useState(false);
   const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(items.length / 7));
+  const page = Math.min(currentPage, totalPages);
+  const visibleItems = items.slice((page - 1) * 7, page * 7);
 
   if (!items.length && !result) {
     return (
@@ -238,7 +243,7 @@ export default function CheckoutPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => {
+                  {visibleItems.map((item) => {
                     const prodId = item.product._id || item.product.id;
                     const prodImage = item.product.image || (item.product.images && item.product.images[0]);
                     return (
@@ -264,6 +269,17 @@ export default function CheckoutPage() {
                 </tbody>
               </table>
             </div>
+            {totalPages > 1 && (
+              <nav className="simple-pagination checkout-pagination" aria-label="Chuyển trang sản phẩm thanh toán">
+                <button type="button" disabled={page === 1} onClick={() => setCurrentPage(page - 1)}>
+                  ← Trước
+                </button>
+                <span>Trang {page} / {totalPages}</span>
+                <button type="button" disabled={page === totalPages} onClick={() => setCurrentPage(page + 1)}>
+                  Sau →
+                </button>
+              </nav>
+            )}
           </div>
 
           {/* Địa chỉ mặc định lấy từ hồ sơ */}
