@@ -13,7 +13,7 @@
 .fh-hero::before { content: ''; position: absolute; width: 31rem; height: 31rem; right: -11rem; top: -19rem; border: 1px solid rgb(32 92 70 / 12%); border-radius: 50%; box-shadow: 0 0 0 3.5rem rgb(32 92 70 / 4%), 0 0 0 7rem rgb(32 92 70 / 3%); }
 .fh-hero-grid { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, .88fr) minmax(420px, 1.12fr); align-items: center; gap: clamp(2rem, 4vw, 4rem); min-height: 37rem; padding-top: 4rem; padding-bottom: 4rem; }
 .fh-hero-copy h1 { max-width: 760px; margin: .4rem 0 1.25rem; font-size: clamp(2.45rem, 5vw, 4.7rem); line-height: 1.03; letter-spacing: -.065em; color: #173f31; }
-.fh-hero-copy h1 em { color: var(--color-accent); font-style: normal; }
+  .fh-hero-copy h1 em { color: var(--color-accent); font-style: normal; }
 .fh-hero-copy > p:not(.eyebrow):not(.fh-hero-note) { max-width: 38rem; font-size: 1.08rem; line-height: 1.75; }
 .fh-hero-note { display: flex; align-items: center; gap: .45rem; margin: 1.1rem 0 0; color: var(--color-muted); font-size: .88rem; }
 .fh-hero-note::before { content: '✓'; display: inline-grid; place-items: center; width: 1.2rem; height: 1.2rem; border-radius: 50%; color: #fff; background: var(--color-primary); font-size: .75rem; }
