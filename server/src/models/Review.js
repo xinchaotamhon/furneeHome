@@ -10,6 +10,8 @@ const reviewSchema = new mongoose.Schema({
   isHidden: { type: Boolean, default: false },
   moderationReason: { type: String, default: '', trim: true, maxlength: 200 },
   moderatedAt: { type: Date },
+  isDeleted: { type: Boolean, default: false },
+  deletedAt: { type: Date },
 }, { timestamps: true });
 
 reviewSchema.index(
