@@ -26,7 +26,11 @@ function reviewData(body) {
 }
 
 async function refreshRating(productId) {
-  const reviews = await Review.find({ product: productId, isHidden: { $ne: true } }).select('rating');
+  const reviews = await Review.find({
+    product: productId,
+    isHidden: { $ne: true },
+    isDeleted: { $ne: true },
+  }).select('rating');
   const total = reviews.reduce((sum, review) => sum + review.rating, 0);
   await Product.findByIdAndUpdate(productId, {
     ratingAverage: reviews.length ? Number((total / reviews.length).toFixed(1)) : 0,
@@ -34,18 +38,28 @@ async function refreshRating(productId) {
   });
 }
 
-async function saveReview(userId, productId, body) {
+async function saveReview(userId, productId, orderId, body) {
   const data = reviewData(body);
+
   const product = await Product.findById(productId);
   if (!product) throw createError('Sản phẩm không tồn tại.', 404);
 
   try {
-    const review = await Review.create({ user: userId, product: productId, ...data });
+    const review = await Review.create({
+      user: userId,
+      product: productId,
+      order: orderId,
+      ...data,
+    });
+
     await refreshRating(productId);
     await review.populate('user', 'name avatarUrl');
+
     return review;
   } catch (error) {
-    if (error?.code === 11000) throw createError('Bạn đã đánh giá sản phẩm này.', 409);
+    if (error?.code === 11000) {
+      throw createError('Bạn đã đánh giá sản phẩm này trong đơn hàng này.', 409);
+    }
     throw error;
   }
 }
@@ -54,14 +68,33 @@ async function createReview(req, res, next) {
   try {
     const productId = req.body.productId;
     checkId(productId);
-    const delivered = await Order.exists({
+
+    const order = await Order.findOne({
       user: req.user._id,
       orderStatus: 'Delivered',
+      paymentStatus: 'Paid',
       'orderItems.product': productId,
+    }).sort({ createdAt: -1 });
+
+    if (!order) {
+      throw createError(
+        'Chỉ khách đã thanh toán và nhận sản phẩm mới có thể đánh giá.',
+        403
+      );
+    }
+
+    const review = await saveReview(
+      req.user._id,
+      productId,
+      order._id,
+      req.body
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Đã gửi đánh giá.',
+      data: review,
     });
-    if (!delivered) throw createError('Chỉ khách đã nhận sản phẩm mới có thể đánh giá.', 403);
-    const review = await saveReview(req.user._id, productId, req.body);
-    return res.status(201).json({ success: true, message: 'Đã gửi đánh giá.', data: review });
   } catch (error) {
     return next(error);
   }
@@ -73,6 +106,7 @@ async function getByProduct(req, res, next) {
     const reviews = await Review.find({
       product: req.params.productId,
       isHidden: { $ne: true },
+      isDeleted: { $ne: true },
     }).populate('user', 'name avatarUrl').sort({ createdAt: -1 });
     return res.json({ success: true, message: 'Đã tải đánh giá.', data: reviews });
   } catch (error) {
@@ -92,6 +126,7 @@ async function getOrderReviewStatus(req, res, next) {
     const productIds = order.orderItems.map((item) => item.product);
     const reviews = await Review.find({
       user: req.user._id,
+      order: order._id,
       product: { $in: productIds },
     }).select('product rating comment');
     const reviewByProduct = new Map(reviews.map((review) => [String(review.product), review]));
@@ -129,7 +164,7 @@ async function createOrderReview(req, res, next) {
     );
     if (!belongsToOrder) throw createError('Sản phẩm không thuộc đơn hàng này.', 403);
 
-    const review = await saveReview(req.user._id, req.body.productId, req.body);
+    const review = await saveReview(req.user._id, req.body.productId, order._id, req.body);
     return res.status(201).json({ success: true, message: 'Đã gửi đánh giá.', data: review });
   } catch (error) {
     return next(error);
@@ -158,10 +193,38 @@ async function moderateReview(req, res, next) {
 async function deleteReview(req, res, next) {
   try {
     checkId(req.params.id);
-    const review = await Review.findByIdAndDelete(req.params.id);
-    if (!review) throw createError('Không tìm thấy đánh giá.', 404);
+
+    const review = await Review.findById(req.params.id);
+
+    if (!review) {
+      throw createError('Không tìm thấy đánh giá.', 404);
+    }
+
+    const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
+    const isOwner = String(review.user) === String(req.user._id);
+
+    if (!isOwner) {
+      throw createError('Bạn chỉ được xóa đánh giá của chính mình.', 403);
+    }
+
+    await Review.findByIdAndUpdate(
+      req.params.id,
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+      {
+        runValidators: true,
+      }
+    );
+
     await refreshRating(review.product);
-    return res.json({ success: true, message: 'Đã xóa đánh giá.', data: null });
+
+    return res.json({
+      success: true,
+      message: 'Đã xóa đánh giá. Bạn sẽ không thể đánh giá lại sản phẩm này.',
+      data: null,
+    });
   } catch (error) {
     return next(error);
   }

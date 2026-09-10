@@ -11,7 +11,8 @@ function errorMessage(error) {
   return error.response?.data?.message || error.message || 'Không thể hoàn tất thao tác.';
 }
 
-function ReviewItem({ review, isAdmin, onModerate, onDelete }) {
+function ReviewItem({ review, user, isAdmin, onModerate, onDelete }) {
+  const isOwner = user?.id && review.user?._id && String(user.id) === String(review.user._id);
   const [working, setWorking] = useState(false);
   const hide = async () => {
     const reason = window.prompt('Lý do ẩn đánh giá (không bắt buộc):', '') ?? '';
@@ -24,10 +25,16 @@ function ReviewItem({ review, isAdmin, onModerate, onDelete }) {
       <span aria-label={`${review.rating} trên 5 sao`}>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span>
       <p>{review.comment}</p>
       <small>{new Date(review.createdAt).toLocaleDateString('vi-VN')}</small>
-      {isAdmin && <p>
-        <button type="button" className="button button-text" disabled={working} onClick={hide}>Ẩn</button>
-        <button type="button" className="button button-text" disabled={working} onClick={() => onDelete(review._id)}>Xóa</button>
-      </p>}
+      {(isAdmin || isOwner) && (
+        <p>
+          {isAdmin && (
+            <button type="button" className="button button-text" disabled={working} onClick={hide}>Ẩn</button>
+          )}
+          {isOwner && (
+            <button type="button" className="button button-text" disabled={working} onClick={() => onDelete(review._id)}>Xóa đánh giá</button>
+          )}
+        </p>
+      )}
     </article>
   );
 }
@@ -96,7 +103,10 @@ export default function ProductDetailPage() {
     try { await reviewService.moderateReview(reviewId, isHidden, reason); await loadReviews(); } catch (error) { setReviewNotice(errorMessage(error)); }
   };
   const removeReview = async (reviewId) => {
-    if (!window.confirm('Xóa đánh giá này?')) return;
+    const confirmed = window.confirm(
+      'Sau khi xóa, bạn sẽ không thể đánh giá lại sản phẩm này trong đơn hàng này. Bạn có chắc chắn muốn xóa đánh giá không?'
+    );
+    if (!confirmed) return;
     try { await reviewService.deleteReview(reviewId); await loadReviews(); } catch (error) { setReviewNotice(errorMessage(error)); }
   };
 
@@ -143,7 +153,7 @@ export default function ProductDetailPage() {
     </section>
     <section className="product-reviews" aria-labelledby="reviews-heading">
       <h2 id="reviews-heading">Đánh giá từ khách hàng</h2>
-      {reviewsLoading ? <p>Đang tải đánh giá…</p> : reviews.length ? reviews.map((review) => <ReviewItem key={review._id} review={review} isAdmin={isAdmin} onModerate={moderate} onDelete={removeReview} />) : <p>Chưa có đánh giá nào.</p>}
+      {reviewsLoading ? <p>Đang tải đánh giá…</p> : reviews.length ? reviews.map((review) => <ReviewItem key={review._id} review={review} user={user} isAdmin={isAdmin} onModerate={moderate} onDelete={removeReview} />) : <p>Chưa có đánh giá nào.</p>}
       {user?.role === 'customer' && <p><Link className="button button-outline" to="/orders">Đánh giá đơn đã nhận</Link></p>}
       {reviewNotice && <p role="status">{reviewNotice}</p>}
     </section>
