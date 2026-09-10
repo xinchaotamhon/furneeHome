@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { formatPrice } from '../utils/formatPrice';
@@ -5,6 +6,7 @@ import { formatPrice } from '../utils/formatPrice';
 const idOf = (item) => item.product?._id || item.product?.id;
 
 export default function CartPage() {
+  const [draftQuantities, setDraftQuantities] = useState({});
   const {
     items,
     totalCount,
@@ -40,6 +42,19 @@ export default function CartPage() {
     if (window.confirm(`Bạn có chắc muốn xóa ${selectedItems.length} sản phẩm đã chọn?`)) {
       clearPurchasedItems(selectedItems.map(idOf));
     }
+  };
+
+  const handleQuantityChange = (id, value) => {
+    setDraftQuantities((current) => ({ ...current, [id]: value }));
+    if (value !== '') updateQuantity(id, value);
+  };
+
+  const finishQuantityEdit = (id) => {
+    setDraftQuantities((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
   };
 
   return (
@@ -129,8 +144,9 @@ export default function CartPage() {
                   type="number"
                   min="1"
                   max={item.product?.stock ?? item.product?.countInStock ?? 99}
-                  value={item.quantity}
-                  onChange={(event) => updateQuantity(id, event.target.value)}
+                  value={draftQuantities[id] ?? item.quantity}
+                  onChange={(event) => handleQuantityChange(id, event.target.value)}
+                  onBlur={() => finishQuantityEdit(id)}
                 />
 
                 <strong>{formatPrice(item.price * item.quantity)}</strong>

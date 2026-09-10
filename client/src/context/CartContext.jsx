@@ -178,11 +178,7 @@ export function CartProvider({ children }) {
       },
       updateQuantity(id, quantity) {
         const qty = Number(quantity);
-        if (qty <= 0) {
-          setItems((current) => current.filter((item) => productId(item.product) !== String(id)));
-          sync(() => cartService.remove(id));
-          return;
-        }
+        if (!Number.isFinite(qty) || qty <= 0) return;
         setItems((current) => current.map((item) => {
           if (productId(item.product) !== String(id)) return item;
           const nextQuantity = Math.min(stockOf(item.product), qty);
