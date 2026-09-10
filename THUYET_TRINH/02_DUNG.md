@@ -15,7 +15,7 @@
 
 1. Từ header của `https://furneehome.pages.dev/`, bấm **Giỏ hàng** hoặc mở `/cart`.
 2. Chỉ vào số loại sản phẩm, tổng số món và tạm tính.
-3. Bỏ chọn một món, dấu hiệu đúng là tạm tính giảm; bấm lại **Chọn tất cả**, danh sách được chọn trở lại.
+3. Bỏ chọn một món, kết quả cần thấy là tạm tính giảm; bấm lại **Chọn tất cả**, danh sách được chọn trở lại.
 
 Component `CartPage` lấy `selectedItems` từ `CartContext`; context tính `selectedCount` và `selectedSubtotal`, sau đó React render lại phần tóm tắt.
 
@@ -60,7 +60,7 @@ const {
 
 1. Ở ô số lượng của sản phẩm đầu tiên, đổi từ `1` thành `2` rồi bấm ra ngoài.
 2. Nhập 0 hoặc bấm **Xóa** để xóa sản phẩm.
-3. Bấm **Xóa mục đã chọn** nếu muốn xóa nhiều món, hoặc **Xóa tất cả** để làm trống giỏ. Dấu hiệu đúng: số loại sản phẩm và tổng tiền đổi ngay.
+3. Bấm **Xóa mục đã chọn** nếu muốn xóa nhiều món, hoặc **Xóa tất cả** để làm trống giỏ. Kết quả cần thấy: số loại sản phẩm và tổng tiền đổi ngay.
 
 `CartContext.updateQuantity` cập nhật state trước để giao diện phản hồi nhanh, rồi `cartService.update` gọi API giỏ khi đã đăng nhập.
 
@@ -74,7 +74,7 @@ Sau request, `cartController.updateQuantity` đọc lại `Product.stock`; nếu
 
 **Giỏ khách chưa đăng nhập có được thêm không?**
 
-> “Theo yêu cầu mới, khách phải đăng nhập trước khi thêm vào giỏ. Nếu bấm từ trang sản phẩm khi chưa đăng nhập, hệ thống mở đăng nhập, không tạo giỏ mua hàng ẩn.”
+> “Khách có thể thêm sản phẩm vào giỏ local để xem trước. Khi bấm mua hoặc thanh toán thì phải đăng nhập; sau khi đăng nhập, giỏ local được cộng vào giỏ MongoDB của tài khoản.”
 
 **Giỏ tối đa 100 sản phẩm xử lý ở đâu?**
 
@@ -123,7 +123,7 @@ if (quantity > product.stock) {
 3. Chọn `TP. Hồ Chí Minh`, chờ quận tải xong, chọn một quận rồi chọn phường.
 4. Nhập họ tên `Khách hàng demo`, số điện thoại hợp lệ dạng `09xxxxxxxx`, địa chỉ `12 Nguyễn Huệ`, ghi chú `Gọi trước khi giao`.
 5. Chọn **COD** hoặc **Chuyển khoản QR**, rồi bấm **Đặt hàng**.
-6. Dấu hiệu đúng: hiện “Đặt hàng thành công”, mã đơn và tổng gồm tiền hàng + phí ship.
+6. Kết quả cần thấy: hiện “Đặt hàng thành công”, mã đơn và tổng gồm tiền hàng + phí ship.
 
 ### Nói ngắn
 
@@ -199,7 +199,7 @@ const product = await Product.findOneAndUpdate(
 if (!product) throw createError('Có sản phẩm đã hết hàng.', 409);
 ```
 
-### Kết quả đúng
+### Kết quả cần thấy
 
 - Có thông báo đặt hàng thành công và mã đơn.
 - Sản phẩm đã mua bị xóa khỏi giỏ.
@@ -244,7 +244,7 @@ return <img src={qrUrl} alt="Mã QR thanh toán" />;
 
 ## Checklist 30 giây
 
-- [ ] Có đăng nhập trước khi vào giỏ/checkout.
+- [ ] Có thể thêm giỏ guest, đăng nhập rồi kiểm tra giỏ được cộng; checkout yêu cầu đăng nhập.
 - [ ] Bỏ chọn một món và chứng minh tổng tiền thay đổi.
 - [ ] Nói đúng giới hạn 100 sản phẩm là rule cần kiểm tra ở backend.
 - [ ] Nhập địa chỉ cụ thể, số điện thoại, ghi chú.

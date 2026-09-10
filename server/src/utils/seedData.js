@@ -110,7 +110,7 @@ async function seedProducts(categories) {
 async function seedAccounts() {
   const adminPassword = process.env.ADMIN_PASSWORD || '123';
   const teamAdminPassword = process.env.TEAM_ADMIN_PASSWORD || adminPassword;
-  const adminEmail = String(process.env.ADMIN_EMAIL || 'admin@furneehome.vn').toLowerCase();
+  const adminEmail = String(process.env.ADMIN_EMAIL || 'admin@furneehome.local').toLowerCase();
   const adminUsername = String(process.env.ADMIN_USERNAME || 'admin').toLowerCase();
 
   const adminAccounts = [

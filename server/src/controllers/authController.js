@@ -116,11 +116,11 @@ async function login(req, res, next) {
     if (!isValidEmail(email) || !password) return res.status(400).json({ success: false, message: 'Vui lòng nhập email và mật khẩu.', data: null });
     const user = await User.findOne({ email });
     if (user && !user.isActive) {
-      return res.status(403).json({ success: false, message: 'Tài khoản đã bị khóa.', data: null });
+      return res.status(403).json({ success: false, code: 'ACCOUNT_LOCKED', message: 'Tài khoản đã bị khóa.', data: null });
     }
     const passwordMatches = user ? await bcrypt.compare(password, user.password) : false;
     if (!user || !passwordMatches || user.emailVerified === false) {
-      return res.status(401).json({ success: false, message: 'Email/tên đăng nhập hoặc mật khẩu không chính xác.', data: null });
+      return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không chính xác.', data: null });
     }
     return res.json({ success: true, message: 'Đăng nhập thành công.', data: authResponse(user) });
   } catch (error) { return next(error); }
@@ -130,18 +130,18 @@ async function requestPasswordReset(req, res, next) {
   try {
     const email = normalizeEmail(req.body.email);
     if (!isValidEmail(email)) return res.status(400).json({ success: false, message: 'Email không hợp lệ.', data: null });
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ success: false, code: 'EMAIL_NOT_REGISTERED', message: 'Email chưa được đăng ký. Vui lòng tạo tài khoản mới.', data: null });
+    if (!user.isActive) return res.status(403).json({ success: false, code: 'ACCOUNT_LOCKED', message: 'Tài khoản của bạn hiện đang bị khóa. Vui lòng liên hệ hỗ trợ.', data: null });
     if (!smtpConfigured() && !localOtpAllowed(req)) return res.status(503).json({ success: false, message: 'Máy chủ chưa cấu hình gửi email.', data: null });
-    const user = await User.findOne({ email, isActive: true });
     const data = {};
-    if (user) {
-      const otp = createOtp();
-      user.resetOtpHash = hashOtp(email, otp);
-      user.resetOtpExpiresAt = new Date(Date.now() + OTP_TTL_MS);
-      user.resetOtpAttempts = 0;
-      await user.save();
-      if (smtpConfigured()) await sendOtp(email, otp, 'Mã đặt lại mật khẩu FurneeHome', 'Mã đặt lại mật khẩu FurneeHome của bạn là');
-      else data.devOtp = otp;
-    }
+    const otp = createOtp();
+    user.resetOtpHash = hashOtp(email, otp);
+    user.resetOtpExpiresAt = new Date(Date.now() + OTP_TTL_MS);
+    user.resetOtpAttempts = 0;
+    await user.save();
+    if (smtpConfigured()) await sendOtp(email, otp, 'Mã đặt lại mật khẩu FurneeHome', 'Mã đặt lại mật khẩu FurneeHome của bạn là');
+    else data.devOtp = otp;
     return res.json({ success: true, message: 'Nếu email đã đăng ký, mã đặt lại mật khẩu sẽ được gửi đến email đó.', data });
   } catch (error) { return next(error); }
 }

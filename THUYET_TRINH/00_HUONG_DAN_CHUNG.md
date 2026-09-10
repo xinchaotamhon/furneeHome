@@ -59,7 +59,7 @@ Chuẩn bị một cửa sổ ẩn danh cho khách và một cửa sổ quản t
 
 | Vai trò | Email đăng nhập | Tên hiển thị | Mật khẩu |
 |---|---|---|---|
-| Orchestra Admin | `admin@furneehome.vn` | Hiệp - Orchestra Admin | `123` |
+| Orchestra Admin | `admin@furneehome.local` | Hiệp - Orchestra Admin | `123` |
 | Admin | `phuc@furneehome.vn` | Phúc - Admin | `123` |
 | Admin | `trieu@furneehome.vn` | Triều - Admin | `123` |
 | Admin | `dung@furneehome.vn` | Dũng - Admin | `123` |

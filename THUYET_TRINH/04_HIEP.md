@@ -12,7 +12,7 @@
 ### Tài khoản và đầu vào demo
 
 - Admin: `phuc@furneehome.vn` / `123`. Mở `/admin`, có các tab Sản phẩm, Khách hàng, Đơn hàng và Báo nội dung.
-- Orchestra Admin: `admin@furneehome.vn` / `123`. Mở `/admin`, có thêm tab **Quản trị admin**.
+- Orchestra Admin: `admin@furneehome.local` / `123`. Mở `/admin`, có thêm tab **Quản trị admin**.
 - Danh sách: tìm `bàn`, chọn một danh mục đang có, chọn **Giá thấp đến cao**.
 - Phòng thử: dùng `client/public/images/home-room-1.webp` và chọn 1–3 sản phẩm có ảnh.
 
@@ -21,11 +21,11 @@
 ### Thao tác
 
 1. Mở `https://furneehome.pages.dev/products`.
-2. Gõ `bàn` vào ô **Tìm tên sản phẩm**. Dấu hiệu đúng: danh sách và số lượng kết quả đổi.
-3. Chọn danh mục đang có, chọn **Giá thấp đến cao**. Dấu hiệu đúng: giá tăng dần.
+2. Gõ `bàn` vào ô **Tìm tên sản phẩm**. Kết quả cần thấy: danh sách và số lượng kết quả đổi.
+3. Chọn danh mục đang có, chọn **Giá thấp đến cao**. Kết quả cần thấy: giá tăng dần.
 4. Bấm **Sau**, rồi **Trước** nếu có nhiều trang.
 5. Bấm **Thử trong phòng** trên một thẻ, URL chuyển sang `/room-studio`.
-6. Bấm **Chọn từ danh sách sản phẩm**, tích món 1, 2, 3, rồi bấm **Quay lại Phòng thử**. Dấu hiệu đúng: bộ đếm là `3/3` và không tích được món thứ tư.
+6. Bấm **Chọn từ danh sách sản phẩm**, tích món 1, 2, 3, rồi bấm **Quay lại Phòng thử**. Kết quả cần thấy: bộ đếm là `3/3` và không tích được món thứ tư.
 
 ### Nói ngắn
 
@@ -169,7 +169,7 @@ for (const product of body.inspirationProducts) {
 4. Bấm **Ngừng bán**, xác nhận hộp thoại, kiểm tra nhãn đổi trạng thái; bấm **Bán lại** để khôi phục.
 5. Không bấm **Xóa vĩnh viễn** trên dữ liệu thật.
 
-### Nói đúng
+### Điểm cần nói
 
 - Ngừng bán đổi `isActive = false`, giữ lịch sử đơn.
 - Xóa vĩnh viễn là thao tác nguy hiểm và backend phải chặn nếu sản phẩm đã phát sinh đơn.
@@ -213,7 +213,7 @@ return res.json({ success: true, message: 'Đã ngừng bán sản phẩm.', dat
 
 1. Bấm **Khách hàng**, gõ `customer@furneehome.vn` vào ô tìm kiếm nếu có.
 2. Chỉ vào email, số điện thoại, địa chỉ, ghi chú và trạng thái tài khoản.
-3. Bấm **Xem hồ sơ** để mở popup. Dấu hiệu đúng: popup hiển thị đủ thông tin giao hàng.
+3. Bấm **Xem hồ sơ** để mở popup. Kết quả cần thấy: popup hiển thị đủ thông tin giao hàng.
 4. Chỉ vào nhãn **Đã đủ thông tin** hoặc **Chưa đủ thông tin**.
 5. Bấm **Khóa**, xác nhận, rồi bấm **Mở khóa** để trả dữ liệu demo về trạng thái cũ.
 

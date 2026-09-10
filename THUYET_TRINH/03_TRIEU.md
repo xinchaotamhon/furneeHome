@@ -20,7 +20,7 @@
 1. Mở `https://furneehome.pages.dev/products`, chọn sản phẩm đầu tiên đang bán, bấm ảnh hoặc tên sản phẩm.
 2. Chỉ vào tên, danh mục, giá, mô tả, tồn kho, ảnh và điểm đánh giá.
 3. Chọn số lượng rồi bấm **Thêm vào giỏ**.
-4. Chỉ vào **Mua ngay**, **Thử trong phòng** và **Báo nội dung**. Dấu hiệu đúng: URL thành `/products/<id>` và nút phản hồi đúng sản phẩm.
+4. Chỉ vào **Mua ngay**, **Thử trong phòng** và **Báo nội dung**. Kết quả cần thấy: URL thành `/products/<id>` và nút phản hồi đúng sản phẩm.
 5. Cuộn tới phần đánh giá đã có.
 
 ### Nói ngắn
@@ -74,7 +74,7 @@ if (!product) throw createError('Không tìm thấy sản phẩm.', 404);
 
 1. Bấm **Tài khoản** trên header rồi chọn **Đơn mua**, hoặc mở `/orders` khi đang đăng nhập customer.
 2. Chỉ vào mã đơn, ngày tạo, sản phẩm, tổng tiền, thanh toán và trạng thái.
-3. Mở đơn `Pending` hoặc `Processing`, bấm **Hủy đơn**, xác nhận hộp thoại. Dấu hiệu đúng: trạng thái thành **Đã hủy**.
+3. Mở đơn `Pending` hoặc `Processing`, bấm **Hủy đơn**, xác nhận hộp thoại. Kết quả cần thấy: trạng thái thành **Đã hủy**.
 4. Mở đơn `Shipped`, kiểm tra nút **Hủy đơn** bị khóa hoặc không xuất hiện.
 5. Mở đơn `Delivered`, bấm **Đánh giá** để sang `/orders/<orderId>/review`.
 
@@ -113,7 +113,7 @@ const existing = await Order.findOne({
 if (!existing) throw createError('Đơn hàng không còn có thể hủy.', 409);
 ```
 
-### Trường hợp sai và phản biện
+### Phản biện thường gặp
 
 **Khách sửa request để hủy đơn `Shipped` thì sao?**
 
@@ -129,7 +129,7 @@ if (!existing) throw createError('Đơn hàng không còn có thể hủy.', 409
 
 1. Ở đơn đã giao, bấm **Yêu cầu hoàn trả**.
 2. Chọn lý do `Sản phẩm lỗi/không đúng mô tả`, nhập ghi chú ngắn rồi bấm **Gửi yêu cầu**.
-3. Dấu hiệu đúng: đơn chuyển trạng thái yêu cầu hoàn và Admin nhìn thấy trạng thái riêng đó.
+3. Kết quả cần thấy: đơn chuyển trạng thái yêu cầu hoàn và Admin nhìn thấy trạng thái riêng đó.
 4. Với đơn đã xem hàng và đã thanh toán, thử bấm lại để chứng minh hệ thống từ chối theo quy định nhóm.
 
 ### Nói ngắn
@@ -150,12 +150,12 @@ if (!existing) throw createError('Đơn hàng không còn có thể hủy.', 409
 
 1. Từ đơn `Delivered`, bấm **Đánh giá**.
 2. Trang `/orders/:orderId/review` liệt kê từng sản phẩm trong đơn.
-3. Ở sản phẩm đầu tiên, chọn `5` sao, nhập `Sản phẩm đúng mô tả`, bấm **Gửi đánh giá**. Dấu hiệu đúng: hiện tên người đánh giá và điểm sao tăng.
-4. Gửi lại đúng món đó trong cùng đơn. Dấu hiệu đúng: hiện lỗi **Bạn đã đánh giá sản phẩm này**.
+3. Ở sản phẩm đầu tiên, chọn `5` sao, nhập `Sản phẩm đúng mô tả`, bấm **Gửi đánh giá**. Kết quả cần thấy: hiện tên người đánh giá và điểm sao tăng.
+4. Gửi lại đúng món đó trong cùng đơn. Kết quả cần thấy: hiện lỗi **Bạn đã đánh giá sản phẩm này**.
 5. Với đơn mua lại cùng sản phẩm, mở đơn mới và bấm **Đánh giá**. Bản chốt phải cho đánh giá theo giao dịch mới.
-6. Bấm **Xóa đánh giá**, xác nhận, rồi tải lại danh sách. Dấu hiệu đúng: review biến mất và điểm sao được tính lại.
+6. Bấm **Xóa đánh giá**, xác nhận, rồi tải lại danh sách. Kết quả cần thấy: review biến mất và điểm sao được tính lại.
 
-### Kết quả đúng
+### Kết quả cần thấy
 
 - Đơn chưa `Delivered` không mở được form.
 - Sản phẩm không thuộc đơn bị backend từ chối.

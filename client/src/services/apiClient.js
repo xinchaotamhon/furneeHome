@@ -14,7 +14,9 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && (error.response?.data?.message === 'Invalid session' || error.response?.data?.message === 'Invalid account')) {
+    const locked = error.response?.status === 403 && error.response?.data?.code === 'ACCOUNT_LOCKED';
+    const invalidSession = error.response?.status === 401 && (error.response?.data?.message === 'Invalid session' || error.response?.data?.message === 'Invalid account');
+    if (locked || invalidSession) {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('furneehome-user');
     }

@@ -223,7 +223,7 @@ export default function ProfilePage() {
   return (
     <main className="container page">
       <div className="page-heading">
-        <h1>Xin chào! {user.name || user.username}</h1>
+        <h1>Tài khoản</h1>
         <p>Quản lý tài khoản và thông tin giao hàng.</p>
       </div>
 

@@ -91,12 +91,12 @@ async function syncCart(req, res, next) {
       const product = productMap.get(productId);
       if (!isSellable(product)) continue;
 
-      const finalQuantity = Math.min(quantity, product.stock);
       const item = cart.items.find((cartItem) => itemProductId(cartItem) === productId);
       if (item) {
-        item.quantity = finalQuantity;
+        item.quantity = Math.min(product.stock, item.quantity + quantity);
         item.price = product.price;
       } else {
+        const finalQuantity = Math.min(quantity, product.stock);
         cart.items.push({ product: product._id, quantity: finalQuantity, price: product.price });
       }
     }

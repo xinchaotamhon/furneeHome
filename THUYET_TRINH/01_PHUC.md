@@ -17,7 +17,7 @@
 |---|---|---|---|
 | Customer | `customer@furneehome.vn` | `user123456` | `/profile` và `/orders` |
 | Admin | `phuc@furneehome.vn` | `123` | `/admin`, không có tab Quản trị admin |
-| Orchestra Admin | `admin@furneehome.vn` | `123` | `/admin`, có tab Quản trị admin |
+| Orchestra Admin | `admin@furneehome.local` | `123` | `/admin`, có tab Quản trị admin |
 
 Nếu môi trường Render đã đổi `ADMIN_PASSWORD` hoặc `TEAM_ADMIN_PASSWORD`, dùng mật khẩu của môi trường đó. Email vẫn giữ theo seed.
 
@@ -28,8 +28,8 @@ Nếu môi trường Render đã đổi `ADMIN_PASSWORD` hoặc `TEAM_ADMIN_PASS
 1. Mở `https://furneehome.pages.dev/`, bấm **Đăng nhập** trên header.
 2. Nhập `customer@furneehome.vn` vào ô **Email**, nhập `user123456` vào ô **Mật khẩu**.
 3. Bật **Ghi nhớ email**, bấm **Đăng nhập**.
-4. Dấu hiệu đúng: modal đóng, header hiện tên khách và mở `/profile` khi bấm **Tài khoản**.
-5. Đăng xuất. Đăng nhập `phuc@furneehome.vn` với `123`, dấu hiệu đúng là tự chuyển đến `/admin`.
+4. Kết quả cần thấy: modal đóng, header hiện lời chào tên khách và mở `/profile` khi bấm **Tài khoản**.
+5. Đăng xuất. Đăng nhập `phuc@furneehome.vn` với `123`, kết quả cần thấy là tự chuyển đến `/admin`.
 
 ### Lưu ý khi trình bày
 
@@ -47,13 +47,13 @@ Nếu môi trường Render đã đổi `ADMIN_PASSWORD` hoặc `TEAM_ADMIN_PASS
 ```jsx
 const email = form.email.trim().toLowerCase();
 const loggedInUser = await login({ email, password: form.password });
-saveRememberedIdentity(email, remember);
+saveRememberedEmail(email, remember);
 if (['admin', 'superadmin'].includes(loggedInUser.role)) {
   navigate('/admin');
 }
 ```
 
-`form.email` và `req.body.email` là dữ liệu dùng ở luồng email-only. `saveRememberedIdentity` chỉ ghi email để lần sau điền nhanh, không ghi mật khẩu.
+`form.email` và `req.body.email` là dữ liệu dùng ở luồng email-only. `saveRememberedEmail` chỉ ghi email để lần sau điền nhanh, không ghi mật khẩu.
 
 ### Code — kiểm tra tài khoản hoạt động
 
@@ -68,7 +68,7 @@ if (user && !user.isActive) {
 const passwordMatches = user ? await bcrypt.compare(password, user.password) : false;
 ```
 
-Nếu code cuối dùng thông báo chung thay vì status 403 để tránh dò tài khoản, cần thống nhất thông điệp với yêu cầu “báo tài khoản bị khóa” trước buổi bảo vệ.
+Tài khoản bị khóa trả status 403 và thông báo rõ để người dùng biết cần liên hệ hỗ trợ.
 
 ## Bước 2 — Đăng ký có mã xác minh email
 

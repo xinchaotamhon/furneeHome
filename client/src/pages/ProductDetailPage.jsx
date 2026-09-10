@@ -36,7 +36,7 @@ export default function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { user } = useAuth();
+  const { user, openLogin } = useAuth();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
@@ -71,18 +71,26 @@ export default function ProductDetailPage() {
   const stock = Math.max(0, Number(product.stock ?? product.countInStock ?? 99));
   const maxPurchaseQuantity = Math.min(stock, 100);
   const category = typeof product.category === 'object' ? product.category?.name : (product.category || product.categoryName || 'Nội thất');
-  const add = () => { const outcome = addToCart(product, quantity); setNotice(outcome?.ok === false ? outcome.message : 'Đã thêm vào giỏ hàng.'); };
+  const add = () => {
+    const outcome = addToCart(product, quantity);
+    setNotice(outcome?.ok === false ? outcome.message : 'Đã thêm vào giỏ hàng.');
+  };
   const buyNow = () => {
-    const checkoutState = {
-      buyNowItem: {
-        product,
-        quantity,
-        price: Number(product.price) || 0,
-        name: product.name,
-        image: product.image || product.transparentImage || product.sourceImages?.[0] || '',
+    if (!user) {
+      openLogin('login');
+      return;
+    }
+    navigate('/checkout', {
+      state: {
+        buyNowItem: {
+          product,
+          quantity,
+          price: Number(product.price) || 0,
+          name: product.name,
+          image: product.image || product.transparentImage || product.sourceImages?.[0] || '',
+        },
       },
-    };
-    navigate('/checkout', { state: checkoutState });
+    });
   };
   const moderate = async (reviewId, isHidden, reason) => {
     try { await reviewService.moderateReview(reviewId, isHidden, reason); await loadReviews(); } catch (error) { setReviewNotice(errorMessage(error)); }

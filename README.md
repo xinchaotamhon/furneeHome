@@ -1,94 +1,198 @@
 # FurneeHome
 
-FurneeHome là website bán nội thất và trang trí dành cho sinh viên, học sinh, công nhân và gia đình phổ thông. Đây là đồ án tốt nghiệp của nhóm 4 thành viên.
+FurneeHome là website bán nội thất và đồ trang trí cho sinh viên, học sinh, công nhân và gia đình phổ thông. Đây là đồ án tốt nghiệp của nhóm 4 người.
 
-## Đặt vấn đề
+README này đi từ phần gốc của dự án đến cách chạy và giới hạn. Người mới có thể đọc theo thứ tự, sau đó mở đúng file để xem code.
 
-Người mua thường chỉ thấy ảnh, kích thước và giá sản phẩm nhưng khó hình dung món đồ có phù hợp với căn phòng thật hay không. Việc lựa chọn sai có thể làm tốn thời gian, chi phí và diện tích sử dụng.
+## 1. Gốc của dự án
 
-## Mục tiêu
+Người mua thường chỉ nhìn thấy ảnh sản phẩm nên khó biết món đồ có hợp với căn phòng thật hay không. FurneeHome giải quyết hai việc:
 
-- Xây dựng website bán nội thất dễ hiểu và dễ sử dụng.
-- Hỗ trợ tìm kiếm, lọc, xem chi tiết, đánh giá và đặt hàng COD hoặc chuyển khoản QR.
-- Cho phép người dùng thử tối đa 3 sản phẩm trên ảnh phòng bằng AI.
-- Quản lý sản phẩm, khách hàng, đơn hàng và báo nội dung trong một trang quản trị riêng.
-- Giữ mã nguồn đơn giản để nhóm có thể học, trình bày và bảo trì.
+1. Bán sản phẩm nội thất có tên, ảnh, giá, tồn kho, giỏ hàng và đơn hàng.
+2. Cho phép thử tối đa 3 sản phẩm trên ảnh phòng bằng dịch vụ tạo ảnh AI.
 
-## Người sử dụng
+Mục tiêu của đồ án là một website dễ dùng, code dễ đọc và đủ luồng để demo: xem sản phẩm → chọn mua → thanh toán → theo dõi đơn → đánh giá; phần Phòng thử là điểm nổi bật.
 
-- Khách: xem và tìm sản phẩm.
-- Khách hàng: mua hàng, theo dõi đơn, đánh giá, sửa hồ sơ, báo nội dung và dùng Phòng thử.
-- Admin: quản lý sản phẩm, khách hàng, đơn hàng và báo nội dung.
-- Orchestra Admin: có toàn bộ quyền admin và được phân quyền admin cấp dưới.
+## 2. Khái niệm cốt lõi
 
-## Chức năng chính
+- **Frontend** là phần React chạy trong trình duyệt. Nó hiển thị trang, giữ trạng thái ngắn hạn và gửi request đến API.
+- **Backend** là Node.js + Express. Nó kiểm tra dữ liệu, quyền đăng nhập, tính tiền và gọi MongoDB.
+- **MongoDB** là dữ liệu chính: sản phẩm, tài khoản, giỏ hàng, đơn hàng, đánh giá và feedback.
+- **API** là các đường dẫn `/api/...`. Frontend không tự sửa MongoDB mà luôn gửi request đến backend.
+- **JWT** là token sau khi đăng nhập. Frontend lưu token, gửi trong header `Authorization`; backend dùng token để biết người đang thao tác.
+- **Context React** dùng cho dữ liệu dùng ở nhiều trang: `AuthContext` cho tài khoản, `CartContext` cho giỏ, `ProductContext` cho danh sách sản phẩm.
+- **Snapshot JSON** ở `client/public/data_import/data_import.json` chỉ giúp sản phẩm hiện sớm. Sau đó `ProductContext` gọi MongoDB qua API và thay bằng dữ liệu chính thức. Giá, tồn kho và thao tác mua luôn lấy từ MongoDB.
 
-- Đăng ký bằng OTP email, đăng nhập bằng email, ghi nhớ email và đặt lại mật khẩu.
-- Danh sách sản phẩm, tìm kiếm, lọc danh mục và xem chi tiết.
-- Giỏ hàng, thanh toán COD hoặc chuyển khoản QR, lịch sử đơn và hủy đơn chưa giao.
-- Đánh giá sản phẩm và báo nội dung xấu.
-- Phòng thử AI: chọn 1–3 sản phẩm, tải ảnh phòng, nhập vị trí từng món và tạo ảnh.
-- Quản trị sản phẩm, ảnh, tồn kho, khách hàng, đơn hàng, liên hệ và quyền admin.
+## 3. Kiến trúc React – Express – MongoDB
 
-## Công nghệ
+```text
+Trình duyệt (React)
+  ├─ Router chọn trang
+  ├─ Context giữ user, product, cart
+  └─ Service gửi HTTP request
+          ↓
+Express (/api)
+  ├─ Route chọn controller
+  ├─ Middleware kiểm tra JWT và quyền
+  ├─ Controller kiểm tra business logic
+  └─ Model Mongoose đọc/ghi MongoDB
+          ↓
+MongoDB Atlas
+```
 
-- Frontend: React, HTML, CSS.
-- Backend: Node.js, Express.
-- Database: MongoDB.
-- Tạo ảnh: Pollinations và Cloudflare Workers AI.
-- Gửi OTP: SMTP Gmail.
+Khi tạo đơn, server tự đọc giá và tồn kho của từng sản phẩm từ MongoDB. Client không được quyết định lại giá hoặc phí vận chuyển. Sau khi tạo đơn, sản phẩm đã mua được xóa khỏi Cart trên MongoDB.
 
-## Tải và chạy
+## 4. Cấu trúc code
 
-Yêu cầu: Node.js, npm và MongoDB.
+```text
+client/
+  public/data_import/data_import.json  snapshot sản phẩm để hiện nhanh
+  src/components/                      Header, login, card, thanh toán...
+  src/context/                         Auth, Product, Cart
+  src/pages/                           các trang người dùng và quản trị
+  src/services/                        các lời gọi API
+  src/styles/                          CSS chung và CSS bán hàng
+  src/router.jsx                       danh sách đường dẫn frontend
+
+server/
+  src/server.js                         khởi động server và kết nối MongoDB
+  src/app.js                            CORS, JSON, health check, route, 404
+  src/routes/                           khai báo URL API
+  src/controllers/                      xử lý từng nghiệp vụ
+  src/models/                           schema MongoDB
+  src/middleware/                       JWT, quyền admin, lỗi
+  src/services/                         dịch vụ tạo ảnh và hỗ trợ khác
+  src/utils/                            seed dữ liệu mẫu, tiện ích
+
+THUYET_TRINH/                           kịch bản trình bày theo 4 thành viên
+README.md                               tài liệu kỹ thuật tổng quan này
+```
+
+## 5. Model dữ liệu MongoDB
+
+- `User`: họ tên, email, mật khẩu đã băm, vai trò, trạng thái khóa, số điện thoại và địa chỉ tỉnh/quận/phường. Ghi chú giao hàng là tùy chọn.
+- `Category`: tên và slug danh mục.
+- `Product`: tên, slug, danh mục, giá, tồn kho, ảnh, mô tả, thông số, điểm đánh giá và trạng thái đang bán.
+- `Cart`: một giỏ theo user, gồm product và quantity. Giỏ tối đa 100 món được chọn để thanh toán.
+- `Order`: user, bản chụp sản phẩm và giá lúc mua, địa chỉ giao, phí ship, thanh toán và trạng thái đơn.
+- `Review`: user, product, order, số sao, nội dung và trạng thái ẩn/hiện.
+- `Feedback`: nội dung báo xấu hoặc góp ý, người gửi và trạng thái xử lý.
+
+Đơn hàng lưu `orderItems` và giá tại thời điểm mua để lịch sử không đổi khi sản phẩm được sửa về sau. Không xóa sản phẩm đã có đơn/đánh giá/giỏ; quản trị dùng **Ngừng bán** để giữ lịch sử. Xóa hẳn chỉ được phép khi sản phẩm chưa được tham chiếu.
+
+## 6. Business logic chính
+
+### Tài khoản và OTP
+
+1. Đăng ký nhập email, server tạo OTP 6 số và gửi qua SMTP (localhost có thể trả mã thử nghiệm).
+2. Nhập OTP đúng trong 10 phút rồi tạo mật khẩu.
+3. Đăng nhập chỉ nhận email và mật khẩu. Tài khoản `isActive: false` bị báo khóa.
+4. Quên mật khẩu chỉ nhận email đã có trong MongoDB, gửi OTP mới và giới hạn 5 lần nhập sai. Hết 5 lần phải xin mã mới.
+5. Đổi mật khẩu trong Trang tài khoản cũng đi qua OTP email.
+
+### Giỏ hàng và thanh toán
+
+- Guest có thể thêm sản phẩm vào giỏ local; phải đăng nhập trước khi bấm **Mua ngay** hoặc thanh toán. Khi đăng nhập, giỏ guest được cộng vào giỏ của tài khoản.
+- Mỗi dòng có số lượng theo tồn kho; có thể chọn tối đa 100 món.
+- Checkout lấy tên, điện thoại, tỉnh, quận, phường và địa chỉ từ hồ sơ. Ghi chú giao hàng không bắt buộc.
+- Server tự đọc giá/tồn kho và tự tính phí ship theo tỉnh; không tin `shippingFee` do client gửi.
+- Có COD và chuyển khoản QR. Tạo đơn thành công thì xóa các sản phẩm đã mua khỏi Cart MongoDB.
+
+### Trạng thái đơn
+
+```text
+Pending → Processing → Shipped → Delivered
+   └──────────────→ Cancelled
+Processing ───────→ Cancelled
+```
+
+Khách chỉ hủy trước khi giao. Đơn đã hủy hiện thanh toán là **Đã hủy**, không hiện **Chờ thanh toán**. Orchestra Admin có thể sửa lại trạng thái vận hành khi admin cấp dưới chọn nhầm. COD chỉ xác nhận đã thanh toán sau khi giao thành công; đơn chuyển khoản có nút xác nhận trong quản trị.
+
+### Đánh giá và báo nội dung
+
+Chỉ sản phẩm trong đơn đã giao mới được đánh giá. Một sản phẩm chỉ có một đánh giá trong một đơn; xóa đánh giá thì có thể đánh giá lại ở lần mua khác. Điểm trung bình chỉ tính review đang hiện. Khách có thể gửi feedback/báo nội dung; admin xem và cập nhật trạng thái.
+
+### Phòng thử
+
+Trang `RoomStudioPage.jsx` cho chọn 1–3 sản phẩm, chọn ảnh phòng, nhập vị trí từng sản phẩm rồi gửi `roomImageDataUrl` và mô tả sản phẩm đến `/api/room-previews`. Backend làm sạch dữ liệu và gọi Pollinations/Cloudflare AI. Ảnh phòng và kết quả lớn chỉ giữ trong React state, không nhét Base64 vào sessionStorage.
+
+## 7. Trang frontend và file chính
+
+| Trang | Đường dẫn | File chính | Việc chính |
+|---|---|---|---|
+| Trang chủ | `/` | `HomePage.jsx` | giới thiệu, sản phẩm nổi bật, hướng dẫn |
+| Chọn sản phẩm | `/products` | `ProductListPage.jsx`, `ProductCard.jsx` | tìm kiếm, lọc, sắp xếp, thêm giỏ |
+| Chi tiết | `/products/:id` | `ProductDetailPage.jsx` | mô tả, giá, mua, đánh giá, báo nội dung |
+| Giỏ hàng | `/cart` | `CartPage.jsx`, `CartContext.jsx` | chọn món, sửa số lượng, xóa, tối đa 100 |
+| Thanh toán | `/checkout` | `CheckoutPage.jsx` | địa chỉ, phí ship, COD/QR, tạo đơn |
+| Đơn mua | `/orders` | `OrderHistoryPage.jsx` | xem, hủy, thanh toán QR, đánh giá/hoàn trả theo trạng thái |
+| Phòng thử | `/room-studio` | `RoomStudioPage.jsx` | ghép tối đa 3 sản phẩm vào ảnh phòng |
+| Tài khoản | `/profile` | `ProfilePage.jsx` | hồ sơ, tỉnh/quận/phường, OTP đổi mật khẩu |
+| Liên hệ | `/feedback` | `FeedbackPage.jsx` | gửi góp ý hoặc báo nội dung |
+| Quản trị | `/admin` | `AdminPage.jsx` | sản phẩm, khách hàng, đơn hàng, feedback, admin con |
+
+Header và modal đăng nhập nằm trong `client/src/components/layout` và `client/src/components/auth`.
+
+## 8. API và hàm quan trọng
+
+Các route được gắn dưới `/api` trong `server/src/routes/index.js`:
+
+| Nhóm | API tiêu biểu | Controller |
+|---|---|---|
+| Auth | `POST /auth/login`, `/auth/register/request`, `/auth/register/complete`, `/auth/forgot-password/request`, `/auth/forgot-password/reset` | `authController.js` |
+| User | `GET/PATCH /users/me`, `POST /users/me/password` | `userController.js` |
+| Product | `GET /products`, `GET /products/:id`, `POST/PUT/DELETE /products...` | `productController.js` |
+| Cart | `GET /cart`, `POST /cart/add`, `PUT /cart/update`, `DELETE /cart/...` | `cartController.js` |
+| Order | `POST /orders`, `GET /orders/my-orders`, `PATCH /orders/:id/cancel`, `PUT /orders/:id/status` | `orderController.js` |
+| Review | `GET /reviews/product/:id`, `POST /reviews/order/:id`, `PATCH /reviews/:id/moderation` | `reviewController.js` |
+| Room | `POST /room-previews` | `roomPreviewController.js` |
+| Admin | `GET/PATCH /admin/users`, `GET/PATCH /admin/feedback` | `adminController.js` |
+
+Các hàm nên biết khi thuyết trình:
+
+- `login`, `requestPasswordReset`, `resetPassword` trong `authController.js`.
+- `authenticate`, `requireAdmin` trong `authMiddleware.js`.
+- `createOrder`, `cancelMyOrder`, `updateOrderStatus` trong `orderController.js`.
+- `list`, `productData`, `permanentRemove`, `syncJson` trong `productController.js`.
+- `refreshRating`, `createOrderReview`, `moderateReview` trong `reviewController.js`.
+- `addToCart`, `updateQuantity`, `clearPurchasedItems` trong `CartContext.jsx`.
+
+## 9. Chạy ở máy local
+
+Yêu cầu: Node.js, npm và MongoDB Atlas (hoặc MongoDB local).
 
 ```powershell
 git clone https://github.com/xinchaotamhon/furneeHome.git
-cd furneeHome
-cd client
+cd furneeHome\client
 npm install
 cd ..\server
 npm install
 ```
 
-Tạo file `.env` ở thư mục gốc:
+Tạo `.env` ở thư mục gốc (không commit file này):
 
 ```env
 MONGO_URI=mongodb_connection_string
 JWT_SECRET=random_secret
 CLIENT_URL=http://localhost:5173
-
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=gmail_address
 SMTP_PASS=gmail_app_password
 EMAIL_FROM=gmail_address
-
 POLLINATIONS_API_KEY=api_key
 CLOUDFLARE_ACCOUNT_ID=account_id
 CLOUDFLARE_API_TOKEN=api_token
-
 ADMIN_USERNAME=admin
-ADMIN_EMAIL=admin@furneehome.vn
+ADMIN_EMAIL=admin@furneehome.local
 ADMIN_PASSWORD=123
 TEAM_ADMIN_PASSWORD=123
 ```
 
-Nếu MongoDB đang có dữ liệu thì không cần chạy `npm run seed`. Chỉ dùng lệnh sau một lần khi tạo database hoàn toàn mới:
+Nếu MongoDB đã có dữ liệu thì không chạy seed. `npm run seed` chỉ dành cho database mới hoàn toàn và có thể tạo dữ liệu mẫu; seed không phải lệnh đồng bộ thường ngày.
 
-```powershell
-cd server
-npm run seed
-```
-
-`data_import.json` chỉ là bản chụp sản phẩm để danh sách hiện nhanh lúc mới mở trang. Sau đó website luôn lấy lại dữ liệu chính thức từ MongoDB. Mọi thao tác thêm, sửa, ngừng bán, xóa, đặt hàng và đánh giá đều xử lý trên MongoDB.
-
-Khi chạy localhost, Orchestra Admin hoặc Admin có thể bấm **Đồng bộ JSON** trong trang Quản trị sản phẩm. Nút này chỉ sao chép một chiều từ MongoDB sang `data_import.json`, không ghi ngược vào MongoDB nên không làm mất tên, giá hoặc tồn kho đã sửa.
-
-Lệnh seed cũng tạo tài khoản mẫu, đánh giá 3–5 sao và các đơn minh họa: đang xử lý, đã giao thành công và đã hủy.
-
-Sau đó mở hai terminal:
+Mở hai terminal:
 
 ```powershell
 cd server
@@ -101,37 +205,38 @@ npm run dev
 ```
 
 - Website: `http://localhost:5173`
-- API: `http://localhost:5000`
+- API health: `http://localhost:5000/api/health`
 
-## Tài khoản mẫu
+Trong localhost, admin có thể bấm **Đồng bộ JSON** để chép dữ liệu hiện có từ MongoDB sang `data_import.json`. Đây là chiều MongoDB → JSON; không dùng JSON để ghi đè MongoDB.
 
-Đăng nhập bằng email. Các tài khoản dưới đây được tạo khi chạy seed:
+## 10. Tài khoản mẫu hiện có
 
-| Quyền | Email đăng nhập | Mật khẩu |
+Các tài khoản này khớp với dữ liệu hiện tại của MongoDB và dùng email để đăng nhập:
+
+| Quyền | Email | Mật khẩu |
 |---|---|---|
-| Orchestra Admin | `admin@furneehome.vn` | `123` |
-| Admin | `phuc@furneehome.vn` | `123` |
-| Admin | `trieu@furneehome.vn` | `123` |
-| Admin | `dung@furneehome.vn` | `123` |
-| Khách hàng | `customer@furneehome.vn` | `user123456` |
+| Orchestra Admin | `admin@furneehome.local` | `123` |
+| Admin Phúc | `phuc@furneehome.vn` | `123` |
+| Admin Triều | `trieu@furneehome.vn` | `123` |
+| Admin Dũng | `dung@furneehome.vn` | `123` |
+| Khách hàng demo | `customer@furneehome.vn` | `user123456` |
 
-Có thể đổi mật khẩu quản trị bằng `ADMIN_PASSWORD` và `TEAM_ADMIN_PASSWORD` trước khi chạy seed.
+Orchestra Admin có thêm phần quản trị admin cấp dưới. Admin thường quản lý sản phẩm, khách hàng, đơn hàng và feedback nhưng không sửa quyền Orchestra.
 
-### Hồ sơ mẫu
+## 11. Deploy
 
-Hồ sơ được xem là đủ khi có họ tên, số điện thoại, tỉnh/thành phố, quận/huyện, phường/xã và địa chỉ cụ thể. Ghi chú giao hàng là tùy chọn.
+- **Cloudflare Pages**: thư mục gốc `client`, build `npm run build`, thư mục xuất bản `dist`. Đặt `VITE_API_URL=https://furneehome.onrender.com/api` trong biến môi trường Pages.
+- **Render Web Service**: thư mục gốc `server`, build `npm install`, start `npm start`, health path `/api/health`. Đặt `MONGO_URI`, `JWT_SECRET`, `CLIENT_URL` và các biến SMTP/AI trong Environment.
+- MongoDB dùng MongoDB Atlas. Cloudflare chỉ phục vụ frontend; dữ liệu và business logic vẫn ở Render + MongoDB.
+- Direct Upload Cloudflare phải build lại và tải `client/dist` sau mỗi lần sửa. Không tải `.env` lên Git hoặc lên thư mục public.
 
-- Có ghi chú: `Nguyễn Văn A` · `0912345678` · `71/5 Huỳnh Tấn Phát` · `TP.HCM` · `Quận 7` · `Phường Tân Quy` · ghi chú `Gọi trước khi giao`.
-- Không có ghi chú (vẫn đủ): `Trần Thị B` · `0987654321` · `12 Nguyễn Trãi` · `TP.HCM` · `Quận 1` · `Phường Bến Thành` · để trống ô ghi chú.
+## 12. Giới hạn và hướng mở rộng
 
-## Deploy
-
-- Frontend Cloudflare Pages: nhánh `main`, thư mục gốc `client`, lệnh build `npm run build`, thư mục kết quả `dist`.
-- Backend Render: nhánh `main`, thư mục gốc `server`, lệnh build `npm install`, lệnh chạy `npm start`, Health Check Path `/api/health`.
-- Database: MongoDB Atlas.
-- Frontend tự dùng `http://localhost:5000/api` khi chạy local và `https://furneehome.onrender.com/api` khi deploy. Có thể đặt `VITE_API_URL` trên Cloudflare nếu muốn dùng backend khác.
-- Project Cloudflare tạo bằng Direct Upload phải build lại rồi tải thư mục `client/dist` lên sau mỗi lần sửa. Muốn tự deploy khi push Git thì tạo một Pages project mới và kết nối repository GitHub.
-- Chỉ lưu `.env` và API key trong máy cá nhân hoặc biến môi trường của dịch vụ deploy.
+- Tạo ảnh AI phụ thuộc tốc độ và hạn mức API bên ngoài; bản demo có Pollinations và Cloudflare làm nguồn dự phòng.
+- Ảnh phòng lớn được giữ trong bộ nhớ trình duyệt trong lúc làm việc, nên người dùng cần giữ nguyên tab.
+- API danh sách có phân trang khi truyền `page` và `limit`; nếu có hàng nghìn đơn cần thêm tìm kiếm/phân trang ở màn quản trị.
+- Gửi OTP sản xuất cần SMTP Gmail App Password hợp lệ. Localhost có mã thử nghiệm khi bật chế độ phát triển.
+- Nếu website có doanh thu lớn, cần thêm lưu ảnh ngoài (R2/S3), hàng đợi tạo ảnh, thanh toán thật, log và phân quyền chi tiết hơn.
 
 ## Liên hệ
 
