@@ -35,8 +35,8 @@ async function updateMe(req, res, next) {
 
     if (req.body.name !== undefined) {
       const name = String(req.body.name || '').trim();
-      if (!name || name.length > 80) {
-        return res.status(400).json({ success: false, message: 'Họ tên không hợp lệ.', data: null });
+      if (!name || name.length < 2 || name.length > 20) {
+        return res.status(400).json({ success: false, message: 'Họ và tên phải từ 2 đến 20 ký tự.', data: null });
       }
       user.name = name;
     }

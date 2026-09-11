@@ -22,6 +22,10 @@ const orderService = {
     const response = await apiClient.patch(`/orders/${id}/cancel`);
     return response.data.data;
   },
+  async confirmPayment(id) {
+    const response = await apiClient.patch(`/orders/${id}/confirm-payment`);
+    return response.data.data;
+  },
   async updateRefundInfo(id, data) {
     const response = await apiClient.put(`/orders/${id}/refund-info`, data);
     return response.data.data;

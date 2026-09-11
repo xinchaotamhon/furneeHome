@@ -46,6 +46,9 @@ const orderSchema = new mongoose.Schema({
     accountHolder: { type: String, default: '', trim: true },
     updatedAt: { type: Date },
   },
+  // Khách hàng chủ động bấm xác nhận đã chuyển khoản thành công qua QR
+  customerConfirmedPayment: { type: Boolean, default: false },
+  customerConfirmedAt: { type: Date },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', orderSchema);

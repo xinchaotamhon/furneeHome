@@ -40,7 +40,12 @@ export default function LoginModal() {
   }, [authMode, isLoginOpen]);
 
   if (!isLoginOpen) return null;
-  const updateField = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
+  const updateField = (field) => (event) => {
+    let val = event.target.value;
+    if (field === 'otp') val = val.replace(/\D/g, '').slice(0, 6);
+    if (field === 'name') val = val.slice(0, 20);
+    setForm((current) => ({ ...current, [field]: val }));
+  };
   const toLogin = () => {
     switchAuthMode('login');
     setView('login');
@@ -51,6 +56,13 @@ export default function LoginModal() {
     event.preventDefault();
     setNotice('');
     setError('');
+    if (view === 'register-complete') {
+      const trimmedName = form.name.trim();
+      if (!trimmedName || trimmedName.length < 2) {
+        setError('Họ và tên phải có ít nhất 2 ký tự.');
+        return;
+      }
+    }
     if ((view === 'register-complete' || view === 'reset') && form.password !== form.confirmPassword) {
       setError('Mật khẩu nhập lại chưa khớp.');
       return;
@@ -81,7 +93,9 @@ export default function LoginModal() {
       }
     } catch (submitError) {
       setError(submitError.response?.data?.message || submitError.message || 'Không thể thực hiện yêu cầu.');
-    } finally { setIsSubmitting(false); }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const title = { login: 'Đăng nhập', 'register-email': 'Xác minh email', 'register-complete': 'Tạo tài khoản', forgot: 'Quên mật khẩu', reset: 'Đặt mật khẩu mới' }[view];
@@ -92,10 +106,10 @@ export default function LoginModal() {
       <button className="modal-close" type="button" aria-label="Đóng" onClick={closeLogin}>×</button>
       <h2 id="auth-modal-title">{title}</h2>
       {view === 'register-email' && <label>Email<input type="email" value={form.email} onChange={updateField('email')} autoComplete="email" required /></label>}
-      {view === 'register-complete' && <><p className="muted">Email {form.email}</p><label>Họ và tên<input type="text" value={form.name} onChange={updateField('name')} autoComplete="name" maxLength="80" required /></label><label>Mã xác minh<input inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={form.otp} onChange={updateField('otp')} autoComplete="one-time-code" required /></label></>}
+      {view === 'register-complete' && <><p className="muted">Email {form.email}</p><label>Họ và tên<input type="text" value={form.name} onChange={updateField('name')} autoComplete="name" minLength="2" maxLength="20" placeholder="Tối thiểu 2, tối đa 20 ký tự" required /></label><label>Mã xác minh<input type="tel" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={form.otp} onChange={updateField('otp')} autoComplete="one-time-code" placeholder="Nhập 6 chữ số" required /></label></>}
       {view === 'login' && <label>Email<input type="email" value={form.email} onChange={updateField('email')} autoComplete="email" required /></label>}
       {(view === 'forgot' || view === 'reset') && <label>Email<input type="email" value={form.email} onChange={updateField('email')} autoComplete="email" readOnly={view === 'reset'} required /></label>}
-      {view === 'reset' && <label>Mã xác minh<input inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={form.otp} onChange={updateField('otp')} autoComplete="one-time-code" required /></label>}
+      {view === 'reset' && <label>Mã xác minh<input type="tel" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={form.otp} onChange={updateField('otp')} autoComplete="one-time-code" placeholder="Nhập 6 chữ số" required /></label>}
       {(view === 'login' || view === 'register-complete' || view === 'reset') && (
         <label>
           {view === 'reset' ? 'Mật khẩu mới' : 'Mật khẩu'}

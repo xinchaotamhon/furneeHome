@@ -7,6 +7,7 @@ router.use(authenticate);
 router.post('/', orderController.createOrder);
 router.get('/my-orders', orderController.getMyOrders);
 router.patch('/:id/cancel', orderController.cancelMyOrder);
+router.patch('/:id/confirm-payment', orderController.confirmPaymentTransfer);
 router.put('/:id/refund-info', orderController.updateRefundInfo);
 router.get('/', requireAdmin, orderController.getAllOrders);
 router.put('/:id/status', requireAdmin, orderController.updateOrderStatus);

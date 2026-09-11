@@ -92,7 +92,11 @@ function paymentLabel(order) {
   if (order.paymentStatus === 'Refunding') return 'Chờ hoàn tiền';
   if (order.paymentStatus === 'Refunded') return 'Đã hoàn tiền';
   if (order.orderStatus === 'Cancelled' && order.paymentStatus !== 'Paid') return 'Đã hủy';
-  return order.paymentStatus === 'Paid' ? 'Đã thanh toán' : 'Chờ thanh toán';
+  if (order.paymentStatus === 'Paid') return 'Đã thanh toán';
+  if (order.paymentMethod === 'BANK_TRANSFER' && order.customerConfirmedPayment) {
+    return '🔔 Khách báo đã CK';
+  }
+  return 'Chờ thanh toán';
 }
 
 function formatDate(value) {
@@ -132,7 +136,6 @@ function downloadInvoice(order) {
     <p>Tiền hàng: ${formatPrice(order.subtotal)}</p>
     <p>Phí vận chuyển: ${formatPrice(order.shippingFee)}</p>
     <p class="total"><strong>Tổng cộng: ${formatPrice(order.totalAmount)}</strong></p>
-    <div class="note-box"><strong>📦 Chính sách nhận hàng:</strong> Khách hàng khi nhận hàng được phép mở xem kiểm tra hàng (đồng kiểm) trước khi nhận/thanh toán.</div>
     <p style="margin-top:12px"><small>Trạng thái: ${safeText(ORDER_LABELS[order.orderStatus] || order.orderStatus)} · ${safeText(paymentLabel(order))}</small></p>
   </body></html>`;
 
@@ -263,9 +266,13 @@ function InvoiceModal({ order, onClose }) {
             <div className="row total"><span>Tổng cộng</span><strong>{formatPrice(order.totalAmount)}</strong></div>
           </div>
 
-          <div style={{ marginTop: '14px', padding: '10px 12px', background: '#f6fbf7', border: '1px solid #d1ebd6', borderRadius: '6px', fontSize: '0.85rem', color: '#17583f' }}>
-            📦 <strong>Chính sách giao nhận:</strong> Cho phép khách hàng mở xem kiểm tra hàng khi nhận (đồng kiểm).
-          </div>
+
+          {order.paymentMethod === 'BANK_TRANSFER' && order.customerConfirmedPayment && order.paymentStatus !== 'Paid' && (
+            <div style={{ marginTop: '12px', padding: '10px 12px', background: '#e0f2fe', border: '1px solid #bae6fd', borderRadius: '6px', fontSize: '0.86rem', color: '#0369a1' }}>
+              🔔 <strong>Khách hàng đã bấm xác nhận đã chuyển khoản{order.customerConfirmedAt ? ` lúc ${formatDate(order.customerConfirmedAt)}` : ''}.</strong>
+              <p style={{ margin: '4px 0 0' }}>Vui lòng kiểm tra sao kê ngân hàng với nội dung <code>{order.orderNumber || String(order._id).slice(-8).toUpperCase()}</code> trước khi bấm Xác nhận thanh toán.</p>
+            </div>
+          )}
 
           {order.paymentStatus === 'Refunding' && (
             <div style={{ marginTop: '12px', padding: '14px', background: '#fffaf0', border: '1px solid #feebc8', borderRadius: '8px', fontSize: '0.88rem' }}>
@@ -686,7 +693,7 @@ export default function AdminPage() {
         {isWorking && !orders.length ? <p className="muted">Đang tải…</p> : !orders.length ? <p className="muted">Chưa có đơn hàng.</p> : (
           <div className="admin-table-container">
             <table className="admin-table">
-              <thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Sản phẩm</th><th>Tổng tiền</th><th>Phương thức</th><th>Thanh toán</th><th>Trạng thái đơn</th><th>Hóa đơn</th></tr></thead>
+              <thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Sản phẩm</th><th>Tổng tiền</th><th>Phương thức</th><th>Thanh toán</th><th>Trạng thái đơn</th><th style={{ textAlign: 'center', width: '60px' }}>Chi tiết</th></tr></thead>
               <tbody>
                 {orders.map((order) => {
                   const isBank = order.paymentMethod === 'BANK_TRANSFER';
@@ -700,8 +707,16 @@ export default function AdminPage() {
 
                   return (
                     <tr key={order._id}>
-                      <td><strong>{order.orderNumber || String(order._id).slice(-8).toUpperCase()}</strong></td>
-                      <td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <strong
+                          style={{ cursor: 'pointer', color: 'var(--color-primary, #17583f)' }}
+                          onClick={() => setSelectedOrder(order)}
+                          title="Bấm để xem chi tiết đơn hàng"
+                        >
+                          {order.orderNumber || String(order._id).slice(-8).toUpperCase()}
+                        </strong>
+                      </td>
+                      <td style={{ minWidth: '110px' }}>
                         <button
                           type="button"
                           onClick={() => openCustomerFromOrder(order)}
@@ -722,27 +737,71 @@ export default function AdminPage() {
                           <small style={{ color: 'var(--color-muted, #667)' }}>{order.shippingAddress?.phone}</small>
                         </button>
                       </td>
-                      <td>{(order.orderItems || []).map((item) => `${item.name} × ${item.qty ?? item.quantity}`).join(', ')}</td>
-                      <td><strong>{formatPrice(order.totalAmount)}</strong></td>
-                      <td><span className={`payment-badge ${isBank ? 'bank' : 'cod'}`}>{isBank ? 'Chuyển khoản QR' : 'COD'}</span></td>
-                      <td>
+                      <td style={{ minWidth: '140px', maxWidth: '180px', lineHeight: 1.3 }}>
+                        {(() => {
+                          const items = order.orderItems || [];
+                          if (!items.length) return <span style={{ color: 'var(--color-muted)' }}>0 sản phẩm</span>;
+                          const firstItem = items[0];
+                          const firstQty = firstItem.qty ?? firstItem.quantity ?? 1;
+                          const firstName = firstItem.name.length > 22 ? `${firstItem.name.slice(0, 22)}…` : firstItem.name;
+                          const extraCount = items.length - 1;
+                          return (
+                            <div title={items.map((i) => `${i.name} × ${i.qty ?? i.quantity}`).join('\n')}>
+                              <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {firstName} <strong>× {firstQty}</strong>
+                              </div>
+                              {extraCount > 0 && (
+                                <div style={{ fontSize: '0.75rem', color: 'var(--color-muted, #667)', whiteSpace: 'nowrap' }}>
+                                  (+{extraCount} sản phẩm khác)
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}><strong>{formatPrice(order.totalAmount)}</strong></td>
+                      <td style={{ whiteSpace: 'nowrap' }}><span className={`payment-badge ${isBank ? 'bank' : 'cod'}`}>{isBank ? 'Chuyển khoản QR' : 'COD'}</span></td>
+                      <td style={{ whiteSpace: 'nowrap', minWidth: '135px' }}>
                         <span
                           style={{
-                            color: order.paymentStatus === 'Refunding' ? '#c05621' : order.paymentStatus === 'Refunded' ? '#276749' : 'inherit',
-                            fontWeight: ['Refunding', 'Refunded'].includes(order.paymentStatus) ? 600 : 'normal',
+                            color: order.paymentStatus === 'Refunding' ? '#c05621'
+                              : order.paymentStatus === 'Refunded' ? '#276749'
+                              : (order.paymentMethod === 'BANK_TRANSFER' && order.customerConfirmedPayment && !paid) ? '#0284c7'
+                              : 'inherit',
+                            fontWeight: ['Refunding', 'Refunded'].includes(order.paymentStatus) || (order.customerConfirmedPayment && !paid) ? 600 : 'normal',
+                            display: 'block',
                           }}
                         >
                           {paymentLabel(order)}
                         </span>
+
                         {canConfirmPayment && (
-                          <button className="text-button admin-payment-button" type="button" disabled={isWorking} onClick={() => updateOrder(order._id, { paymentStatus: 'Paid' })}>
-                            Xác nhận thanh toán
+                          <button
+                            className="text-button admin-payment-button"
+                            style={order.customerConfirmedPayment ? {
+                              display: 'inline-block',
+                              marginTop: '4px',
+                              background: '#15803d',
+                              color: '#fff',
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              fontWeight: 600,
+                              fontSize: '0.8rem',
+                              border: 'none',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            } : { display: 'inline-block', marginTop: '4px', whiteSpace: 'nowrap' }}
+                            type="button"
+                            disabled={isWorking}
+                            onClick={() => updateOrder(order._id, { paymentStatus: 'Paid' })}
+                          >
+                            {order.customerConfirmedPayment ? '✓ Xác nhận' : 'Xác nhận thanh toán'}
                           </button>
                         )}
                         {canConfirmRefund && (
                           <button
                             className="text-button admin-payment-button"
-                            style={{ color: '#c05621', fontWeight: 600, display: 'block', marginTop: '4px' }}
+                            style={{ color: '#c05621', fontWeight: 600, display: 'inline-block', marginTop: '4px', whiteSpace: 'nowrap' }}
                             type="button"
                             disabled={isWorking}
                             title="Bấm sau khi đã chuyển khoản trả lại tiền cho khách"
@@ -756,18 +815,22 @@ export default function AdminPage() {
                               }
                             }}
                           >
-                            ✓ Xác nhận đã hoàn tiền
+                            ✓ Hoàn tiền
                           </button>
                         )}
                       </td>
-                      <td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
                         {nextStates.length ? (
                           <select value={order.orderStatus} disabled={isWorking} onChange={(event) => updateOrder(order._id, { orderStatus: event.target.value })}>
                             {[...new Set([order.orderStatus, ...nextStates])].map((state) => <option key={state} value={state}>{ORDER_LABELS[state]}</option>)}
                           </select>
                         ) : <span>{ORDER_LABELS[order.orderStatus] || order.orderStatus}</span>}
                       </td>
-                      <td><button className="admin-edit" type="button" onClick={() => setSelectedOrder(order)}>Xem</button></td>
+                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap', width: '60px' }}>
+                        <button className="admin-edit" type="button" onClick={() => setSelectedOrder(order)}>
+                          Xem
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}

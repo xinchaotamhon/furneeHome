@@ -25,15 +25,6 @@ function canReviewOrder(order) {
   return order.orderStatus === 'Delivered';
 }
 
-// Nhãn hiển thị trạng thái thanh toán
-function paymentLabel(order) {
-  if (order.paymentStatus === 'Refunding') return '⏳ Chờ hoàn tiền';
-  if (order.paymentStatus === 'Refunded') return '✓ Đã hoàn tiền';
-  if (order.orderStatus === 'Cancelled' && order.paymentStatus !== 'Paid') return 'Đã hủy';
-  if (order.paymentStatus === 'Paid') return '✓ Đã thanh toán';
-  return order.paymentMethod === 'BANK_TRANSFER' ? 'Chờ chuyển khoản' : 'Chưa thu tiền (COD)';
-}
-
 // Modal để khách hàng nhập thông tin tài khoản ngân hàng nhận tiền hoàn
 // Tránh việc gửi ảnh mã QR lạ có thể chứa mã độc / gian lận
 function RefundAccountModal({ order, onClose, onSaved }) {
@@ -118,10 +109,12 @@ function RefundAccountModal({ order, onClose, onSaved }) {
           <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.9rem', fontWeight: 500 }}>
             Số tài khoản ngân hàng:
             <input
-              type="text"
-              placeholder="Nhập số tài khoản"
+              type="tel"
+              inputMode="numeric"
+              placeholder="Nhập số tài khoản (chỉ gồm số)"
+              maxLength="20"
               value={accountNumber}
-              onChange={(e) => setAccountNumber(e.target.value.replace(/[^0-9a-zA-Z]/g, ''))}
+              onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, '').slice(0, 20))}
               required
             />
           </label>
@@ -238,9 +231,6 @@ export default function OrderHistoryPage() {
                     <span className={`status-pill status-${order.orderStatus.toLowerCase()}`}>
                       {statusLabel[order.orderStatus] || order.orderStatus}
                     </span>
-                    <span className={`status-pill ${isPaid || order.paymentStatus === 'Refunded' ? 'payment-paid' : 'payment-pending'}`}>
-                      {paymentLabel(order)}
-                    </span>
                   </div>
                 </header>
 
@@ -270,8 +260,8 @@ export default function OrderHistoryPage() {
                   </div>
                 )}
 
-                {/* Thông báo hoàn hàng và trạng thái hoàn tiền */}
-                {order.orderStatus === 'Returned' && (
+                {/* Thông báo hoàn hàng hoặc hủy đơn có hoàn tiền */}
+                {(order.orderStatus === 'Returned' || (order.orderStatus === 'Cancelled' && ['Refunding', 'Refunded'].includes(order.paymentStatus))) && (
                   <div style={{
                     margin: '8px 0 10px',
                     padding: '8px 12px',
@@ -286,15 +276,17 @@ export default function OrderHistoryPage() {
                   }}>
                     <span>{order.paymentStatus === 'Refunded' ? '✓' : '↩️'}</span>
                     <span>
-                      {order.paymentStatus === 'Refunding' && 'Đơn hàng đã được hoàn về. FurneeHome đang tiến hành hoàn lại tiền cho quý khách qua tài khoản ngân hàng.'}
+                      {order.paymentStatus === 'Refunding' && (order.orderStatus === 'Cancelled'
+                        ? 'Đơn hàng đã hủy. FurneeHome đang tiến hành hoàn lại tiền cho quý khách qua tài khoản ngân hàng.'
+                        : 'Đơn hàng đã được hoàn về. FurneeHome đang tiến hành hoàn lại tiền cho quý khách qua tài khoản ngân hàng.')}
                       {order.paymentStatus === 'Refunded' && 'Đã hoàn tiền thành công: FurneeHome đã chuyển khoản hoàn tiền đơn hàng này về tài khoản của quý khách.'}
-                      {order.paymentMethod === 'COD' && 'Đơn hàng đã hoàn về do quý khách từ chối nhận khi kiểm tra hàng (chưa thu tiền).'}
+                      {order.orderStatus === 'Returned' && order.paymentMethod === 'COD' && 'Đơn hàng đã hoàn về do quý khách từ chối nhận khi kiểm tra hàng (chưa thu tiền).'}
                     </span>
                   </div>
                 )}
 
                 {/* Khung cung cấp hoặc hiển thị thông tin tài khoản nhận tiền hoàn */}
-                {order.orderStatus === 'Returned' && order.paymentStatus === 'Refunding' && (
+                {['Returned', 'Cancelled'].includes(order.orderStatus) && order.paymentStatus === 'Refunding' && (
                   order.refundInfo?.accountNumber ? (
                     <div style={{ margin: '6px 0 12px', padding: '10px 14px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.85rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
@@ -364,6 +356,9 @@ export default function OrderHistoryPage() {
         <QrPaymentModal
           order={activeQrOrder}
           onClose={() => setActiveQrOrder(null)}
+          onConfirmed={(updated) => {
+            setOrders((prev) => prev.map((o) => (o._id === updated._id ? { ...o, ...updated } : o)));
+          }}
         />
       )}
 

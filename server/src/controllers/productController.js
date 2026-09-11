@@ -187,7 +187,6 @@ async function list(req, res, next) {
           { name: { $regex: keyword, $options: 'i' } },
           { slug: { $regex: slugKeyword, $options: 'i' } },
           { categoryName: { $regex: keyword, $options: 'i' } },
-          { description: { $regex: keyword, $options: 'i' } },
         ];
       }
     }

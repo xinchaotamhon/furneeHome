@@ -239,12 +239,14 @@ async function cancelOrder(orderId, extraFilter = {}) {
     orderStatus: { $in: CUSTOMER_CANCELLABLE },
     stockRestored: false,
   });
-  if (!existing) throw createError('Đơn hàng không còn có thể hủy hoặc đã được xử lý.', 409);
+  const needsRefund = existing.paymentStatus === 'Paid' || (existing.paymentMethod === 'BANK_TRANSFER' && existing.customerConfirmedPayment);
+  const nextPaymentStatus = needsRefund ? 'Refunding' : 'Cancelled';
+
   const order = await Order.findOneAndUpdate(
     { _id: orderId, ...extraFilter, orderStatus: { $in: CUSTOMER_CANCELLABLE }, stockRestored: false },
     { $set: {
       orderStatus: 'Cancelled',
-      paymentStatus: existing.paymentStatus === 'Paid' ? 'Paid' : 'Cancelled',
+      paymentStatus: nextPaymentStatus,
       stockRestored: true,
     } },
     { returnDocument: 'after' },
@@ -435,12 +437,43 @@ async function updateRefundInfo(req, res, next) {
   }
 }
 
+// Khách hàng chủ động bấm "Tôi đã chuyển khoản" sau khi quét mã VietQR
+async function confirmPaymentTransfer(req, res, next) {
+  try {
+    checkId(req.params.id);
+    const order = await Order.findOne({ _id: req.params.id, user: req.user._id });
+    if (!order) throw createError('Không tìm thấy đơn hàng.', 404);
+    if (order.paymentMethod !== 'BANK_TRANSFER') {
+      throw createError('Đơn hàng này không áp dụng phương thức chuyển khoản ngân hàng.', 400);
+    }
+    if (order.paymentStatus === 'Paid') {
+      throw createError('Đơn hàng này đã được xác nhận thanh toán rồi.', 400);
+    }
+    if (order.orderStatus === 'Cancelled') {
+      throw createError('Đơn hàng đã hủy không thể xác nhận chuyển khoản.', 400);
+    }
+
+    order.customerConfirmedPayment = true;
+    order.customerConfirmedAt = new Date();
+    await order.save();
+
+    return res.json({
+      success: true,
+      message: 'Đã ghi nhận thông báo chuyển khoản của bạn. Cửa hàng sẽ đối soát và xử lý đơn sớm nhất.',
+      data: order,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   createOrder,
   getMyOrders,
   getAllOrders,
   updateOrderStatus,
   updateRefundInfo,
+  confirmPaymentTransfer,
   cancelMyOrder,
   cleanAddress,
   calculateShippingFee,

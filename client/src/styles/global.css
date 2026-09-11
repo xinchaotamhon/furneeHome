@@ -581,9 +581,9 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
 .admin-tabs button.active { border-color: #1e674b; color: #fff; background: #1e674b; }
 .admin-message { margin: 0 0 14px; }
 .admin-table-card { display: grid; gap: 12px; padding: 20px; }
-.admin-table { min-width: 1050px; }
-.admin-table th:last-child, .admin-table td:last-child { min-width: 170px; }
-.admin-table select { width: 100%; min-width: 150px; }
+.admin-table { width: 100%; min-width: 860px; }
+.admin-table th:last-child, .admin-table td:last-child { min-width: 65px; width: 65px; text-align: center; }
+.admin-table select { width: 100%; min-width: 110px; max-width: 135px; font-size: .8rem; padding: 4px 6px; }
 .admin-user-list, .admin-feedback-list { display: grid; }
 .admin-user-list article { display: grid; grid-template-columns: minmax(180px, 1fr) 110px minmax(230px, auto); gap: 14px; align-items: center; padding: 13px 4px; border-top: 1px solid #e3e7e2; }
 .admin-user-list article > div:first-child { display: grid; gap: 2px; }
@@ -596,7 +596,7 @@ label { display: grid; gap: 7px; color: var(--color-text); font-size: .9rem; fon
 .admin-feedback-head { display: flex; gap: 10px; align-items: center; }
 .admin-feedback-head span { color: #718078; font-size: .74rem; }
 .profile-card, .feedback-card { max-width: 620px; margin: 0 auto; padding: 22px; }
-.profile-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 900px; gap: 18px; margin: 0 auto; }
+.profile-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 900px; gap: 18px; margin: 0 auto; align-items: start; }
 .profile-layout h2 { margin: 0; }
 .profile-location-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .profile-message { max-width: 900px; margin: 0 auto 12px; }

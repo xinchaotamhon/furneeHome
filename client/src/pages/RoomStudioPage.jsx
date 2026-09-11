@@ -182,37 +182,40 @@ export default function RoomStudioPage() {
           <span className="step-label">BƯỚC 3</span>
           <h2>Vị trí mong muốn (không bắt buộc)</h2>
           {selectedProducts.length ? (
-            <div className="studio-position-fields">
+            <div className="studio-position-fields" style={{ display: 'grid', gap: '10px', margin: '10px 0 16px' }}>
               {selectedProducts.map((product, index) => (
-                <div key={idOf(product)} className="studio-position-item" style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.3rem' }}>
-                    {`Vị trí món ${index + 1}: ${product.name}`}
-                  </label>
-                  <input
-                    type="text"
+                <div
+                  key={idOf(product)}
+                  className="studio-position-row"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                  }}
+                >
+                  <strong style={{ minWidth: '65px', fontSize: '0.92rem', color: '#1a3325', whiteSpace: 'nowrap' }}>
+                    Món {index + 1}:
+                  </strong>
+                  <select
                     value={desiredPositions[idOf(product)] || ''}
                     onChange={(event) => updatePosition(idOf(product), event.target.value)}
-                    placeholder="Tự do nhập vị trí (ví dụ: cạnh cửa sổ, góc phòng...) hoặc chọn gợi ý bên dưới"
-                  />
-                  <div className="position-quick-tags" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.35rem' }}>
-                    {[
-                      { label: '🪟 Cạnh cửa sổ', val: 'cạnh cửa sổ' },
-                      { label: '🧱 Sát góc tường', val: 'sát góc tường' },
-                      { label: '🛋️ Giữa phòng', val: 'chính giữa phòng' },
-                      { label: '🚪 Gần cửa ra vào', val: 'gần cửa ra vào' },
-                      { label: '🪵 Trên mặt bàn / kệ', val: 'trên mặt bàn hoặc kệ' },
-                    ].map((item) => (
-                      <button
-                        key={item.val}
-                        type="button"
-                        className="button button-outline"
-                        style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem', borderRadius: '12px', lineHeight: 1.2 }}
-                        onClick={() => updatePosition(idOf(product), item.val)}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
+                    style={{
+                      flex: 1,
+                      minHeight: '38px',
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #ced8cf',
+                      background: '#fff',
+                      fontSize: '0.88rem',
+                    }}
+                  >
+                    <option value="">AI tự bố trí hợp lý</option>
+                    <option value="cạnh cửa sổ">🪟 Cạnh cửa sổ</option>
+                    <option value="sát góc tường">🧱 Sát góc tường</option>
+                    <option value="chính giữa phòng">🛋️ Giữa phòng</option>
+                    <option value="gần cửa ra vào">🚪 Gần cửa ra vào</option>
+                    <option value="trên mặt bàn hoặc kệ">🪵 Trên mặt bàn / kệ</option>
+                  </select>
                 </div>
               ))}
             </div>

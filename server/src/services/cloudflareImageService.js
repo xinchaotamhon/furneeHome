@@ -1,3 +1,4 @@
+
 const env = require('../config/env');
 
 const DATA_URL = /^data:(image\/(png|jpeg|jpg|webp));base64,([A-Za-z0-9+/=\s]+)$/i;
@@ -31,15 +32,65 @@ function outputSize(imageSize = {}) {
   };
 }
 
-function cleanTitleForAi(name) {
-  if (!name) return 'furniture piece';
-  return String(name)
-    .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, ' ')
-    .replace(/\b(hàng sẵn|giá rẻ|cao cấp|chính hãng|đa năng|tiện lợi|bảo hành \d+ năm|số lượng lớn|hot|mẫu mới|sale|freeship)\b/gi, ' ')
-    .replace(/\b(aiodiy|boenin|sta|luxe|size \w+)\b/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 120);
+function translateTitleToEnglish(name) {
+  if (!name) return 'interior furniture item';
+  const text = String(name).toLowerCase();
+
+  // 1. Thảm trải sàn / thảm lau chân
+  if (/thảm/.test(text)) {
+    if (/tắm|chân|diatomit|chùi/.test(text)) return 'absorbent non-slip floor bath mat';
+    if (/bếp/.test(text)) return 'washable kitchen floor runner rug';
+    return 'modern decorative floor rug mat';
+  }
+  // 2. Giường ngủ
+  if (/giường/.test(text)) {
+    if (/gấp/.test(text)) return 'folding solid wood single bed frame';
+    return 'modern minimalist bedroom bed';
+  }
+  // 3. Sofa & Ghế dài
+  if (/sofa|ghế dài|đi-văng|couch/.test(text)) return 'comfortable upholstered living room sofa';
+  // 4. Bàn các loại
+  if (/bàn trà|bàn bệt|bàn nhật|coffee table/.test(text)) return 'low wooden floor-seating coffee table';
+  if (/bàn trang điểm/.test(text)) return 'compact vanity makeup table with mirror';
+  if (/bàn học gấp gọn|bàn để giường|bàn mini|ngồi bệt/.test(text)) return 'ultra-low folding lap desk for floor sitting';
+  if (/bàn camping|bàn dã ngoại|bàn xếp|bàn tròn.*cafe/.test(text)) return 'compact folding round cafe table';
+  if (/bàn làm việc|bàn học|desk/.test(text)) return 'modern wooden office study desk';
+  if (/bàn ăn|dining table/.test(text)) return 'wooden dining room table';
+  if (/bàn/.test(text)) return 'compact modern furniture table';
+  // 5. Ghế các loại
+  if (/ghế xoay|ghế công thái học|ergonomic/.test(text)) return 'ergonomic swivel office desk chair';
+  if (/ghế nhựa|ghế xếp|ghế đẩu/.test(text)) return 'simple lightweight moulded plastic chair with straight legs';
+  if (/ghế/.test(text)) return 'modern comfortable accent chair';
+  // 6. Giàn phơi / Giá treo quần áo
+  if (/giàn phơi|giá treo quần áo|giá chữ a/.test(text)) return 'A-frame clothes hanging drying rack';
+  // 7. Xe đẩy lưu trữ
+  if (/xe đẩy/.test(text)) return 'rolling 3-tier utility storage cart with wheels';
+  // 8. Kệ / Tủ / Giá sách
+  if (/giá sách|kệ sách/.test(text)) return 'tall open wooden bookshelf';
+  if (/kệ để đồ|kệ đa năng|kệ bếp|kệ gia vị|giá treo|giá đựng|giỏ/.test(text)) return 'multi-tier kitchen storage shelf rack';
+  if (/tủ/.test(text)) return 'wooden storage cabinet unit';
+  if (/kệ/.test(text)) return 'minimalist storage shelf';
+  // 9. Đồ trang trí: Đèn, Cây, Hoa, Tranh, Gương
+  if (/đèn cây|đèn đứng|đèn sàn|floor lamp/.test(text)) return 'tall modern floor standing lamp with slender pole';
+  if (/đèn treo|đèn chùm|pendant/.test(text)) return 'hanging ceiling pendant light';
+  if (/đèn/.test(text)) return 'modern ambient table lamp';
+  if (/cây|bonsai/.test(text)) return 'small potted decorative green houseplant';
+  if (/hoa|chậu hoa/.test(text)) return 'artificial flower vase arrangement';
+  if (/tranh/.test(text)) return 'framed minimalist wall art painting';
+  if (/gương/.test(text)) return 'modern wall-mounted hanging mirror';
+
+  return cleanTitleForAi(name);
+}
+
+function categoryToEnglish(cat) {
+  const map = {
+    'Phòng khách': 'Living Room',
+    'Phòng làm việc': 'Home Office',
+    'Phòng ngủ': 'Bedroom',
+    'Bếp & Phòng ăn': 'Kitchen & Dining',
+    'Trang trí & Đèn': 'Home Decor & Lighting',
+  };
+  return map[cat] || cat || 'Interior';
 }
 
 function inferDimensionsAndPlacement(product) {
@@ -57,7 +108,45 @@ function inferDimensionsAndPlacement(product) {
     };
   }
 
-  const text = `${product.productName || ''} ${product.categoryName || ''}`.toLowerCase();
+  const text = `${product.productName || product.name || ''} ${product.categoryName || ''}`.toLowerCase();
+
+  // 1. Thảm trải sàn
+  if (/thảm/.test(text)) {
+    return {
+      dimensions: 'width 60 cm, depth 40 cm, height 1 cm',
+      placementSurface: 'floor',
+      usageType: 'standard',
+      spatialHint: 'Flat floor mat or rug resting completely flat on the floor tiles. Must lay flat with zero thickness, no legs.',
+    };
+  }
+  // 2. Giường ngủ
+  if (/giường/.test(text)) {
+    return {
+      dimensions: 'width 195 cm, depth 95 cm, height 45 cm',
+      placementSurface: 'floor',
+      usageType: 'standard',
+      spatialHint: 'Full adult human-scale single bed measuring roughly 1.95 meters long, realistically sized for an adult person to lie down fully.',
+    };
+  }
+  // 3. Giàn phơi / Giá treo quần áo chữ A
+  if (/giàn phơi|giá treo quần áo|giá chữ a/.test(text)) {
+    return {
+      dimensions: 'width 100 cm, depth 50 cm, height 145 cm',
+      placementSurface: 'floor',
+      usageType: 'standard',
+      spatialHint: 'Standing A-frame clothes drying rack resting squarely on the floor near a window or wall.',
+    };
+  }
+  // 4. Xe đẩy đa năng
+  if (/xe đẩy/.test(text)) {
+    return {
+      dimensions: 'width 45 cm, depth 35 cm, height 85 cm',
+      placementSurface: 'floor',
+      usageType: 'standard',
+      spatialHint: 'Rolling utility storage cart with wheels standing on the floor.',
+    };
+  }
+  // 5. Sofa & Ghế dài
   if (/sofa|ghế dài|đi-văng|couch/.test(text)) {
     return {
       dimensions: 'width 180 cm, depth 85 cm, height 80 cm',
@@ -66,6 +155,7 @@ function inferDimensionsAndPlacement(product) {
       spatialHint: 'Large living room sofa seating. Must sit firmly on the floor.',
     };
   }
+  // 6. Bàn các loại
   if (/bàn trà|bàn bệt|bàn nhật|coffee table/.test(text)) {
     return {
       dimensions: 'width 90 cm, depth 55 cm, height 42 cm',
@@ -74,20 +164,45 @@ function inferDimensionsAndPlacement(product) {
       spatialHint: 'Low coffee table placed on the floor or carpet.',
     };
   }
-  if (/bàn học gấp gọn|bàn để giường|bàn mini|khay/.test(text)) {
+  if (/bàn trang điểm/.test(text)) {
     return {
-      dimensions: 'width 60 cm, depth 40 cm, height 28 cm',
-      placementSurface: 'tabletop',
-      usageType: 'standard',
-      spatialHint: 'Small portable mini lap desk. Keep it compact, not a large table.',
+      dimensions: 'width 60 cm, depth 40 cm, height 70 cm',
+      placementSurface: 'floor',
+      usageType: 'floor-seating',
+      spatialHint: 'Compact floor vanity makeup desk with mirror.',
     };
   }
-  if (/bàn làm việc|bàn học|bàn ăn|desk|dining table/.test(text)) {
+  if (/bàn học gấp gọn|bàn để giường|bàn mini|ngồi bệt|khay/.test(text)) {
+    return {
+      dimensions: 'width 60 cm, depth 40 cm, height 28 cm',
+      placementSurface: 'floor',
+      usageType: 'floor-seating',
+      spatialHint: 'Low-profile folding mini lap desk. Legs are strictly 28cm short designed for sitting cross-legged directly on the floor, definitely NOT a tall high desk.',
+    };
+  }
+  if (/bàn camping|bàn dã ngoại|bàn xếp|bàn tròn.*cafe/.test(text)) {
+    return {
+      dimensions: 'width 70 cm, depth 70 cm, height 65 cm',
+      placementSurface: 'floor',
+      usageType: 'standard',
+      spatialHint: 'Compact portable folding table standing on the floor.',
+    };
+  }
+  if (/bàn làm việc|bàn học|bàn ăn|desk|dining table|bàn/.test(text)) {
     return {
       dimensions: 'width 120 cm, depth 60 cm, height 75 cm',
       placementSurface: 'floor',
       usageType: 'standard',
       spatialHint: 'Standard height desk or table.',
+    };
+  }
+  // 7. Ghế
+  if (/ghế nhựa|ghế xếp|ghế đẩu/.test(text)) {
+    return {
+      dimensions: 'width 45 cm, depth 45 cm, height 80 cm',
+      placementSurface: 'floor',
+      usageType: 'standard',
+      spatialHint: 'Lightweight moulded plastic chair with straight clean plastic legs, unpadded smooth surface, NO bulky upholstery cushions.',
     };
   }
   if (/ghế|chair|armchair/.test(text)) {
@@ -98,7 +213,8 @@ function inferDimensionsAndPlacement(product) {
       spatialHint: 'Single person chair seating.',
     };
   }
-  if (/kệ|tủ|giá sách|shelf|rack|cabinet|wardrobe/.test(text)) {
+  // 8. Kệ / Tủ / Giá treo đồ
+  if (/kệ|tủ|giá sách|shelf|rack|cabinet|wardrobe|giá treo|giá đựng|giỏ/.test(text)) {
     return {
       dimensions: 'width 90 cm, depth 35 cm, height 140 cm',
       placementSurface: 'floor',
@@ -106,7 +222,17 @@ function inferDimensionsAndPlacement(product) {
       spatialHint: 'Vertical storage unit placed against a wall.',
     };
   }
-  if (/cây|hoa|đèn bàn|bình|bonsai|chậu|decor|trang trí/.test(text)) {
+  // 9. Đèn cây đứng / Đèn sàn
+  if (/đèn cây|đèn đứng|đèn sàn|floor lamp/.test(text)) {
+    return {
+      dimensions: 'width 38 cm, depth 38 cm, height 155 cm',
+      placementSurface: 'floor',
+      usageType: 'standard',
+      spatialHint: 'Tall floor-standing lamp with a long vertical pole reaching 1.55 meters high, standing directly on the floor tiles next to furniture.',
+    };
+  }
+  // 10. Đồ decor nhỏ: Cây, Hoa, Đèn bàn
+  if (/cây|hoa|đèn bàn|bình hoa|bonsai|chậu/.test(text)) {
     return {
       dimensions: 'width 25 cm, depth 25 cm, height 35 cm',
       placementSurface: 'tabletop',
@@ -114,6 +240,7 @@ function inferDimensionsAndPlacement(product) {
       spatialHint: 'Small decorative tabletop item. Do not make it giant. Must rest on a desk, shelf or countertop.',
     };
   }
+  // 11. Tranh & Gương treo tường
   if (/tranh|gương treo|kệ treo/.test(text)) {
     return {
       dimensions: 'width 60 cm, depth 5 cm, height 80 cm',
@@ -154,18 +281,21 @@ function mapPositionToEnglish(pos) {
 }
 
 function productPrompt(product, index) {
-  const cleanTitle = cleanTitleForAi(product.productName);
+  const englishTitle = translateTitleToEnglish(product.productName);
   const inferred = inferDimensionsAndPlacement(product);
   const dimensions = inferred.dimensions;
   const placement = inferred.placementSurface;
   const usage = inferred.usageType === 'floor-seating'
     ? 'It is low furniture for floor seating; keep it low and do not add high chair legs.'
     : '';
-  const support = {
-    floor: 'It must stand firmly on the floor with all support legs completely visible and clear contact shadows under each leg.',
-    wall: 'It must be mounted flat on the wall.',
-    tabletop: 'It must rest naturally on top of an existing table, desk or shelf surface.',
-  }[placement] || '';
+  const isRug = /thảm|rug|mat/.test(String(product.productName || '').toLowerCase());
+  const support = placement === 'floor'
+    ? (isRug
+        ? 'It is a flat floor mat/rug laying directly and completely flat on the floor surface with no legs.'
+        : 'It must stand firmly on the floor with all support legs completely visible and clear contact shadows under each leg.')
+    : placement === 'wall'
+      ? 'It must be mounted flat on the wall.'
+      : 'It must rest naturally on top of an existing table, desk or shelf surface.';
 
   const positionDirective = product.desiredPosition
     ? `USER-REQUESTED TARGET POSITION: "${product.desiredPosition}". Directive: ${mapPositionToEnglish(product.desiredPosition)} This user-specified placement is MANDATORY. Place product ${index + 1} at this exact spot. If an existing movable object is there, replace only that item. Keep all architectural fixtures unchanged.`
@@ -175,12 +305,14 @@ function productPrompt(product, index) {
     .map((item) => `${item.name}: ${item.value}`)
     .join(', ');
 
+  const englishCategory = categoryToEnglish(product.categoryName);
+
   return [
-    `Product ${index + 1}: ${JSON.stringify(cleanTitle)}.`,
+    `Product ${index + 1}: ${JSON.stringify(englishTitle)}.`,
     positionDirective,
     `Reference image ${index + 2} is this exact product. Preserve its silhouette, color, material, proportions, legs, handles and supports.`,
     'Structural integrity: All support legs, frame members, and feet must be completely rendered, fully intact, and firmly touching the floor. Never omit, cut off, or blend legs into walls.',
-    product.categoryName ? `Category: ${product.categoryName}.` : '',
+    englishCategory ? `Category: ${englishCategory}.` : '',
     dimensions ? `Real-world dimensions: ${dimensions}.` : '',
     inferred.spatialHint || '',
     usage,
@@ -197,6 +329,7 @@ function buildPrompt(input) {
     ...input.products.map(productPrompt),
     'Keep image 1 as the unchanged base photo. Preserve its camera, framing, walls, floor, ceiling, doors, windows, stairs, fixed fixtures, room shape and existing objects.',
     'For products with a requested position, place them strictly at the user-specified locations. When placed against a wall, align the back of the furniture squarely and flush with the wall.',
+    'Clearance from fixed fixtures: Do not merge, clip, or overlap furniture with existing permanent room fixtures (such as wall sinks, drainage pipes, stair railings, or doors). Every table, desk, and chair must have its own distinct, unbroken legs clearly resting on the open floor tiles.',
     'Place every selected product exactly once.',
     'Structural completeness: Ensure all furniture legs and frames are 100% complete and fully visible, with contact shadows on floor tiles.',
     'Ground all furniture scale using standard room proportions (doors ~200cm tall, ceilings ~270cm, floor tiles ~40-60cm). Match perspective and ambient lighting.',

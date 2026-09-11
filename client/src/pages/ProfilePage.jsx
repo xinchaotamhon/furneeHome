@@ -115,6 +115,11 @@ export default function ProfilePage() {
     setMessage('');
     setError('');
 
+    const trimmedName = name.trim();
+    if (!trimmedName || trimmedName.length < 2) {
+      return setError('Họ và tên phải có ít nhất 2 ký tự.');
+    }
+
     const phoneCheck = validateVietnamPhone(phone);
     if (!phoneCheck.isValid) return setError(phoneCheck.message);
 
@@ -236,9 +241,20 @@ export default function ProfilePage() {
           <p className={user.profileComplete ? 'profile-status complete' : 'profile-status'}>
             {user.profileComplete ? 'Đã đủ thông tin giao hàng' : 'Chưa đủ thông tin giao hàng'}
           </p>
-          <label>Họ và tên<input value={name} onChange={(event) => setName(event.target.value)} required maxLength="80" /></label>
+          <label>Họ và tên<input value={name} onChange={(event) => setName(event.target.value.slice(0, 20))} required minLength="2" maxLength="20" placeholder="Tối thiểu 2, tối đa 20 ký tự" /></label>
           <label>Email<input value={user.email || ''} readOnly /></label>
-          <label>Số điện thoại<input inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} required /></label>
+          <label>
+            Số điện thoại
+            <input
+              type="tel"
+              inputMode="numeric"
+              value={phone}
+              onChange={(event) => setPhone(event.target.value.replace(/\D/g, '').slice(0, 10))}
+              placeholder="Nhập 10 chữ số (VD: 0912345678)"
+              maxLength="10"
+              required
+            />
+          </label>
           <label>
             Tỉnh / Thành phố
             <select value={provinceCode} onChange={(event) => changeProvince(event.target.value)} required>
@@ -317,11 +333,12 @@ export default function ProfilePage() {
               <label>
                 Mã xác minh (OTP)
                 <input
+                  type="tel"
                   inputMode="numeric"
                   pattern="[0-9]{6}"
                   maxLength="6"
                   value={otp}
-                  onChange={(event) => setOtp(event.target.value)}
+                  onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="Nhập 6 số gửi về Gmail"
                   required
                 />

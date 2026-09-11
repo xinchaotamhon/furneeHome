@@ -200,7 +200,17 @@ export default function CheckoutPage() {
 
           {isBankTransfer ? (
             <div className="success-payment-wrapper">
-              <QrPaymentCard order={result} onComplete={() => navigate('/orders')} />
+              <QrPaymentCard
+                order={result}
+                onComplete={async () => {
+                  try {
+                    await orderService.confirmPayment(result._id);
+                  } catch {
+                    // Tiếp tục điều hướng
+                  }
+                  navigate('/orders');
+                }}
+              />
             </div>
           ) : (
             <div className="cod-success-info">

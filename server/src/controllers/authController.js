@@ -96,8 +96,10 @@ async function completeRegistration(req, res, next) {
     const otp = String(req.body.otp || req.body.code || '').trim();
     const name = String(req.body.name || '').trim();
     const username = String(req.body.username || '').trim().toLowerCase();
-    const password = String(req.body.password || '');
-    if (!isValidEmail(email) || !/^\d{6}$/.test(otp) || !name || name.length > 80 || password.length < 6 || (username && !validUsername(username))) {
+    if (!name || name.length < 2 || name.length > 20) {
+      return res.status(400).json({ success: false, message: 'Họ và tên phải từ 2 đến 20 ký tự.', data: null });
+    }
+    if (!isValidEmail(email) || !/^\d{6}$/.test(otp) || password.length < 6 || (username && !validUsername(username))) {
       return res.status(400).json({ success: false, message: 'Thông tin đăng ký không hợp lệ.', data: null });
     }
     const user = await User.findOne({ email, emailVerified: false }).select('+registrationOtpHash +registrationOtpExpiresAt +registrationOtpAttempts');

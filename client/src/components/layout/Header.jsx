@@ -48,7 +48,20 @@ export default function Header() {
 
         {user ? (
           <div className="account-menu fh-account-menu">
-            <NavLink to="/profile" title="Tài khoản">Xin chào! {user.name || user.username}</NavLink>
+            <NavLink
+              to="/profile"
+              title={`Tài khoản: ${user.name || user.username}`}
+              style={{
+                maxWidth: '180px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                display: 'inline-block',
+                verticalAlign: 'middle',
+              }}
+            >
+              Xin chào! {user.name || user.username}
+            </NavLink>
             <button className="text-button" type="button" onClick={() => { logout(); navigate('/'); }}>Đăng xuất</button>
           </div>
         ) : (
