@@ -15,11 +15,12 @@ const CUSTOMER_CANCELLABLE = ['Pending', 'Processing'];
 const ADMIN_TRANSITIONS = {
   Pending: ['Processing', 'Cancelled'],
   Processing: ['Shipped', 'Cancelled'],
-  Shipped: ['Delivered'],
+  Shipped: ['Delivered', 'Returned'], // Khách nhận hàng đồng kiểm: hoặc nhận (Delivered), hoặc hoàn hàng (Returned)
   Delivered: [],
+  Returned: [],
   Cancelled: [],
 };
-const CORRECTION_STATES = ['Pending', 'Processing', 'Shipped', 'Delivered'];
+const CORRECTION_STATES = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Returned'];
 
 function createError(message, status = 400) {
   const error = new Error(message);
@@ -222,7 +223,9 @@ async function getAllOrders(req, res, next) {
         { 'shippingAddress.phone': { $regex: value, $options: 'i' } },
       ];
     }
-    const orders = await Order.find(filter).populate('user', 'name email').sort({ createdAt: -1 });
+    const orders = await Order.find(filter)
+      .populate('user', 'name username email phone address provinceCode districtCode districtName wardCode wardName deliveryNote role isActive createdAt')
+      .sort({ createdAt: -1 });
     return res.json({ success: true, message: 'Đã tải toàn bộ đơn hàng.', data: orders });
   } catch (error) {
     return next(error);
@@ -285,7 +288,10 @@ async function updateOrderStatus(req, res, next) {
     const { orderStatus, paymentStatus } = req.body;
     const order = await Order.findById(req.params.id);
     if (!order) throw createError('Không tìm thấy đơn hàng.', 404);
+
     const normalNextStates = ADMIN_TRANSITIONS[order.orderStatus] || [];
+
+    // TRƯỜNG HỢP 1: Hủy đơn hàng (Cancelled)
     if (orderStatus === 'Cancelled') {
       if (!normalNextStates.includes('Cancelled')) {
         throw createError('Đơn hàng ở trạng thái này không thể hủy.', 409);
@@ -293,32 +299,152 @@ async function updateOrderStatus(req, res, next) {
       const cancelled = await cancelOrder(req.params.id);
       return res.json({ success: true, message: 'Đã hủy đơn hàng và hoàn lại tồn kho.', data: cancelled });
     }
+
+    // TRƯỜNG HỢP 2: Hoàn trả hàng (Returned - khách từ chối khi xem hàng đồng kiểm)
+    if (orderStatus === 'Returned') {
+      const allowedStates = req.user.role === 'superadmin' ? CORRECTION_STATES : normalNextStates;
+      if (!allowedStates.includes('Returned')) {
+        throw createError('Chỉ đơn hàng đang giao mới có thể chuyển sang trạng thái Hoàn hàng.', 409);
+      }
+
+      // 1. Tự động khôi phục tồn kho cho các sản phẩm trong đơn (nếu chưa hoàn)
+      if (!order.stockRestored) {
+        for (const item of order.orderItems) {
+          await Product.updateOne({ _id: item.product }, { $inc: { stock: item.qty } });
+        }
+        order.stockRestored = true;
+      }
+
+      // 2. Xử lý trạng thái thanh toán:
+      // - Nếu đơn chuyển khoản QR đã thanh toán -> Chuyển sang "Chờ hoàn tiền" (Refunding) để Admin chuyển khoản trả lại
+      // - Nếu đơn COD chưa thanh toán -> Chuyển sang "Đã hủy" (Cancelled) vì khách chưa trả tiền
+      if (order.paymentMethod === 'BANK_TRANSFER' && order.paymentStatus === 'Paid') {
+        order.paymentStatus = 'Refunding';
+      } else if (order.paymentStatus !== 'Refunded') {
+        order.paymentStatus = 'Cancelled';
+      }
+
+      order.orderStatus = 'Returned';
+      await order.save();
+
+      const returnNotice = order.paymentStatus === 'Refunding'
+        ? 'Đã chuyển sang Hoàn hàng, khôi phục tồn kho và chuyển trạng thái sang Chờ hoàn tiền.'
+        : 'Đã chuyển sang Hoàn hàng và khôi phục tồn kho thành công.';
+
+      return res.json({ success: true, message: returnNotice, data: order });
+    }
+
+    // TRƯỜNG HỢP 3: Cập nhật các trạng thái đơn hàng thông thường khác
     if (orderStatus) {
       if (order.orderStatus === 'Cancelled') {
         throw createError('Không thể mở lại đơn đã hủy vì tồn kho đã được hoàn.', 409);
+      }
+      if (order.orderStatus === 'Returned') {
+        throw createError('Không thể thay đổi đơn đã hoàn hàng vì tồn kho đã được khôi phục.', 409);
       }
       const allowedStates = req.user.role === 'superadmin' ? CORRECTION_STATES : normalNextStates;
       if (!allowedStates.includes(orderStatus)) {
         throw createError('Chuyển trạng thái đơn hàng không hợp lệ.', 409);
       }
       const update = { orderStatus };
-      const result = await Order.findOneAndUpdate({ _id: order._id, orderStatus: order.orderStatus }, { $set: update }, { returnDocument: 'after' });
+      const result = await Order.findOneAndUpdate(
+        { _id: order._id, orderStatus: order.orderStatus },
+        { $set: update },
+        { returnDocument: 'after' }
+      );
       if (!result) throw createError('Đơn hàng vừa được thay đổi, vui lòng tải lại.', 409);
       return res.json({ success: true, message: 'Đã cập nhật trạng thái đơn hàng.', data: result });
     }
+
+    // TRƯỜNG HỢP 4: Cập nhật trạng thái thanh toán (paymentStatus)
     if (paymentStatus) {
-      if (paymentStatus !== 'Paid') throw createError('Trạng thái thanh toán không hợp lệ.');
-      if (order.paymentMethod === 'COD' && order.orderStatus !== 'Delivered') {
-        throw createError('Đơn COD chỉ xác nhận thanh toán sau khi giao thành công.', 409);
+      // 4.1: Xác nhận Đã hoàn tiền (Admin đã chuyển khoản trả lại cho khách)
+      if (paymentStatus === 'Refunded') {
+        if (order.paymentStatus !== 'Refunding') {
+          throw createError('Chỉ đơn hàng đang ở trạng thái "Chờ hoàn tiền" mới có thể xác nhận đã hoàn tiền.', 409);
+        }
+        order.paymentStatus = 'Refunded';
+        await order.save();
+        return res.json({ success: true, message: 'Đã xác nhận hoàn tiền thành công cho khách hàng.', data: order });
       }
-      order.paymentStatus = 'Paid';
-      await order.save();
-      return res.json({ success: true, message: 'Đã xác nhận thanh toán thành công.', data: order });
+
+      // 4.2: Xác nhận Đã thanh toán (Paid)
+      if (paymentStatus === 'Paid') {
+        if (order.paymentMethod === 'COD' && order.orderStatus !== 'Delivered') {
+          throw createError('Đơn COD chỉ xác nhận thanh toán sau khi giao thành công.', 409);
+        }
+        order.paymentStatus = 'Paid';
+        await order.save();
+        return res.json({ success: true, message: 'Đã xác nhận thanh toán thành công.', data: order });
+      }
+
+      throw createError('Trạng thái thanh toán không hợp lệ.');
     }
+
     return res.json({ success: true, message: 'Đã cập nhật đơn hàng.', data: order });
   } catch (error) {
     return next(error);
   }
 }
 
-module.exports = { createOrder, getMyOrders, getAllOrders, updateOrderStatus, cancelMyOrder, cleanAddress, calculateShippingFee, escapeRegex, requestedProductIds, ADMIN_TRANSITIONS };
+// Cập nhật thông tin tài khoản ngân hàng nhận tiền hoàn (dành cho khách hàng)
+// Nhập text thuần túy (Ngân hàng, STK, Chủ TK) để tránh gian lận / mã QR độc hại
+async function updateRefundInfo(req, res, next) {
+  try {
+    checkId(req.params.id);
+    const bankName = String(req.body.bankName || '').trim();
+    const accountNumber = String(req.body.accountNumber || '').trim().replace(/[\s-]/g, '');
+    const accountHolder = String(req.body.accountHolder || '').trim().toUpperCase();
+
+    if (!bankName) throw createError('Vui lòng chọn hoặc nhập tên ngân hàng.');
+    if (!accountNumber || accountNumber.length < 5 || accountNumber.length > 30) {
+      throw createError('Số tài khoản ngân hàng phải từ 5 đến 30 ký tự.');
+    }
+    if (!accountHolder || accountHolder.length < 2) {
+      throw createError('Vui lòng nhập họ tên chủ tài khoản ngân hàng.');
+    }
+
+    // Khách hàng chỉ cập nhật đơn của chính mình, Admin có thể hỗ trợ
+    const filter = { _id: req.params.id };
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+      filter.user = req.user._id;
+    }
+
+    const order = await Order.findOne(filter);
+    if (!order) throw createError('Không tìm thấy đơn hàng.', 404);
+
+    if (order.orderStatus !== 'Returned' && order.paymentStatus !== 'Refunding') {
+      throw createError('Chỉ đơn hàng đang ở trạng thái Hoàn hàng / Chờ hoàn tiền mới có thể cung cấp thông tin tài khoản hoàn tiền.', 400);
+    }
+
+    order.refundInfo = {
+      bankName,
+      accountNumber,
+      accountHolder,
+      updatedAt: new Date(),
+    };
+    await order.save();
+
+    return res.json({
+      success: true,
+      message: 'Đã lưu thông tin tài khoản nhận tiền hoàn thành công.',
+      data: order,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = {
+  createOrder,
+  getMyOrders,
+  getAllOrders,
+  updateOrderStatus,
+  updateRefundInfo,
+  cancelMyOrder,
+  cleanAddress,
+  calculateShippingFee,
+  escapeRegex,
+  requestedProductIds,
+  ADMIN_TRANSITIONS,
+};

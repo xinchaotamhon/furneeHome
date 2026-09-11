@@ -44,6 +44,28 @@ async function saveReview(userId, productId, orderId, body) {
   const product = await Product.findById(productId);
   if (!product) throw createError('Sản phẩm không tồn tại.', 404);
 
+  const existing = await Review.findOne({
+    user: userId,
+    product: productId,
+    order: orderId,
+  });
+
+  if (existing) {
+    if (!existing.isDeleted) {
+      throw createError('Bạn đã đánh giá sản phẩm này trong đơn hàng này.', 409);
+    }
+    existing.rating = data.rating;
+    existing.comment = data.comment;
+    existing.isDeleted = false;
+    existing.deletedAt = null;
+    existing.isHidden = false;
+    existing.moderationReason = '';
+    await existing.save();
+    await refreshRating(productId);
+    await existing.populate('user', 'name avatarUrl');
+    return existing;
+  }
+
   try {
     const review = await Review.create({
       user: userId,
@@ -128,6 +150,7 @@ async function getOrderReviewStatus(req, res, next) {
       user: req.user._id,
       order: order._id,
       product: { $in: productIds },
+      isDeleted: { $ne: true },
     }).select('product rating comment');
     const reviewByProduct = new Map(reviews.map((review) => [String(review.product), review]));
     const items = order.orderItems.map((item) => ({

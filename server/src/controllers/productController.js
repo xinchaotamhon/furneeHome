@@ -282,6 +282,9 @@ async function remove(req, res, next) {
 
 async function permanentRemove(req, res, next) {
   try {
+    if (req.user?.role !== 'superadmin') {
+      return res.status(403).json({ success: false, message: 'Chỉ Orchestra Admin mới có quyền xóa vĩnh viễn sản phẩm khỏi MongoDB.', data: null });
+    }
     checkId(req.params.id);
 
     const [hasOrder, hasReview, hasCart] = await Promise.all([

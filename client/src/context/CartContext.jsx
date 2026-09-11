@@ -210,10 +210,11 @@ export function CartProvider({ children }) {
       },
       updateQuantity(id, quantity) {
         const qty = Number(quantity);
-        if (!Number.isFinite(qty) || qty <= 0) return;
+        if (!Number.isFinite(qty)) return;
         setItems((current) => current.map((item) => {
           if (productId(item.product) !== String(id)) return item;
-          const nextQuantity = Math.min(stockOf(item.product), qty);
+          const maxStock = Math.max(1, stockOf(item.product));
+          const nextQuantity = Math.max(1, Math.min(maxStock, Math.floor(qty)));
           if (item.selected === false) return { ...item, quantity: nextQuantity };
           const otherSelectedCount = current.reduce(
             (sum, currentItem) => sum + (
@@ -224,7 +225,7 @@ export function CartProvider({ children }) {
           if (otherSelectedCount + nextQuantity > MAX_SELECTED_COUNT) return item;
           return { ...item, quantity: nextQuantity };
         }));
-        sync(() => cartService.update(id, qty));
+        sync(() => cartService.update(id, Math.max(1, Math.floor(qty))));
       },
       removeFromCart(id) {
         setItems((current) => current.filter((item) => productId(item.product) !== String(id)));

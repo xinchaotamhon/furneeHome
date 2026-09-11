@@ -61,7 +61,7 @@ export default function LoginModal() {
         const result = await requestRegistration(form.email.trim());
         setForm((current) => ({ ...current, email: result.email || current.email.trim(), otp: result.devOtp || '' }));
         setView('register-complete');
-        setNotice(result.devOtp ? `Mã thử localhost: ${result.devOtp}` : 'Mã xác minh đã được gửi đến email.');
+        setNotice(result.devOtp ? `Mã thử localhost: ${result.devOtp}` : 'Mã xác minh đã được gửi về Gmail của bạn. Vui lòng kiểm tra hộp thư.');
       } else if (view === 'register-complete') {
         await completeRegistration({ name: form.name.trim(), email: form.email.trim(), otp: form.otp.trim(), password: form.password });
       } else if (view === 'forgot') {

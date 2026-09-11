@@ -52,15 +52,33 @@ export default function CartPage() {
     navigate('/checkout');
   };
 
-  const handleQuantityChange = (id, value) => {
-    setDraftQuantities((current) => ({ ...current, [id]: value }));
-    if (value !== '') updateQuantity(id, value);
+  const handleQuantityChange = (id, value, maxStock = 99) => {
+    if (value === '') {
+      setDraftQuantities((current) => ({ ...current, [id]: '' }));
+      return;
+    }
+    const parsed = parseInt(value, 10);
+    if (Number.isNaN(parsed)) return;
+
+    let clamped = parsed;
+    if (clamped < 1) clamped = 1;
+    if (clamped > maxStock) clamped = maxStock;
+
+    setDraftQuantities((current) => ({ ...current, [id]: clamped }));
+    updateQuantity(id, clamped);
   };
 
-  const finishQuantityEdit = (id) => {
+  const finishQuantityEdit = (id, maxStock = 99) => {
     setDraftQuantities((current) => {
+      const draftVal = current[id];
       const next = { ...current };
       delete next[id];
+
+      if (draftVal === '' || draftVal === undefined || Number(draftVal) < 1) {
+        updateQuantity(id, 1);
+      } else if (Number(draftVal) > maxStock) {
+        updateQuantity(id, maxStock);
+      }
       return next;
     });
   };
@@ -113,55 +131,62 @@ export default function CartPage() {
             const isChecked = item.selected !== false;
             const selectionBlocked = !isChecked && selectedCount + item.quantity > maxSelectedCount;
 
-            return (
-              <article className={`cart-item-row ${isChecked ? 'is-selected' : ''}`} key={id}>
-                <div className="cart-item-select">
-                  <input
-                    type="checkbox"
-                    className="cart-checkbox"
-                    checked={isChecked}
-                    disabled={selectionBlocked}
-                    onChange={() => toggleItemSelection(id)}
-                    title={selectionBlocked ? `Chỉ có thể chọn tối đa ${maxSelectedCount} món` : undefined}
-                    aria-label={`Chọn sản phẩm ${item.name}`}
-                  />
-                </div>
+                const maxStock = Math.max(1, item.product?.stock ?? item.product?.countInStock ?? 99);
 
-                <div className="item-details">
-                  {item.image ? (
-                    <img src={item.image} alt="" className="item-thumbnail" />
-                  ) : (
-                    <div className="item-thumbnail-placeholder">⌂</div>
-                  )}
-                  <div>
+                return (
+                  <article className={`cart-item-row ${isChecked ? 'is-selected' : ''}`} key={id}>
+                    <div className="cart-item-select">
+                      <input
+                        type="checkbox"
+                        className="cart-checkbox"
+                        checked={isChecked}
+                        disabled={selectionBlocked}
+                        onChange={() => toggleItemSelection(id)}
+                        title={selectionBlocked ? `Chỉ có thể chọn tối đa ${maxSelectedCount} món` : undefined}
+                        aria-label={`Chọn sản phẩm ${item.name}`}
+                      />
+                    </div>
 
-                  {selectedCount >= maxSelectedCount && (
-                    <p className="form-error" style={{ margin: '12px 0 0' }}>
-                      Bạn đã chọn tối đa {maxSelectedCount} món.
-                    </p>
-                  )}
-                    <Link className="item-title" to={`/products/${id}`}>
-                      {item.name}
-                    </Link>
-                    <p className="muted">{formatPrice(item.price)}</p>
-                  </div>
-                </div>
+                    <div className="item-details">
+                      {item.image ? (
+                        <img src={item.image} alt="" className="item-thumbnail" />
+                      ) : (
+                        <div className="item-thumbnail-placeholder">⌂</div>
+                      )}
+                      <div>
 
-                <label className="sr-only" htmlFor={`qty-${id}`}>
-                  Số lượng
-                </label>
-                <input
-                  id={`qty-${id}`}
-                  className="cart-quantity"
-                  type="number"
-                  min="1"
-                  max={item.product?.stock ?? item.product?.countInStock ?? 99}
-                  value={draftQuantities[id] ?? item.quantity}
-                  onChange={(event) => handleQuantityChange(id, event.target.value)}
-                  onBlur={() => finishQuantityEdit(id)}
-                />
+                      {selectedCount >= maxSelectedCount && (
+                        <p className="form-error" style={{ margin: '12px 0 0' }}>
+                          Bạn đã chọn tối đa {maxSelectedCount} món.
+                        </p>
+                      )}
+                        <Link className="item-title" to={`/products/${id}`}>
+                          {item.name}
+                        </Link>
+                        <p className="muted">{formatPrice(item.price)}</p>
+                      </div>
+                    </div>
 
-                <strong>{formatPrice(item.price * item.quantity)}</strong>
+                    <label className="sr-only" htmlFor={`qty-${id}`}>
+                      Số lượng
+                    </label>
+                    <input
+                      id={`qty-${id}`}
+                      className="cart-quantity"
+                      type="number"
+                      min="1"
+                      max={maxStock}
+                      value={draftQuantities[id] ?? item.quantity}
+                      onKeyDown={(event) => {
+                        if (['-', '+', 'e', 'E', '.'].includes(event.key)) {
+                          event.preventDefault();
+                        }
+                      }}
+                      onChange={(event) => handleQuantityChange(id, event.target.value, maxStock)}
+                      onBlur={() => finishQuantityEdit(id, maxStock)}
+                    />
+
+                    <strong>{formatPrice(item.price * item.quantity)}</strong>
 
                 <button
                   className="text-button danger"

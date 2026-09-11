@@ -5,24 +5,152 @@ import orderService from '../services/orderService';
 import { formatPrice } from '../utils/formatPrice';
 import QrPaymentModal from '../components/payment/QrPaymentModal';
 
+// Tên hiển thị tiếng Việt của các trạng thái đơn hàng
 const statusLabel = {
   Pending: 'Chờ xác nhận',
   Processing: 'Đang xử lý',
   Shipped: 'Đang giao',
   Delivered: 'Đã giao',
+  Returned: 'Hoàn hàng',
   Cancelled: 'Đã hủy',
 };
 
+// Đơn chỉ được hủy khi ở trạng thái Chờ xác nhận hoặc Đang xử lý
 function canCancel(order) {
   return ['Pending', 'Processing'].includes(order.orderStatus);
 }
+
+// Chỉ đơn đã giao thành công mới được viết đánh giá
 function canReviewOrder(order) {
   return order.orderStatus === 'Delivered';
 }
+
+// Nhãn hiển thị trạng thái thanh toán
 function paymentLabel(order) {
+  if (order.paymentStatus === 'Refunding') return '⏳ Chờ hoàn tiền';
+  if (order.paymentStatus === 'Refunded') return '✓ Đã hoàn tiền';
   if (order.orderStatus === 'Cancelled' && order.paymentStatus !== 'Paid') return 'Đã hủy';
   if (order.paymentStatus === 'Paid') return '✓ Đã thanh toán';
   return order.paymentMethod === 'BANK_TRANSFER' ? 'Chờ chuyển khoản' : 'Chưa thu tiền (COD)';
+}
+
+// Modal để khách hàng nhập thông tin tài khoản ngân hàng nhận tiền hoàn
+// Tránh việc gửi ảnh mã QR lạ có thể chứa mã độc / gian lận
+function RefundAccountModal({ order, onClose, onSaved }) {
+  const [bankName, setBankName] = useState(order.refundInfo?.bankName || '');
+  const [accountNumber, setAccountNumber] = useState(order.refundInfo?.accountNumber || '');
+  const [accountHolder, setAccountHolder] = useState(
+    order.refundInfo?.accountHolder || order.shippingAddress?.fullName?.toUpperCase() || ''
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    if (!bankName.trim()) return setError('Vui lòng chọn hoặc nhập tên ngân hàng.');
+    if (!accountNumber.trim()) return setError('Vui lòng nhập số tài khoản ngân hàng.');
+    if (!accountHolder.trim()) return setError('Vui lòng nhập tên chủ tài khoản.');
+
+    setSaving(true);
+    setError('');
+    try {
+      const updated = await orderService.updateRefundInfo(order._id, {
+        bankName: bankName.trim(),
+        accountNumber: accountNumber.trim(),
+        accountHolder: accountHolder.trim().toUpperCase(),
+      });
+      onSaved(updated);
+      onClose();
+    } catch (saveError) {
+      setError(saveError.response?.data?.message || saveError.message || 'Không thể lưu thông tin.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onMouseDown={onClose}>
+      <section
+        className="modal-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="refund-modal-title"
+        onMouseDown={(e) => e.stopPropagation()}
+        style={{ maxWidth: '480px' }}
+      >
+        <header className="modal-header">
+          <h2 id="refund-modal-title">Thông tin nhận tiền hoàn</h2>
+          <button className="btn-close" type="button" aria-label="Đóng" onClick={onClose}>×</button>
+        </header>
+
+        <form onSubmit={handleSubmit} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ padding: '10px 12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', fontSize: '0.84rem', color: '#1e40af', lineHeight: 1.5 }}>
+            🛡️ <strong>Chính sách an toàn:</strong> Nhằm phòng ngừa mã QR độc hại, FurneeHome không quét ảnh QR do khách hàng gửi. Quý khách vui lòng cung cấp số tài khoản bên dưới để FurneeHome chuyển khoản hoàn tiền trực tiếp an toàn.
+          </div>
+
+          {error && <p className="form-error" style={{ margin: 0 }}>{error}</p>}
+
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.9rem', fontWeight: 500 }}>
+            Ngân hàng thụ hưởng:
+            <input
+              list="vietnam-banks"
+              placeholder="VD: Vietcombank, MB Bank, Techcombank..."
+              value={bankName}
+              onChange={(e) => setBankName(e.target.value)}
+              required
+            />
+            <datalist id="vietnam-banks">
+              <option value="Vietcombank (VCB)" />
+              <option value="MB Bank (MB)" />
+              <option value="Techcombank (TCB)" />
+              <option value="VietinBank (CTG)" />
+              <option value="BIDV" />
+              <option value="ACB" />
+              <option value="VPBank" />
+              <option value="TPBank" />
+              <option value="Agribank" />
+              <option value="Sacombank" />
+              <option value="HDBank" />
+              <option value="VIB" />
+            </datalist>
+          </label>
+
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.9rem', fontWeight: 500 }}>
+            Số tài khoản ngân hàng:
+            <input
+              type="text"
+              placeholder="Nhập số tài khoản"
+              value={accountNumber}
+              onChange={(e) => setAccountNumber(e.target.value.replace(/[^0-9a-zA-Z]/g, ''))}
+              required
+            />
+          </label>
+
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.9rem', fontWeight: 500 }}>
+            Tên chủ tài khoản (viết hoa không dấu):
+            <input
+              type="text"
+              placeholder="VD: NGUYEN VAN A"
+              value={accountHolder}
+              onChange={(e) => setAccountHolder(e.target.value.toUpperCase())}
+              required
+            />
+          </label>
+
+          <div style={{ fontSize: '0.85rem', color: '#475569', background: '#f8fafc', padding: '8px 10px', borderRadius: '4px' }}>
+            Số tiền FurneeHome sẽ hoàn lại: <strong style={{ color: '#c2410c' }}>{formatPrice(order.totalAmount)}</strong>
+          </div>
+
+          <footer className="modal-footer" style={{ padding: 0, marginTop: '8px' }}>
+            <button className="text-button" type="button" onClick={onClose} disabled={saving}>Hủy</button>
+            <button className="button" type="submit" disabled={saving}>
+              {saving ? 'Đang lưu…' : 'Xác nhận gửi thông tin'}
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  );
 }
 
 export default function OrderHistoryPage() {
@@ -33,6 +161,7 @@ export default function OrderHistoryPage() {
   const [error, setError] = useState('');
   const [cancellingId, setCancellingId] = useState('');
   const [activeQrOrder, setActiveQrOrder] = useState(null);
+  const [refundOrder, setRefundOrder] = useState(null);
 
   useEffect(() => {
     if (!user) return;
@@ -56,6 +185,12 @@ export default function OrderHistoryPage() {
     } finally {
       setCancellingId('');
     }
+  }
+
+  function handleRefundInfoSaved(updatedOrder) {
+    setOrders((current) => current.map((item) => (
+      item._id === updatedOrder._id ? { ...item, ...updatedOrder } : item
+    )));
   }
 
   if (!user) {
@@ -89,7 +224,7 @@ export default function OrderHistoryPage() {
           {orders.map((order) => {
             const isBank = order.paymentMethod === 'BANK_TRANSFER';
             const isPaid = order.paymentStatus === 'Paid';
-            const canShowQr = isBank && !isPaid && order.orderStatus !== 'Cancelled';
+            const canShowQr = isBank && !isPaid && !['Cancelled', 'Returned'].includes(order.orderStatus);
             const eligibleForReview = canReviewOrder(order);
 
             return (
@@ -103,7 +238,7 @@ export default function OrderHistoryPage() {
                     <span className={`status-pill status-${order.orderStatus.toLowerCase()}`}>
                       {statusLabel[order.orderStatus] || order.orderStatus}
                     </span>
-                    <span className={`status-pill ${isPaid ? 'payment-paid' : 'payment-pending'}`}>
+                    <span className={`status-pill ${isPaid || order.paymentStatus === 'Refunded' ? 'payment-paid' : 'payment-pending'}`}>
                       {paymentLabel(order)}
                     </span>
                   </div>
@@ -126,6 +261,65 @@ export default function OrderHistoryPage() {
                     </p>
                   )}
                 </div>
+
+                {/* Thông báo chính sách đồng kiểm khi đơn đang giao */}
+                {order.orderStatus === 'Shipped' && (
+                  <div style={{ margin: '8px 0 12px', padding: '8px 12px', background: '#f0f7ff', border: '1px solid #cce3ff', borderRadius: '6px', fontSize: '0.84rem', color: '#0052cc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>🚚</span>
+                    <span><strong>Đang giao hàng:</strong> Quý khách được phép mở xem kiểm tra hàng (đồng kiểm) cùng nhân viên giao hàng khi nhận.</span>
+                  </div>
+                )}
+
+                {/* Thông báo hoàn hàng và trạng thái hoàn tiền */}
+                {order.orderStatus === 'Returned' && (
+                  <div style={{
+                    margin: '8px 0 10px',
+                    padding: '8px 12px',
+                    background: order.paymentStatus === 'Refunded' ? '#f0fdf4' : '#fffaf0',
+                    border: order.paymentStatus === 'Refunded' ? '1px solid #bbf7d0' : '1px solid #feebc8',
+                    borderRadius: '6px',
+                    fontSize: '0.84rem',
+                    color: order.paymentStatus === 'Refunded' ? '#166534' : '#7b341e',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span>{order.paymentStatus === 'Refunded' ? '✓' : '↩️'}</span>
+                    <span>
+                      {order.paymentStatus === 'Refunding' && 'Đơn hàng đã được hoàn về. FurneeHome đang tiến hành hoàn lại tiền cho quý khách qua tài khoản ngân hàng.'}
+                      {order.paymentStatus === 'Refunded' && 'Đã hoàn tiền thành công: FurneeHome đã chuyển khoản hoàn tiền đơn hàng này về tài khoản của quý khách.'}
+                      {order.paymentMethod === 'COD' && 'Đơn hàng đã hoàn về do quý khách từ chối nhận khi kiểm tra hàng (chưa thu tiền).'}
+                    </span>
+                  </div>
+                )}
+
+                {/* Khung cung cấp hoặc hiển thị thông tin tài khoản nhận tiền hoàn */}
+                {order.orderStatus === 'Returned' && order.paymentStatus === 'Refunding' && (
+                  order.refundInfo?.accountNumber ? (
+                    <div style={{ margin: '6px 0 12px', padding: '10px 14px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.85rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <strong style={{ color: '#0f172a' }}>🏦 Tài khoản nhận tiền hoàn của bạn:</strong>
+                        <button type="button" className="text-button" style={{ padding: '0 4px', fontSize: '0.8rem', color: '#0284c7' }} onClick={() => setRefundOrder(order)}>
+                          Thay đổi
+                        </button>
+                      </div>
+                      <div style={{ color: '#334155', lineHeight: 1.5 }}>
+                        <div>Ngân hàng: <strong>{order.refundInfo.bankName}</strong></div>
+                        <div>Số tài khoản: <strong>{order.refundInfo.accountNumber}</strong></div>
+                        <div>Chủ tài khoản: <strong>{order.refundInfo.accountHolder}</strong></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ margin: '6px 0 12px', padding: '10px 14px', background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '8px', fontSize: '0.85rem' }}>
+                      <p style={{ margin: '0 0 8px', color: '#92400e', fontWeight: 500 }}>
+                        ⚠️ Quý khách vui lòng cung cấp số tài khoản ngân hàng để FurneeHome chuyển khoản hoàn trả <strong>{formatPrice(order.totalAmount)}</strong> an toàn.
+                      </p>
+                      <button type="button" className="button button-small" onClick={() => setRefundOrder(order)}>
+                        🏦 Nhập thông tin nhận tiền hoàn
+                      </button>
+                    </div>
+                  )
+                )}
 
                 <footer>
                   <div className="order-footer-method">
@@ -170,6 +364,14 @@ export default function OrderHistoryPage() {
         <QrPaymentModal
           order={activeQrOrder}
           onClose={() => setActiveQrOrder(null)}
+        />
+      )}
+
+      {refundOrder && (
+        <RefundAccountModal
+          order={refundOrder}
+          onClose={() => setRefundOrder(null)}
+          onSaved={handleRefundInfoSaved}
         />
       )}
     </main>

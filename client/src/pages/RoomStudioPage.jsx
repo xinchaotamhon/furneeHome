@@ -152,6 +152,16 @@ export default function RoomStudioPage() {
     } finally { setGenerating(false); }
   };
 
+  const downloadResult = () => {
+    if (!resultImage) return;
+    const link = document.createElement('a');
+    link.href = resultImage;
+    link.download = `furneehome-phong-thu-${Date.now().toString(36)}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <main className="container page simple-studio">
       <div className="page-heading"><p className="eyebrow">PHÒNG THỬ</p><h1>Thử sản phẩm trong phòng</h1><p>Chọn tối đa 3 món, tải ảnh phòng và tạo ảnh. Vị trí là tùy chọn.</p></div>
@@ -171,12 +181,63 @@ export default function RoomStudioPage() {
         <section className="panel-card studio-position-step">
           <span className="step-label">BƯỚC 3</span>
           <h2>Vị trí mong muốn (không bắt buộc)</h2>
-          {selectedProducts.length ? <div className="studio-position-fields">{selectedProducts.map((product, index) => <label key={idOf(product)}>{`Vị trí sản phẩm ${index + 1}`}<input type="text" value={desiredPositions[idOf(product)] || ''} onChange={(event) => updatePosition(idOf(product), event.target.value)} placeholder="Để trống để AI tự bố trí" /></label>)}</div> : <p className="muted">Chọn sản phẩm ở Bước 1 để tiếp tục.</p>}
-          <button className="button" type="button" disabled={isGenerating || !roomImage || !selectedProducts.length} onClick={generate}>{isGenerating ? 'Ảnh đang được tạo, bạn đợi xíu nghen ^_^' : 'Tạo ảnh'}</button>
+          {selectedProducts.length ? (
+            <div className="studio-position-fields">
+              {selectedProducts.map((product, index) => (
+                <div key={idOf(product)} className="studio-position-item" style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.3rem' }}>
+                    {`Vị trí món ${index + 1}: ${product.name}`}
+                  </label>
+                  <input
+                    type="text"
+                    value={desiredPositions[idOf(product)] || ''}
+                    onChange={(event) => updatePosition(idOf(product), event.target.value)}
+                    placeholder="Tự do nhập vị trí (ví dụ: cạnh cửa sổ, góc phòng...) hoặc chọn gợi ý bên dưới"
+                  />
+                  <div className="position-quick-tags" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.35rem' }}>
+                    {[
+                      { label: '🪟 Cạnh cửa sổ', val: 'cạnh cửa sổ' },
+                      { label: '🧱 Sát góc tường', val: 'sát góc tường' },
+                      { label: '🛋️ Giữa phòng', val: 'chính giữa phòng' },
+                      { label: '🚪 Gần cửa ra vào', val: 'gần cửa ra vào' },
+                      { label: '🪵 Trên mặt bàn / kệ', val: 'trên mặt bàn hoặc kệ' },
+                    ].map((item) => (
+                      <button
+                        key={item.val}
+                        type="button"
+                        className="button button-outline"
+                        style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem', borderRadius: '12px', lineHeight: 1.2 }}
+                        onClick={() => updatePosition(idOf(product), item.val)}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">Chọn sản phẩm ở Bước 1 để tiếp tục.</p>
+          )}
+          <button className="button" type="button" disabled={isGenerating || !roomImage || !selectedProducts.length} onClick={generate}>
+            {isGenerating ? 'Ảnh đang được tạo, bạn đợi xíu nghen ^_^' : 'Tạo ảnh'}
+          </button>
         </section>
       </div>
       <p className="studio-message" role="status">{message}</p>
       {roomImage && <section className="simple-room-compare" style={roomImageSize ? { '--room-ratio': `${roomImageSize.width} / ${roomImageSize.height}` } : undefined}>{resultImage && <figure><figcaption>Ảnh tạo</figcaption><img src={resultImage} alt="Kết quả thử sản phẩm" /></figure>}<figure><figcaption>Ảnh gốc</figcaption><img src={roomImage} alt="Ảnh phòng gốc" /></figure></section>}
+      {resultImage && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem' }}>
+          <button
+            type="button"
+            className="button"
+            onClick={downloadResult}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}
+          >
+            📥 Tải ảnh về máy
+          </button>
+        </div>
+      )}
     </main>
   );
 }

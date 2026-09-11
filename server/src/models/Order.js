@@ -22,18 +22,30 @@ const orderSchema = new mongoose.Schema({
     note: { type: String, default: '', trim: true },
   },
   paymentMethod: { type: String, enum: ['COD', 'BANK_TRANSFER'], default: 'COD' },
-  paymentStatus: { type: String, enum: ['Pending', 'Paid', 'Cancelled'], default: 'Pending' },
+  // Trạng thái thanh toán: Chờ thanh toán, Đã thanh toán, Chờ hoàn tiền (đơn trả về), Đã hoàn tiền (Admin đã CK trả), Đã hủy
+  paymentStatus: {
+    type: String,
+    enum: ['Pending', 'Paid', 'Refunding', 'Refunded', 'Cancelled'],
+    default: 'Pending',
+  },
+  // Trạng thái đơn hàng: Chờ xử lý, Đang chuẩn bị, Đang giao, Đã giao, Hoàn hàng, Đã hủy
   orderStatus: {
     type: String,
-    enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
+    enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Returned', 'Cancelled'],
     default: 'Pending',
   },
   subtotal: { type: Number, required: true, min: 0 },
   shippingFee: { type: Number, required: true, min: 0, default: 0 },
   totalAmount: { type: Number, required: true, min: 0 },
-  // Set in the same conditional update that changes status to Cancelled.
-  // This makes stock restoration idempotent without requiring Mongo transactions.
+  // Đánh dấu đã khôi phục tồn kho sản phẩm để tránh cộng trùng lặp
   stockRestored: { type: Boolean, default: false },
+  // Thông tin tài khoản ngân hàng khách hàng cung cấp để nhận tiền hoàn (chống gian lận quét mã QR lạ)
+  refundInfo: {
+    bankName: { type: String, default: '', trim: true },
+    accountNumber: { type: String, default: '', trim: true },
+    accountHolder: { type: String, default: '', trim: true },
+    updatedAt: { type: Date },
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', orderSchema);

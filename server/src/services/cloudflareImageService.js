@@ -31,36 +31,162 @@ function outputSize(imageSize = {}) {
   };
 }
 
+function cleanTitleForAi(name) {
+  if (!name) return 'furniture piece';
+  return String(name)
+    .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, ' ')
+    .replace(/\b(hàng sẵn|giá rẻ|cao cấp|chính hãng|đa năng|tiện lợi|bảo hành \d+ năm|số lượng lớn|hot|mẫu mới|sale|freeship)\b/gi, ' ')
+    .replace(/\b(aiodiy|boenin|sta|luxe|size \w+)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120);
+}
+
+function inferDimensionsAndPlacement(product) {
+  const existing = product.dimensionsCm || {};
+  const hasDimensions = Number(existing.width) > 0 || Number(existing.height) > 0;
+  if (hasDimensions) {
+    const dimensions = Object.entries(existing)
+      .filter(([, value]) => Number(value) > 0)
+      .map(([name, value]) => `${name} ${value} cm`)
+      .join(', ');
+    return {
+      dimensions,
+      placementSurface: product.placementSurface || 'floor',
+      usageType: product.usageType || 'standard',
+    };
+  }
+
+  const text = `${product.productName || ''} ${product.categoryName || ''}`.toLowerCase();
+  if (/sofa|ghế dài|đi-văng|couch/.test(text)) {
+    return {
+      dimensions: 'width 180 cm, depth 85 cm, height 80 cm',
+      placementSurface: 'floor',
+      usageType: 'standard',
+      spatialHint: 'Large living room sofa seating. Must sit firmly on the floor.',
+    };
+  }
+  if (/bàn trà|bàn bệt|bàn nhật|coffee table/.test(text)) {
+    return {
+      dimensions: 'width 90 cm, depth 55 cm, height 42 cm',
+      placementSurface: 'floor',
+      usageType: 'floor-seating',
+      spatialHint: 'Low coffee table placed on the floor or carpet.',
+    };
+  }
+  if (/bàn học gấp gọn|bàn để giường|bàn mini|khay/.test(text)) {
+    return {
+      dimensions: 'width 60 cm, depth 40 cm, height 28 cm',
+      placementSurface: 'tabletop',
+      usageType: 'standard',
+      spatialHint: 'Small portable mini lap desk. Keep it compact, not a large table.',
+    };
+  }
+  if (/bàn làm việc|bàn học|bàn ăn|desk|dining table/.test(text)) {
+    return {
+      dimensions: 'width 120 cm, depth 60 cm, height 75 cm',
+      placementSurface: 'floor',
+      usageType: 'standard',
+      spatialHint: 'Standard height desk or table.',
+    };
+  }
+  if (/ghế|chair|armchair/.test(text)) {
+    return {
+      dimensions: 'width 60 cm, depth 60 cm, height 90 cm',
+      placementSurface: 'floor',
+      usageType: 'standard',
+      spatialHint: 'Single person chair seating.',
+    };
+  }
+  if (/kệ|tủ|giá sách|shelf|rack|cabinet|wardrobe/.test(text)) {
+    return {
+      dimensions: 'width 90 cm, depth 35 cm, height 140 cm',
+      placementSurface: 'floor',
+      usageType: 'standard',
+      spatialHint: 'Vertical storage unit placed against a wall.',
+    };
+  }
+  if (/cây|hoa|đèn bàn|bình|bonsai|chậu|decor|trang trí/.test(text)) {
+    return {
+      dimensions: 'width 25 cm, depth 25 cm, height 35 cm',
+      placementSurface: 'tabletop',
+      usageType: 'standard',
+      spatialHint: 'Small decorative tabletop item. Do not make it giant. Must rest on a desk, shelf or countertop.',
+    };
+  }
+  if (/tranh|gương treo|kệ treo/.test(text)) {
+    return {
+      dimensions: 'width 60 cm, depth 5 cm, height 80 cm',
+      placementSurface: 'wall',
+      usageType: 'standard',
+      spatialHint: 'Wall-mounted decor.',
+    };
+  }
+
+  return {
+    dimensions: 'width 80 cm, depth 50 cm, height 75 cm',
+    placementSurface: product.placementSurface || 'floor',
+    usageType: product.usageType || 'standard',
+    spatialHint: 'Standard interior furniture.',
+  };
+}
+
+function mapPositionToEnglish(pos) {
+  if (!pos) return '';
+  const text = String(pos).toLowerCase().trim();
+  const directives = [];
+  if (/cửa sổ|ban công|window|balcony/.test(text)) directives.push('Place next to or directly under the window, catching natural daylight.');
+  if (/góc|corner/.test(text)) directives.push('Place neatly in the corner of the room flush against the walls.');
+  if (/giữa phòng|chính giữa|trung tâm|center|middle/.test(text)) directives.push('Place prominently in the open center floor area of the room.');
+  if (/sát tường bên trái|tường trái|left wall/.test(text)) {
+    directives.push('Place flat and completely flush against the left wall, squarely grounded on the floor with zero gap behind.');
+  } else if (/sát tường bên phải|tường phải|right wall/.test(text)) {
+    directives.push('Place flat and completely flush against the right wall, squarely grounded on the floor with zero gap behind.');
+  } else if (/sát tường|cạnh tường|vách tường|against.*wall/.test(text)) {
+    directives.push('Place flat and completely flush against the wall surface with zero gap behind.');
+  }
+  if (/bên trái|phía trái|left/.test(text) && !/sát tường bên trái|tường trái/.test(text)) directives.push('Position on the left side of the room view.');
+  if (/bên phải|phía phải|right/.test(text) && !/sát tường bên phải|tường phải/.test(text)) directives.push('Position on the right side of the room view.');
+  if (/trên bàn|mặt bàn|trên kệ|tabletop|on.*shelf/.test(text)) directives.push('Place directly resting on top of a table, desk, or shelf surface.');
+  if (/cửa ra vào|lối đi|door|entrance/.test(text)) directives.push('Place near the entrance without blocking the walking path.');
+  if (/cạnh giường|đầu giường|bed/.test(text)) directives.push('Place beside the bed as a bedside unit.');
+  return directives.length ? directives.join(' ') : `Place specifically at location: "${pos}".`;
+}
+
 function productPrompt(product, index) {
-  const dimensions = Object.entries(product.dimensionsCm || {})
-    .filter(([, value]) => Number(value) > 0)
-    .map(([name, value]) => `${name} ${value} cm`)
-    .join(', ');
-  const usage = product.usageType === 'floor-seating'
-    ? 'It is low furniture for floor seating; keep it low and do not add a chair.'
+  const cleanTitle = cleanTitleForAi(product.productName);
+  const inferred = inferDimensionsAndPlacement(product);
+  const dimensions = inferred.dimensions;
+  const placement = inferred.placementSurface;
+  const usage = inferred.usageType === 'floor-seating'
+    ? 'It is low furniture for floor seating; keep it low and do not add high chair legs.'
     : '';
   const support = {
-    floor: 'It must stand naturally on the floor.',
-    wall: 'It must be mounted naturally on the wall.',
-    tabletop: 'It must rest naturally on an existing tabletop or shelf.',
-  }[product.placementSurface] || '';
+    floor: 'It must stand firmly on the floor with all support legs completely visible and clear contact shadows under each leg.',
+    wall: 'It must be mounted flat on the wall.',
+    tabletop: 'It must rest naturally on top of an existing table, desk or shelf surface.',
+  }[placement] || '';
+
+  const positionDirective = product.desiredPosition
+    ? `USER-REQUESTED TARGET POSITION: "${product.desiredPosition}". Directive: ${mapPositionToEnglish(product.desiredPosition)} This user-specified placement is MANDATORY. Place product ${index + 1} at this exact spot. If an existing movable object is there, replace only that item. Keep all architectural fixtures unchanged.`
+    : 'No specific position was requested. Choose a balanced empty floor area away from doors and walking paths.';
+
   const specifications = (product.specifications || [])
     .map((item) => `${item.name}: ${item.value}`)
     .join(', ');
 
   return [
-    `Product ${index + 1}: ${JSON.stringify(product.productName)}.`,
-    product.desiredPosition
-      ? `USER-REQUESTED POSITION FOR PRODUCT ${index + 1}: ${JSON.stringify(product.desiredPosition)}. This location has highest priority. Place the product there. If a movable item occupies that exact spot, replace only that item. Keep every other object and all fixed structures unchanged.`
-      : 'No position was requested. Choose a balanced empty area away from stairs, doors and walking paths. Do not use the space beside or in front of stairs as the default.',
-    `Reference image ${index + 2} is this exact product. Preserve its silhouette, color, material, proportions, legs, shelves, doors, handles and supports.`,
+    `Product ${index + 1}: ${JSON.stringify(cleanTitle)}.`,
+    positionDirective,
+    `Reference image ${index + 2} is this exact product. Preserve its silhouette, color, material, proportions, legs, handles and supports.`,
+    'Structural integrity: All support legs, frame members, and feet must be completely rendered, fully intact, and firmly touching the floor. Never omit, cut off, or blend legs into walls.',
     product.categoryName ? `Category: ${product.categoryName}.` : '',
-    product.description ? `Description: ${product.description}.` : '',
-    specifications ? `Specifications: ${specifications}.` : '',
-    dimensions ? `Known dimensions: ${dimensions}.` : '',
+    dimensions ? `Real-world dimensions: ${dimensions}.` : '',
+    inferred.spatialHint || '',
     usage,
     support,
-    product.aiDescription ? `Product detail: ${product.aiDescription}.` : '',
+    specifications ? `Specifications: ${specifications}.` : '',
+    product.aiDescription ? `Detail: ${product.aiDescription}.` : '',
   ].filter(Boolean).join(' ');
 }
 
@@ -69,10 +195,12 @@ function buildPrompt(input) {
     'Create one photorealistic edit of the original room in image 1.',
     `Add exactly ${input.products.length} selected product${input.products.length > 1 ? 's' : ''}, using the following reference images in order.`,
     ...input.products.map(productPrompt),
-    'Keep image 1 as the unchanged base photo. Preserve its camera, framing, walls, floor, ceiling, doors, windows, stairs, bathroom, fixed fixtures, room shape and existing objects.',
-    'For a product without a requested position, add it only to empty space. For a product with a requested position, the user request has highest priority and only a movable object occupying that exact place may be replaced. Do not alter anything else.',
-    'Place every selected product exactly once. Interpret each requested position separately and do not copy one product position to another product.',
-    'Match perspective, real product dimensions, lighting and contact shadows. Do not add unselected furniture, duplicate a product, add text, logos or watermarks.',
+    'Keep image 1 as the unchanged base photo. Preserve its camera, framing, walls, floor, ceiling, doors, windows, stairs, fixed fixtures, room shape and existing objects.',
+    'For products with a requested position, place them strictly at the user-specified locations. When placed against a wall, align the back of the furniture squarely and flush with the wall.',
+    'Place every selected product exactly once.',
+    'Structural completeness: Ensure all furniture legs and frames are 100% complete and fully visible, with contact shadows on floor tiles.',
+    'Ground all furniture scale using standard room proportions (doors ~200cm tall, ceilings ~270cm, floor tiles ~40-60cm). Match perspective and ambient lighting.',
+    'Negative constraints: Do not distort walls or architectural lines. Do not omit furniture legs. Do not change product color or style. Do not add unselected furniture, extra humans, pets, text or watermarks.',
     'Return only the finished room image.',
   ].filter(Boolean).join(' ');
 }

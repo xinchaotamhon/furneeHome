@@ -17,7 +17,22 @@ function localOtpAllowed(req) { return !env.isProduction && env.authOtpDevMode &
 
 async function sendOtp(email, otp, subject, text) {
   const transport = nodemailer.createTransport({ host: env.smtpHost, port: env.smtpPort, secure: env.smtpSecure, auth: { user: env.smtpUser, pass: env.smtpPass } });
-  await transport.sendMail({ from: env.smtpFrom, to: email, subject, text: `${text} ${otp}. Mã có hiệu lực trong 10 phút.` });
+  await transport.sendMail({
+    from: env.smtpFrom,
+    to: email,
+    subject,
+    text: `${text} ${otp}. Mã có hiệu lực trong 10 phút.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
+        <h2 style="color: #17583f; margin-top: 0;">FurneeHome</h2>
+        <p style="font-size: 15px; color: #333;">${text}:</p>
+        <div style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #17583f; padding: 16px 0; text-align: center; background: #f4f8f6; border-radius: 6px; margin: 16px 0;">
+          ${otp}
+        </div>
+        <p style="font-size: 13px; color: #777;">Mã xác minh có hiệu lực trong 10 phút. Vui lòng không chia sẻ mã này cho bất kỳ ai.</p>
+      </div>
+    `,
+  });
 }
 
 function userData(user) {
@@ -63,11 +78,15 @@ async function registerRequest(req, res, next) {
     user.registrationOtpExpiresAt = new Date(Date.now() + OTP_TTL_MS);
     user.registrationOtpAttempts = 0;
     await user.save();
-    if (smtpConfigured()) await sendOtp(email, otp, 'Mã xác minh FurneeHome', 'Mã xác minh email FurneeHome của bạn là');
 
     const data = { email };
-    if (localOtpAllowed(req)) data.devOtp = otp;
-    return res.status(202).json({ success: true, message: 'Mã xác minh đã được gửi.', data });
+    if (smtpConfigured()) {
+      await sendOtp(email, otp, 'Mã xác minh FurneeHome', 'Mã xác minh email FurneeHome của bạn là');
+    } else if (localOtpAllowed(req)) {
+      data.devOtp = otp;
+    }
+
+    return res.status(202).json({ success: true, message: 'Mã xác minh đã được gửi về Gmail của bạn.', data });
   } catch (error) { return next(error); }
 }
 

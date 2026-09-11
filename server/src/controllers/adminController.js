@@ -67,8 +67,8 @@ async function updateUser(req, res, next) {
       if (typeof req.body.isActive !== 'boolean') {
         return res.status(400).json({ success: false, message: 'Trạng thái tài khoản không hợp lệ.', data: null });
       }
-      if (req.user.role === 'admin' && user.role !== 'customer') {
-        return res.status(403).json({ success: false, message: 'Admin chỉ được khóa hoặc mở khóa khách hàng.', data: null });
+      if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ success: false, message: 'Chỉ Orchestra Admin mới có quyền khóa hoặc mở khóa tài khoản.', data: null });
       }
       user.isActive = req.body.isActive;
     }

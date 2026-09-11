@@ -19,7 +19,7 @@ module.exports = {
   cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
   cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN,
   cloudflareImageModel: process.env.CLOUDFLARE_IMAGE_MODEL || '@cf/black-forest-labs/flux-2-klein-4b',
-  roomImageProviderOrder: process.env.ROOM_IMAGE_PROVIDER_ORDER || 'pollinations,cloudflare',
+  roomImageProviderOrder: process.env.ROOM_IMAGE_PROVIDER_ORDER || 'cloudflare,pollinations',
   pollinationsApiKey: process.env.POLLINATIONS_API_KEY,
   pollinationsImageModels: process.env.POLLINATIONS_IMAGE_MODELS || 'gpt-image-2,gptimage-large',
   smtpHost: process.env.SMTP_HOST,

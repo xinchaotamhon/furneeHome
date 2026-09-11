@@ -339,6 +339,14 @@ export default function CheckoutPage() {
                 </div>
               </label>
             </div>
+
+            {/* Thông báo chính sách đồng kiểm */}
+            <div style={{ marginTop: '16px', padding: '12px 16px', background: '#f0f9f4', border: '1px solid #d1ebd6', borderRadius: '8px', fontSize: '0.88rem', color: '#17583f', display: 'flex', alignItems: 'flex-start', gap: '10px', lineHeight: 1.5 }}>
+              <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>📦</span>
+              <div>
+                <strong>Chính sách nhận hàng:</strong> FurneeHome hỗ trợ đồng kiểm. Quý khách khi nhận hàng được phép mở xem sản phẩm cùng shipper trước khi nhận hoặc thanh toán.
+              </div>
+            </div>
           </div>
         </section>
 

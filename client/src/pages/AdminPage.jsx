@@ -18,8 +18,9 @@ const emptyForm = {
 const ORDER_TRANSITIONS = {
   Pending: ['Processing', 'Cancelled'],
   Processing: ['Shipped', 'Cancelled'],
-  Shipped: ['Delivered'],
+  Shipped: ['Delivered', 'Returned'], // Khách đồng kiểm: nhận hàng (Delivered) hoặc hoàn hàng (Returned)
   Delivered: [],
+  Returned: [],
   Cancelled: [],
 };
 const ORDER_LABELS = {
@@ -27,6 +28,7 @@ const ORDER_LABELS = {
   Processing: 'Đang chuẩn bị',
   Shipped: 'Đang giao',
   Delivered: 'Đã giao',
+  Returned: 'Hoàn hàng',
   Cancelled: 'Đã hủy',
 };
 const FEEDBACK_TRANSITIONS = {
@@ -87,6 +89,8 @@ function provinceName(code) {
 }
 
 function paymentLabel(order) {
+  if (order.paymentStatus === 'Refunding') return 'Chờ hoàn tiền';
+  if (order.paymentStatus === 'Refunded') return 'Đã hoàn tiền';
   if (order.orderStatus === 'Cancelled' && order.paymentStatus !== 'Paid') return 'Đã hủy';
   return order.paymentStatus === 'Paid' ? 'Đã thanh toán' : 'Chờ thanh toán';
 }
@@ -116,7 +120,7 @@ function downloadInvoice(order) {
 
   const html = `<!doctype html>
   <html lang="vi"><head><meta charset="utf-8"><title>Hóa đơn ${safeText(orderCode)}</title>
-  <style>body{max-width:800px;margin:40px auto;font:16px Arial;color:#202820}h1{color:#17583f}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{padding:10px;border:1px solid #ccd5ce;text-align:left}.total{text-align:right;font-size:20px}small{color:#667}</style>
+  <style>body{max-width:800px;margin:40px auto;font:16px Arial;color:#202820}h1{color:#17583f}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{padding:10px;border:1px solid #ccd5ce;text-align:left}.total{text-align:right;font-size:20px}.note-box{margin-top:16px;padding:12px 14px;background:#f0fdf4;border-left:4px solid #17583f;font-size:14px;border-radius:4px}small{color:#667}</style>
   </head><body>
     <h1>FurneeHome</h1>
     <h2>Hóa đơn ${safeText(orderCode)}</h2>
@@ -128,7 +132,8 @@ function downloadInvoice(order) {
     <p>Tiền hàng: ${formatPrice(order.subtotal)}</p>
     <p>Phí vận chuyển: ${formatPrice(order.shippingFee)}</p>
     <p class="total"><strong>Tổng cộng: ${formatPrice(order.totalAmount)}</strong></p>
-    <small>Trạng thái: ${safeText(ORDER_LABELS[order.orderStatus] || order.orderStatus)} · ${safeText(paymentLabel(order))}</small>
+    <div class="note-box"><strong>📦 Chính sách nhận hàng:</strong> Khách hàng khi nhận hàng được phép mở xem kiểm tra hàng (đồng kiểm) trước khi nhận/thanh toán.</div>
+    <p style="margin-top:12px"><small>Trạng thái: ${safeText(ORDER_LABELS[order.orderStatus] || order.orderStatus)} · ${safeText(paymentLabel(order))}</small></p>
   </body></html>`;
 
   const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
@@ -141,11 +146,23 @@ function downloadInvoice(order) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function CustomerModal({ account, onClose }) {
+function CustomerModal({ account, orders = [], onSelectOrder, onClose }) {
   if (!account) return null;
+  const historyOrders = useMemo(() => {
+    if (!account || !orders) return [];
+    const accId = account._id || account.id;
+    const accPhone = account.phone;
+    return orders.filter((ord) => {
+      const ordUserId = ord.user?._id || ord.user;
+      if (accId && ordUserId && String(ordUserId) === String(accId)) return true;
+      if (accPhone && accPhone !== 'Chưa cập nhật' && ord.shippingAddress?.phone === accPhone) return true;
+      return false;
+    });
+  }, [account, orders]);
+
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
-      <section className="modal-dialog admin-detail-modal" role="dialog" aria-modal="true" aria-labelledby="customer-title" onMouseDown={(event) => event.stopPropagation()}>
+      <section className="modal-dialog admin-detail-modal" role="dialog" aria-modal="true" aria-labelledby="customer-title" onMouseDown={(event) => event.stopPropagation()} style={{ maxWidth: '680px', maxHeight: '90vh', overflowY: 'auto' }}>
         <header className="modal-header">
           <h2 id="customer-title">Hồ sơ khách hàng</h2>
           <button className="btn-close" type="button" aria-label="Đóng" onClick={onClose}>×</button>
@@ -164,6 +181,51 @@ function CustomerModal({ account, onClose }) {
           <p><span>Trạng thái hồ sơ</span><strong>{profileIsComplete(account) ? 'Đã đủ thông tin' : 'Chưa đủ thông tin'}</strong></p>
           <p><span>Trạng thái tài khoản</span><strong>{account.isActive ? 'Đang hoạt động' : 'Đã khóa'}</strong></p>
         </div>
+
+        {historyOrders.length > 0 && (
+          <div className="customer-order-history" style={{ marginTop: '20px', borderTop: '1px solid #e5e5e0', paddingTop: '16px' }}>
+            <h3 style={{ fontSize: '1rem', marginBottom: '10px', color: 'var(--color-primary, #17583f)' }}>
+              Lịch sử đặt hàng ({historyOrders.length} đơn)
+            </h3>
+            <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '6px' }}>
+              <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', background: '#f9f9f8', borderBottom: '1px solid #ddd' }}>
+                    <th style={{ padding: '8px 10px' }}>Mã đơn</th>
+                    <th style={{ padding: '8px 10px' }}>Ngày đặt</th>
+                    <th style={{ padding: '8px 10px' }}>Tổng tiền</th>
+                    <th style={{ padding: '8px 10px' }}>Trạng thái</th>
+                    <th style={{ padding: '8px 10px' }}>Chi tiết</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historyOrders.map((ord) => (
+                    <tr key={ord._id} style={{ borderBottom: '1px solid #f0f0ed' }}>
+                      <td style={{ padding: '8px 10px' }}><strong>{ord.orderNumber || String(ord._id).slice(-8).toUpperCase()}</strong></td>
+                      <td style={{ padding: '8px 10px' }}>{formatDate(ord.createdAt)}</td>
+                      <td style={{ padding: '8px 10px' }}>{formatPrice(ord.totalAmount)}</td>
+                      <td style={{ padding: '8px 10px' }}>{ORDER_LABELS[ord.orderStatus] || ord.orderStatus}</td>
+                      <td style={{ padding: '8px 10px' }}>
+                        <button
+                          type="button"
+                          className="text-button"
+                          style={{ padding: '2px 8px', fontSize: '0.8rem' }}
+                          onClick={() => {
+                            onClose();
+                            onSelectOrder?.(ord);
+                          }}
+                        >
+                          Xem đơn
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         <footer className="modal-footer"><button className="text-button" type="button" onClick={onClose}>Đóng</button></footer>
       </section>
     </div>
@@ -200,6 +262,106 @@ function InvoiceModal({ order, onClose }) {
             <div className="row"><span>Phí vận chuyển</span><strong>{formatPrice(order.shippingFee)}</strong></div>
             <div className="row total"><span>Tổng cộng</span><strong>{formatPrice(order.totalAmount)}</strong></div>
           </div>
+
+          <div style={{ marginTop: '14px', padding: '10px 12px', background: '#f6fbf7', border: '1px solid #d1ebd6', borderRadius: '6px', fontSize: '0.85rem', color: '#17583f' }}>
+            📦 <strong>Chính sách giao nhận:</strong> Cho phép khách hàng mở xem kiểm tra hàng khi nhận (đồng kiểm).
+          </div>
+
+          {order.paymentStatus === 'Refunding' && (
+            <div style={{ marginTop: '12px', padding: '14px', background: '#fffaf0', border: '1px solid #feebc8', borderRadius: '8px', fontSize: '0.88rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '1.2rem' }}>🛡️</span>
+                <strong style={{ color: '#9a3412', fontSize: '0.95rem' }}>
+                  Thông tin hoàn tiền an toàn (Phòng chống mã QR lừa đảo)
+                </strong>
+              </div>
+
+              {order.refundInfo?.accountNumber ? (
+                <div style={{ background: '#fff', padding: '12px', borderRadius: '6px', border: '1px solid #fed7aa' }}>
+                  <p style={{ margin: '4px 0', color: '#7c2d12' }}>
+                    Ngân hàng: <strong>{order.refundInfo.bankName}</strong>
+                  </p>
+                  <p style={{ margin: '4px 0', color: '#7c2d12', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    Số tài khoản: <strong style={{ fontSize: '1rem', color: '#0f172a' }}>{order.refundInfo.accountNumber}</strong>
+                    <button
+                      type="button"
+                      className="text-button"
+                      style={{ padding: '1px 6px', fontSize: '0.8rem', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                      onClick={() => {
+                        navigator.clipboard.writeText(order.refundInfo.accountNumber);
+                        alert('Đã sao chép số tài khoản!');
+                      }}
+                    >
+                      📋 Sao chép STK
+                    </button>
+                  </p>
+                  <p style={{ margin: '4px 0', color: '#7c2d12' }}>
+                    Chủ tài khoản: <strong>{order.refundInfo.accountHolder}</strong>
+                  </p>
+                  <p style={{ margin: '4px 0', color: '#7c2d12', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    Số tiền cần hoàn: <strong style={{ fontSize: '1.05rem', color: '#c2410c' }}>{formatPrice(order.totalAmount)}</strong>
+                    <button
+                      type="button"
+                      className="text-button"
+                      style={{ padding: '1px 6px', fontSize: '0.8rem', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                      onClick={() => {
+                        navigator.clipboard.writeText(String(order.totalAmount));
+                        alert('Đã sao chép số tiền!');
+                      }}
+                    >
+                      📋 Sao chép số tiền
+                    </button>
+                  </p>
+                  <p style={{ margin: '6px 0 10px', color: '#7c2d12', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    Nội dung chuyển khoản:{' '}
+                    <strong style={{ background: '#fef08a', color: '#854d0e', padding: '2px 8px', borderRadius: '4px', letterSpacing: '0.5px' }}>
+                      {`HOAN TIEN ${order.orderNumber || String(order._id).slice(-8).toUpperCase()}`}
+                    </strong>
+                    <button
+                      type="button"
+                      className="text-button"
+                      style={{ padding: '1px 6px', fontSize: '0.8rem', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                      onClick={() => {
+                        navigator.clipboard.writeText(`HOAN TIEN ${order.orderNumber || String(order._id).slice(-8).toUpperCase()}`);
+                        alert('Đã sao chép nội dung chuyển khoản!');
+                      }}
+                    >
+                      📋 Sao chép nội dung
+                    </button>
+                  </p>
+
+                  <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #fdba74', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <img
+                      src={`https://img.vietqr.io/image/${encodeURIComponent(order.refundInfo.bankName.split(' ')[0] || 'VCB')}-${order.refundInfo.accountNumber}-compact.png?amount=${order.totalAmount}&addInfo=${encodeURIComponent(`HOAN TIEN ${order.orderNumber || String(order._id).slice(-8).toUpperCase()}`)}&accountName=${encodeURIComponent(order.refundInfo.accountHolder)}`}
+                      alt="VietQR hoàn tiền an toàn"
+                      style={{ width: '110px', height: '110px', objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#fff' }}
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                    <div style={{ fontSize: '0.82rem', color: '#475569', lineHeight: 1.4 }}>
+                      <strong style={{ color: '#15803d' }}>✓ Mã VietQR hệ thống tự sinh an toàn:</strong>
+                      <p style={{ margin: '3px 0' }}>Admin có thể mở app ngân hàng quét mã này để chuyển khoản ngay. Mã do hệ thống FurneeHome tự sinh từ thông tin text của khách, không quét bất kỳ mã QR lạ nào từ bên ngoài.</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ background: '#fff', padding: '10px 12px', borderRadius: '6px', border: '1px solid #fed7aa', color: '#b45309' }}>
+                  ⏳ <strong>Khách hàng chưa cung cấp số tài khoản trên hệ thống.</strong>
+                  <p style={{ margin: '4px 0 0' }}>Quản trị viên vui lòng liên hệ khách hàng qua SĐT: <strong>{order.shippingAddress?.phone}</strong> hoặc chờ khách truy cập vào trang Lịch sử đơn hàng để điền thông tin.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {order.paymentStatus === 'Refunded' && (
+            <div style={{ marginTop: '10px', padding: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', fontSize: '0.88rem', color: '#166534' }}>
+              <strong style={{ fontSize: '0.92rem' }}>✓ Đã hoàn tiền thành công:</strong>
+              {order.refundInfo?.accountNumber && (
+                <p style={{ margin: '4px 0 0', fontSize: '0.84rem' }}>
+                  Tài khoản nhận: <strong>{order.refundInfo.bankName}</strong> · STK: <strong>{order.refundInfo.accountNumber}</strong> ({order.refundInfo.accountHolder}) · ND: <code>HOAN TIEN {order.orderNumber}</code>
+                </p>
+              )}
+            </div>
+          )}
         </div>
         <footer className="modal-footer">
           <button className="text-button" type="button" onClick={onClose}>Đóng</button>
@@ -377,6 +539,25 @@ export default function AdminPage() {
     try { await feedbackService.updateAdmin(id, { status }); await loadFeedback(); setNotice('Đã cập nhật báo cáo.'); } catch (updateError) { setError(messageFrom(updateError)); setWorking(false); }
   }
 
+  function openCustomerFromOrder(order) {
+    const userObj = order.user && typeof order.user === 'object' ? order.user : {};
+    const account = {
+      ...userObj,
+      _id: userObj._id || order.user,
+      name: userObj.name || order.shippingAddress?.fullName || 'Khách hàng',
+      phone: userObj.phone || order.shippingAddress?.phone || 'Chưa cập nhật',
+      email: userObj.email || 'Chưa cập nhật',
+      address: userObj.address || order.shippingAddress?.address || 'Chưa cập nhật',
+      districtName: userObj.districtName || '',
+      wardName: userObj.wardName || '',
+      provinceCode: userObj.provinceCode ?? null,
+      deliveryNote: userObj.deliveryNote || order.deliveryNote || '',
+      isActive: userObj.isActive !== false,
+      createdAt: userObj.createdAt || order.createdAt,
+    };
+    setSelectedCustomer(account);
+  }
+
   return <main className="container page admin-page">
     <div className="page-heading"><h1>Quản trị</h1></div>
     <nav className="admin-tabs" aria-label="Nội dung quản trị">
@@ -449,7 +630,7 @@ export default function AdminPage() {
                   <button className={active ? 'admin-delete' : 'admin-edit'} type="button" onClick={() => changeProductStatus(product)}>
                     {active ? 'Ngừng bán' : 'Bán lại'}
                   </button>
-                  <button className="admin-delete" type="button" onClick={() => deleteForever(product)}>Xóa</button>
+                  {isSuperadmin && <button className="admin-delete" type="button" onClick={() => deleteForever(product)}>Xóa</button>}
                 </div>
               </article>
             );
@@ -477,14 +658,16 @@ export default function AdminPage() {
                   </span>
                   <div className="row-actions">
                     <button className="admin-edit" type="button" onClick={() => setSelectedCustomer(account)}>Xem hồ sơ</button>
-                    <button
-                      type="button"
-                      className={account.isActive ? 'admin-delete' : 'admin-edit'}
-                      onClick={() => updateAccount(id, { isActive: !account.isActive })}
-                      disabled={isWorking}
-                    >
-                      {account.isActive ? 'Khóa' : 'Mở khóa'}
-                    </button>
+                    {isSuperadmin && (
+                      <button
+                        type="button"
+                        className={account.isActive ? 'admin-delete' : 'admin-edit'}
+                        onClick={() => updateAccount(id, { isActive: !account.isActive })}
+                        disabled={isWorking}
+                      >
+                        {account.isActive ? 'Khóa' : 'Mở khóa'}
+                      </button>
+                    )}
                   </div>
                 </article>
               );
@@ -508,21 +691,74 @@ export default function AdminPage() {
                 {orders.map((order) => {
                   const isBank = order.paymentMethod === 'BANK_TRANSFER';
                   const paid = order.paymentStatus === 'Paid';
-                  const canConfirmPayment = order.orderStatus !== 'Cancelled' && !paid && (isBank || order.orderStatus === 'Delivered');
-                  const nextStates = isSuperadmin && order.orderStatus !== 'Cancelled'
-                    ? ['Pending', 'Processing', 'Shipped', 'Delivered']
+                  const isRefunding = order.paymentStatus === 'Refunding';
+                  const canConfirmPayment = !['Cancelled', 'Returned'].includes(order.orderStatus) && !paid && (isBank || order.orderStatus === 'Delivered');
+                  const canConfirmRefund = isRefunding;
+                  const nextStates = isSuperadmin && !['Cancelled', 'Returned'].includes(order.orderStatus)
+                    ? ['Pending', 'Processing', 'Shipped', 'Delivered', 'Returned']
                     : (ORDER_TRANSITIONS[order.orderStatus] || []);
 
                   return (
                     <tr key={order._id}>
                       <td><strong>{order.orderNumber || String(order._id).slice(-8).toUpperCase()}</strong></td>
-                      <td>{order.shippingAddress?.fullName}<br /><small>{order.shippingAddress?.phone}</small></td>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() => openCustomerFromOrder(order)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            font: 'inherit',
+                          }}
+                          title="Bấm để xem hồ sơ và lịch sử khách hàng"
+                        >
+                          <strong style={{ color: 'var(--color-primary, #17583f)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>
+                            {order.shippingAddress?.fullName || 'Khách hàng'}
+                          </strong>
+                          <br />
+                          <small style={{ color: 'var(--color-muted, #667)' }}>{order.shippingAddress?.phone}</small>
+                        </button>
+                      </td>
                       <td>{(order.orderItems || []).map((item) => `${item.name} × ${item.qty ?? item.quantity}`).join(', ')}</td>
                       <td><strong>{formatPrice(order.totalAmount)}</strong></td>
                       <td><span className={`payment-badge ${isBank ? 'bank' : 'cod'}`}>{isBank ? 'Chuyển khoản QR' : 'COD'}</span></td>
                       <td>
-                        <span>{paymentLabel(order)}</span>
-                        {canConfirmPayment && <button className="text-button admin-payment-button" type="button" disabled={isWorking} onClick={() => updateOrder(order._id, { paymentStatus: 'Paid' })}>Xác nhận thanh toán</button>}
+                        <span
+                          style={{
+                            color: order.paymentStatus === 'Refunding' ? '#c05621' : order.paymentStatus === 'Refunded' ? '#276749' : 'inherit',
+                            fontWeight: ['Refunding', 'Refunded'].includes(order.paymentStatus) ? 600 : 'normal',
+                          }}
+                        >
+                          {paymentLabel(order)}
+                        </span>
+                        {canConfirmPayment && (
+                          <button className="text-button admin-payment-button" type="button" disabled={isWorking} onClick={() => updateOrder(order._id, { paymentStatus: 'Paid' })}>
+                            Xác nhận thanh toán
+                          </button>
+                        )}
+                        {canConfirmRefund && (
+                          <button
+                            className="text-button admin-payment-button"
+                            style={{ color: '#c05621', fontWeight: 600, display: 'block', marginTop: '4px' }}
+                            type="button"
+                            disabled={isWorking}
+                            title="Bấm sau khi đã chuyển khoản trả lại tiền cho khách"
+                            onClick={() => {
+                              const orderCode = order.orderNumber || String(order._id).slice(-8).toUpperCase();
+                              const msg = order.refundInfo?.accountNumber
+                                ? `Xác nhận bạn đã chuyển khoản hoàn lại ${formatPrice(order.totalAmount)} về STK ${order.refundInfo.accountNumber} (${order.refundInfo.bankName} - ${order.refundInfo.accountHolder}) với nội dung "HOAN TIEN ${orderCode}"?`
+                                : `Khách hàng chưa nhập STK trên hệ thống. Bạn có chắc chắn là đã liên hệ (SĐT: ${order.shippingAddress?.phone}) và chuyển khoản hoàn lại ${formatPrice(order.totalAmount)} rồi?`;
+                              if (window.confirm(msg)) {
+                                updateOrder(order._id, { paymentStatus: 'Refunded' });
+                              }
+                            }}
+                          >
+                            ✓ Xác nhận đã hoàn tiền
+                          </button>
+                        )}
                       </td>
                       <td>
                         {nextStates.length ? (
@@ -590,7 +826,12 @@ export default function AdminPage() {
 
     {isSuperadmin && tab === 'admins' && <section className="panel-card admin-table-card"><div className="section-title"><h2>Quản trị admin ({visibleAdmins.length})</h2><button className="text-button" type="button" onClick={() => loadUsers('admins')}>Tải lại</button></div><input className="admin-search" type="search" value={adminQuery} placeholder="Tìm tên, tên đăng nhập hoặc email" onChange={(event) => setAdminQuery(event.target.value)} />{isWorking && !adminAccounts.length ? <p className="muted">Đang tải…</p> : <div className="admin-user-list">{visibleAdmins.map((account) => { const id = account._id || account.id; const orchestra = account.role === 'superadmin'; return <article key={id}><div><strong>{account.name}</strong><span>{account.username ? `@${account.username} · ` : ''}{account.email}</span></div><span className="admin-role">{orchestra ? 'Orchestra Admin' : 'Admin'}</span>{orchestra ? <span /> : <button type="button" className={account.isActive ? 'admin-delete' : 'admin-edit'} onClick={() => updateAccount(id, { isActive: !account.isActive })} disabled={isWorking}>{account.isActive ? 'Khóa' : 'Mở khóa'}</button>}</article>; })}</div>}</section>}
 
-    <CustomerModal account={selectedCustomer} onClose={() => setSelectedCustomer(null)} />
+    <CustomerModal
+      account={selectedCustomer}
+      orders={orders}
+      onSelectOrder={(order) => setSelectedOrder(order)}
+      onClose={() => setSelectedCustomer(null)}
+    />
     <InvoiceModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
   </main>;
 }
