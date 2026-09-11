@@ -208,3 +208,6 @@ business logic. Không tải `.env` lên Git hoặc lên thư mục public.
 - Địa chỉ: 71/5 Huỳnh Tấn Phát, Ấp 31, Xã Nhà Bè, TP.HCM
 - Điện thoại và Zalo: 0372 208 100
 - Email: furneehome@gmail.com
+
+## Video demo
+- https://drive.google.com/file/d/1Ntp8gdQ_keOf11q83Z6pEp5bBe3xags1/view?usp=sharing
